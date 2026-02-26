@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test AI Intelligence Data Loading</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>AI Intelligence Data Test</h1>
+  <div id="output"></div>
+
+  <script>
+    const supabaseUrl = 'YOUR_SUPABASE_URL';
+    const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+
+    // Read from .env if possible
+    async function test() {
+      const output = document.getElementById('output');
+
+      try {
+        output.innerHTML += '<p>Testing with casino ID: 11111111-1111-1111-1111-111111111111</p>';
+
+        // Test 1: Direct query
+        const response = await fetch(supabaseUrl + '/rest/v1/ai_reason_stacks?casino_id=eq.11111111-1111-1111-1111-111111111111&select=*,players(id,first_name,last_name,player_id)&order=created_at.desc&limit=5', {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': 'Bearer ' + supabaseKey
+          }
+        });
+
+        const data = await response.json();
+        output.innerHTML += '<h2>Reason Stacks:</h2>';
+        output.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+
+      } catch (error) {
+        output.innerHTML += '<p style="color: red;">Error: ' + error.message + '</p>';
+      }
+    }
+
+    // Run test on load
+    test();
+  </script>
+</body>
+</html>
