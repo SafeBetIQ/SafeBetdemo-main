@@ -47,15 +47,7 @@ export default function MainNavigation() {
                   >
                     Behavioral Risk Intelligence
                   </Link>
-                  <Link
-                    href="/guardianlayer"
-                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
-                  >
-                    <span className="flex items-center gap-2">
-                      GuardianLayer
-                      <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded">NEW</span>
-                    </span>
-                  </Link>
+
                 </div>
               </div>
             </div>
