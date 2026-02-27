@@ -43,6 +43,10 @@ import {
   ArrowRight,
   Send,
   Plug,
+  Gamepad2,
+  HeartPulse,
+  TrendingDown,
+  Minus,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -63,6 +67,8 @@ export default function CasinoDashboardPage() {
   const [revenueData, setRevenueData] = useState<any>(null);
   const [protectionEvents, setProtectionEvents] = useState<any[]>([]);
   const [novaIQStats, setNovaIQStats] = useState<{ sent: number; completed: number }>({ sent: 0, completed: 0 });
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [recentCheckIns, setRecentCheckIns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -155,6 +161,26 @@ export default function CasinoDashboardPage() {
           completed: invitationData.filter(i => i.status === 'completed').length,
         });
       }
+
+      // Recent gaming sessions
+      const { data: sessionsData } = await supabase
+        .from('gaming_sessions')
+        .select('*, players(first_name, last_name, player_id, risk_score, risk_level)')
+        .eq('casino_id', casinoId)
+        .order('start_time', { ascending: false })
+        .limit(8);
+
+      if (sessionsData) setRecentSessions(sessionsData);
+
+      // Latest wellbeing check-ins (invitations with player info)
+      const { data: checkInsData } = await supabase
+        .from('wellbeing_game_invitations')
+        .select('*, players(first_name, last_name, player_id, risk_score, risk_level)')
+        .eq('casino_id', casinoId)
+        .order('sent_at', { ascending: false })
+        .limit(8);
+
+      if (checkInsData) setRecentCheckIns(checkInsData);
     } catch (error) {
       console.error('❌ Dashboard Error:', error);
       toast.error('Failed to load dashboard data: ' + (error as Error).message);
@@ -541,6 +567,132 @@ export default function CasinoDashboardPage() {
                     </div>
                   </div>
                 </ChartCard>
+              </div>
+              {/* Recent Sessions + Wellbeing Check-ins */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Recent Gaming Sessions */}
+                <div className="rounded-xl border bg-card shadow-sm">
+                  <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Gamepad2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">Recent Sessions</h3>
+                        <p className="text-xs text-muted-foreground">Latest player gaming activity</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => router.push('/casino/players')}>
+                      View All <ArrowRight className="ml-1 h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="divide-y">
+                    {recentSessions.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-muted-foreground">No sessions found</div>
+                    ) : (
+                      recentSessions.map((session, idx) => {
+                        const net = Number(session.net_result) || 0;
+                        const isActive = session.is_active;
+                        const riskScore = session.players?.risk_score ?? 0;
+                        const riskLevel = session.players?.risk_level ?? 'low';
+                        const riskColor =
+                          riskLevel === 'critical' ? 'text-red-500' :
+                          riskLevel === 'high' ? 'text-orange-500' :
+                          riskLevel === 'medium' ? 'text-yellow-500' : 'text-emerald-500';
+                        return (
+                          <div key={idx} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/40 transition-colors">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground uppercase">
+                              {session.players?.first_name?.[0]}{session.players?.last_name?.[0]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {session.players?.first_name} {session.players?.last_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {session.game_type} &middot; {session.duration}min &middot; {new Date(session.start_time).toLocaleString('en-ZA', { dateStyle: 'short', timeStyle: 'short' })}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className={`text-sm font-semibold ${net >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                {net >= 0 ? '+' : ''}R {Math.abs(net).toFixed(0)}
+                              </p>
+                              <div className="flex items-center justify-end gap-1 mt-0.5">
+                                {isActive && (
+                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Live
+                                  </span>
+                                )}
+                                <span className={`text-xs font-medium ${riskColor}`}>{riskScore}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Latest Wellbeing Check-ins */}
+                <div className="rounded-xl border bg-card shadow-sm">
+                  <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <HeartPulse className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">Latest Wellbeing Check-ins</h3>
+                        <p className="text-xs text-muted-foreground">Nova IQ player assessment activity</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('wellbeing-games')}>
+                      View All <ArrowRight className="ml-1 h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="divide-y">
+                    {recentCheckIns.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-muted-foreground">No check-ins found</div>
+                    ) : (
+                      recentCheckIns.map((checkin, idx) => {
+                        const statusConfig: Record<string, { label: string; className: string }> = {
+                          completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-700' },
+                          opened: { label: 'Opened', className: 'bg-blue-100 text-blue-700' },
+                          sent: { label: 'Sent', className: 'bg-amber-100 text-amber-700' },
+                          expired: { label: 'Expired', className: 'bg-gray-100 text-gray-600' },
+                        };
+                        const s = statusConfig[checkin.status] ?? { label: checkin.status, className: 'bg-gray-100 text-gray-600' };
+                        const riskLevel = checkin.players?.risk_level ?? 'low';
+                        const riskColor =
+                          riskLevel === 'critical' ? 'text-red-500' :
+                          riskLevel === 'high' ? 'text-orange-500' :
+                          riskLevel === 'medium' ? 'text-yellow-500' : 'text-emerald-500';
+                        return (
+                          <div key={idx} className="flex items-center gap-4 px-6 py-3 hover:bg-muted/40 transition-colors">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground uppercase">
+                              {checkin.players?.first_name?.[0]}{checkin.players?.last_name?.[0]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {checkin.players?.first_name} {checkin.players?.last_name}
+                              </p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {checkin.channel} &middot; {new Date(checkin.sent_at).toLocaleString('en-ZA', { dateStyle: 'short', timeStyle: 'short' })}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.className}`}>
+                                {s.label}
+                              </span>
+                              <span className={`text-xs font-medium ${riskColor}`}>
+                                Risk: {checkin.players?.risk_score ?? '—'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
