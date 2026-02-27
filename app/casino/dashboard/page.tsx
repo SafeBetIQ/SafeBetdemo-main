@@ -62,6 +62,7 @@ export default function CasinoDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [revenueData, setRevenueData] = useState<any>(null);
   const [protectionEvents, setProtectionEvents] = useState<any[]>([]);
+  const [novaIQStats, setNovaIQStats] = useState<{ sent: number; completed: number }>({ sent: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -140,6 +141,19 @@ export default function CasinoDashboardPage() {
 
       if (recentEvents) {
         setProtectionEvents(recentEvents);
+      }
+
+      // Nova IQ invitation stats
+      const { data: invitationData, error: invError } = await supabase
+        .from('wellbeing_game_invitations')
+        .select('status')
+        .eq('casino_id', casinoId);
+
+      if (invitationData) {
+        setNovaIQStats({
+          sent: invitationData.length,
+          completed: invitationData.filter(i => i.status === 'completed').length,
+        });
       }
     } catch (error) {
       console.error('❌ Dashboard Error:', error);
@@ -477,7 +491,7 @@ export default function CasinoDashboardPage() {
                           </TooltipProvider>
                           <Send className="h-4 w-4 text-primary" />
                         </div>
-                        <p className="text-2xl font-bold text-foreground">-</p>
+                        <p className="text-2xl font-bold text-foreground">{novaIQStats.sent}</p>
                       </div>
                       <div className="p-4 bg-muted rounded-lg">
                         <div className="flex items-center justify-between mb-2">
@@ -496,7 +510,7 @@ export default function CasinoDashboardPage() {
                           </TooltipProvider>
                           <CheckCircle className="h-4 w-4 text-primary" />
                         </div>
-                        <p className="text-2xl font-bold text-foreground">-</p>
+                        <p className="text-2xl font-bold text-foreground">{novaIQStats.completed}</p>
                       </div>
                     </div>
                     <div className="border-t pt-4">
