@@ -82,7 +82,6 @@ const navigationGroups: NavGroup[] = [
       { title: 'Live Monitor', href: '/behavioral-risk-intelligence', icon: Activity, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
       { title: 'AI Intelligence', href: '/casino/ai-intelligence', icon: Brain, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
       { title: 'Interventions', href: '/casino/interventions', icon: ShieldAlert, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
-
     ],
   },
   {

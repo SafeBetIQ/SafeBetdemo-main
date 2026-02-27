@@ -47,7 +47,6 @@ export default function MainNavigation() {
                   >
                     Behavioral Risk Intelligence
                   </Link>
-
                 </div>
               </div>
             </div>
