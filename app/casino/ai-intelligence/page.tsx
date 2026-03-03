@@ -28,10 +28,12 @@ export default function AIIntelligencePage() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [outcomes, setOutcomes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('reason-stack');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       if (!user?.casino_id) {
         setLoading(false);
@@ -97,7 +99,13 @@ export default function AIIntelligencePage() {
       setReasonStacks(reasonStacksRes.data || []);
       setRecommendations(recommendationsRes.data || []);
       setOutcomes(outcomesRes.data || []);
-    } catch (error) {
+    } catch (err) {
+      console.error('Error loading AI intelligence data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load data');
+      setLearningMetrics([]);
+      setReasonStacks([]);
+      setRecommendations([]);
+      setOutcomes([]);
     } finally {
       setLoading(false);
     }
@@ -111,18 +119,28 @@ export default function AIIntelligencePage() {
 
   const getPlayerName = (player: any) => {
     if (!player) return 'Unknown Player';
-    return `${player.first_name} ${player.last_name}`;
+    const firstName = player.first_name || '';
+    const lastName = player.last_name || '';
+    return `${firstName} ${lastName}`.trim() || 'Unknown Player';
   };
 
   const toArray = (value: any): any[] => {
     if (!value) return [];
     if (Array.isArray(value)) return value;
-    if (typeof value === 'object') {
-      return Object.entries(value).map(([key, val], idx) => ({
-        factor: String(val),
-        weight_percent: Math.max(5, 40 - idx * 7),
-        source: 'combined' as const,
-      }));
+    if (typeof value === 'object' && value !== null) {
+      try {
+        const entries = Object.entries(value);
+        if (entries.length === 0) return [];
+        return entries.map(([key, val], idx) => ({
+          factor: val && typeof val === 'object' ? JSON.stringify(val) : String(val || key),
+          weight_percent: Math.max(5, 40 - idx * 7),
+          source: 'combined' as const,
+          trend: 'stable' as const,
+        }));
+      } catch (e) {
+        console.error('Error converting object to array:', e);
+        return [];
+      }
     }
     return [];
   };
@@ -159,6 +177,14 @@ export default function AIIntelligencePage() {
         />
 
         <div className="flex-1 overflow-auto p-6">
+          {error && (
+            <Card className="border-red-200 bg-red-50 mb-6">
+              <CardContent className="pt-6">
+                <p className="text-red-900 font-medium">Error loading data</p>
+                <p className="text-red-700 text-sm mt-1">{error}</p>
+              </CardContent>
+            </Card>
+          )}
           <div className="space-y-6">
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -471,21 +497,21 @@ export default function AIIntelligencePage() {
                       <AILearningMetrics
                         key={metric.id}
                         casinoName={metric.casino_id ? 'Casino Performance' : 'Global System Performance'}
-                        periodStart={metric.period_start}
-                        periodEnd={metric.period_end}
-                        totalPredictions={parseInt(metric.total_predictions) || 0}
-                        correctPredictions={parseInt(metric.correct_predictions) || 0}
-                        accuracyPercent={parseFloat(metric.accuracy_percent) || 0}
-                        accuracyChangePercent={parseFloat(metric.accuracy_change_percent) || 0}
-                        baselineAccuracyPercent={parseFloat(metric.baseline_accuracy_percent) || 0}
-                        novaIQEnhancedPredictions={parseInt(metric.nova_iq_enhanced_predictions) || 0}
-                        novaIQAccuracyLiftPercent={parseFloat(metric.nova_iq_accuracy_lift_percent) || 0}
-                        totalInterventions={parseInt(metric.total_interventions) || 0}
-                        successfulInterventions={parseInt(metric.successful_interventions) || 0}
-                        successRatePercent={parseFloat(metric.success_rate_percent) || 0}
-                        confidenceScoreAvg={parseFloat(metric.confidence_score_avg) || 0}
-                        falsePositiveRate={parseFloat(metric.false_positive_rate) || 0}
-                        falseNegativeRate={parseFloat(metric.false_negative_rate) || 0}
+                        periodStart={metric.period_start || new Date().toISOString()}
+                        periodEnd={metric.period_end || new Date().toISOString()}
+                        totalPredictions={toInt(metric.total_predictions)}
+                        correctPredictions={toInt(metric.correct_predictions)}
+                        accuracyPercent={toNum(metric.accuracy_percent)}
+                        accuracyChangePercent={toNum(metric.accuracy_change_percent)}
+                        baselineAccuracyPercent={toNum(metric.baseline_accuracy_percent)}
+                        novaIQEnhancedPredictions={toInt(metric.nova_iq_enhanced_predictions)}
+                        novaIQAccuracyLiftPercent={toNum(metric.nova_iq_accuracy_lift_percent)}
+                        totalInterventions={toInt(metric.total_interventions)}
+                        successfulInterventions={toInt(metric.successful_interventions)}
+                        successRatePercent={toNum(metric.success_rate_percent)}
+                        confidenceScoreAvg={toNum(metric.confidence_score_avg)}
+                        falsePositiveRate={toNum(metric.false_positive_rate)}
+                        falseNegativeRate={toNum(metric.false_negative_rate)}
                         learningGeneration={index + 1}
                         showGlobal={!metric.casino_id}
                       />
