@@ -309,7 +309,9 @@ export default function AIIntelligencePage() {
                   <CardContent>
                     {!loading && reasonStacks.length > 0 ? (
                       <div className="space-y-6">
-                        {reasonStacks.map((stack) => (
+                        {reasonStacks.map((stack) => {
+                          if (!stack || !stack.id) return null;
+                          return (
                           <ReasonStackDisplay
                             key={stack.id}
                             playerId={getPlayerName(stack.players)}
@@ -324,7 +326,8 @@ export default function AIIntelligencePage() {
                             triggers30d={toArray(stack.triggers_30d)}
                             timestamp={stack.created_at}
                           />
-                        ))}
+                        );
+                        }).filter(Boolean)}
                       </div>
                     ) : loading ? (
                       <p className="text-muted-foreground text-center py-8">Loading reason stacks...</p>
@@ -369,7 +372,9 @@ export default function AIIntelligencePage() {
                   <CardContent>
                     {!loading && recommendations.length > 0 ? (
                       <div className="space-y-6">
-                        {recommendations.map((rec) => (
+                        {recommendations.map((rec) => {
+                          if (!rec || !rec.id) return null;
+                          return (
                           <AIInterventionRecommendation
                             key={rec.id}
                             recommendationId={rec.id}
@@ -381,7 +386,8 @@ export default function AIIntelligencePage() {
                             alternativeOptions={toArray(rec.alternative_options)}
                             readOnly
                           />
-                        ))}
+                        );
+                        }).filter(Boolean)}
                       </div>
                     ) : loading ? (
                       <p className="text-muted-foreground text-center py-8">Loading recommendations...</p>
@@ -427,7 +433,9 @@ export default function AIIntelligencePage() {
                   <CardContent>
                     {!loading && outcomes.length > 0 ? (
                       <div className="space-y-6">
-                        {outcomes.map((outcome) => (
+                        {outcomes.map((outcome) => {
+                          if (!outcome || !outcome.id) return null;
+                          return (
                           <InterventionOutcomeTracker
                             key={outcome.id}
                             id={outcome.id}
@@ -446,7 +454,8 @@ export default function AIIntelligencePage() {
                             playerResponse={outcome.player_response}
                             playerEngagementLevel={outcome.player_engagement_level}
                           />
-                        ))}
+                        );
+                        }).filter(Boolean)}
                       </div>
                     ) : loading ? (
                       <p className="text-muted-foreground text-center py-8">Loading outcomes...</p>
