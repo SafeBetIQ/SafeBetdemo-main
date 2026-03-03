@@ -114,6 +114,29 @@ export default function AIIntelligencePage() {
     return `${player.first_name} ${player.last_name}`;
   };
 
+  const toArray = (value: any): any[] => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'object') {
+      return Object.entries(value).map(([key, val], idx) => ({
+        factor: String(val),
+        weight_percent: Math.max(5, 40 - idx * 7),
+        source: 'combined' as const,
+      }));
+    }
+    return [];
+  };
+
+  const toNum = (value: any, fallback = 0): number => {
+    const n = parseFloat(value);
+    return isNaN(n) ? fallback : n;
+  };
+
+  const toInt = (value: any, fallback = 0): number => {
+    const n = parseInt(value);
+    return isNaN(n) ? fallback : n;
+  };
+
   return (
     <DashboardLayout>
       <TooltipProvider>
@@ -264,15 +287,15 @@ export default function AIIntelligencePage() {
                           <ReasonStackDisplay
                             key={stack.id}
                             playerId={getPlayerName(stack.players)}
-                            riskLevel={stack.risk_level}
-                            confidenceScore={parseInt(stack.ai_confidence_score) || 0}
-                            contributingFactors={stack.contributing_factors || []}
-                            novaIQWeightPercent={parseFloat(stack.nova_iq_weight_percent) || 0}
-                            casinoDataWeightPercent={parseFloat(stack.casino_data_weight_percent) || 0}
+                            riskLevel={stack.risk_level || 'low'}
+                            confidenceScore={toInt(stack.ai_confidence_score)}
+                            contributingFactors={toArray(stack.contributing_factors)}
+                            novaIQWeightPercent={toNum(stack.nova_iq_weight_percent)}
+                            casinoDataWeightPercent={toNum(stack.casino_data_weight_percent)}
                             explanationSummary={stack.explanation_summary}
-                            triggers24h={stack.triggers_24h || []}
-                            triggers7d={stack.triggers_7d || []}
-                            triggers30d={stack.triggers_30d || []}
+                            triggers24h={toArray(stack.triggers_24h)}
+                            triggers7d={toArray(stack.triggers_7d)}
+                            triggers30d={toArray(stack.triggers_30d)}
                             timestamp={stack.created_at}
                           />
                         ))}
@@ -325,11 +348,11 @@ export default function AIIntelligencePage() {
                             key={rec.id}
                             recommendationId={rec.id}
                             playerId={getPlayerName(rec.players)}
-                            interventionType={rec.recommended_intervention_type}
-                            recommendedTiming={rec.recommended_timing}
-                            successProbability={parseFloat(rec.success_probability) || 0}
-                            rationale={rec.rationale}
-                            alternativeOptions={rec.alternative_options || []}
+                            interventionType={rec.recommended_intervention_type || 'monitor'}
+                            recommendedTiming={rec.recommended_timing || 'monitor'}
+                            successProbability={toNum(rec.success_probability)}
+                            rationale={rec.rationale || ''}
+                            alternativeOptions={toArray(rec.alternative_options)}
                             readOnly
                           />
                         ))}
@@ -383,17 +406,17 @@ export default function AIIntelligencePage() {
                             key={outcome.id}
                             id={outcome.id}
                             playerId={getPlayerName(outcome.players)}
-                            interventionType={outcome.intervention_type}
-                            appliedAt={outcome.applied_at}
-                            novaIQInfluenced={outcome.nova_iq_influenced}
-                            preRiskScore={outcome.pre_risk_score}
-                            preImpulsivityScore={outcome.pre_impulsivity_score}
-                            postRiskScore7d={outcome.post_risk_score_7d}
-                            postRiskScore14d={outcome.post_risk_score_14d}
-                            postRiskScore30d={outcome.post_risk_score_30d}
-                            outcome={outcome.outcome}
-                            effectivenessScore={outcome.effectiveness_score}
-                            timeToImpactDays={outcome.time_to_impact_days}
+                            interventionType={outcome.intervention_type || 'monitor'}
+                            appliedAt={outcome.applied_at || new Date().toISOString()}
+                            novaIQInfluenced={!!outcome.nova_iq_influenced}
+                            preRiskScore={toNum(outcome.pre_risk_score)}
+                            preImpulsivityScore={outcome.pre_impulsivity_score != null ? toNum(outcome.pre_impulsivity_score) : undefined}
+                            postRiskScore7d={outcome.post_risk_score_7d != null ? toNum(outcome.post_risk_score_7d) : undefined}
+                            postRiskScore14d={outcome.post_risk_score_14d != null ? toNum(outcome.post_risk_score_14d) : undefined}
+                            postRiskScore30d={outcome.post_risk_score_30d != null ? toNum(outcome.post_risk_score_30d) : undefined}
+                            outcome={outcome.outcome || 'no_change'}
+                            effectivenessScore={outcome.effectiveness_score != null ? toNum(outcome.effectiveness_score) : undefined}
+                            timeToImpactDays={outcome.time_to_impact_days != null ? toInt(outcome.time_to_impact_days) : undefined}
                             playerResponse={outcome.player_response}
                             playerEngagementLevel={outcome.player_engagement_level}
                           />

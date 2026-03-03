@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, TrendingUp, TrendingDown, Activity, Brain, Target } from 'lucide-react';
+import { CircleAlert as AlertCircle, TrendingUp, TrendingDown, Activity, Brain, Target } from 'lucide-react';
 
 interface ContributingFactor {
   factor: string;
@@ -75,7 +75,11 @@ export function ReasonStackDisplay({
       <TrendingDown className="h-3 w-3 text-green-600" />;
   };
 
-  const sortedFactors = [...contributingFactors].sort((a, b) => b.weight_percent - a.weight_percent);
+  const safeFactors = Array.isArray(contributingFactors) ? contributingFactors : [];
+  const safe24h = Array.isArray(triggers24h) ? triggers24h : [];
+  const safe7d = Array.isArray(triggers7d) ? triggers7d : [];
+  const safe30d = Array.isArray(triggers30d) ? triggers30d : [];
+  const sortedFactors = [...safeFactors].sort((a, b) => (b.weight_percent || 0) - (a.weight_percent || 0));
   const topFactors = sortedFactors.slice(0, 5);
 
   return (
@@ -165,23 +169,23 @@ export function ReasonStackDisplay({
           </div>
         )}
 
-        {(triggers24h.length > 0 || triggers7d.length > 0 || triggers30d.length > 0) && (
+        {(safe24h.length > 0 || safe7d.length > 0 || safe30d.length > 0) && (
           <div className="pt-4 border-t">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Recent Behavioral Triggers</h4>
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-gray-50 rounded border border-gray-200">
                 <div className="text-xs text-gray-600 mb-1">Last 24 Hours</div>
-                <div className="text-xl font-bold text-gray-900">{triggers24h.length}</div>
+                <div className="text-xl font-bold text-gray-900">{safe24h.length}</div>
                 <div className="text-xs text-gray-500 mt-1">triggers</div>
               </div>
               <div className="p-3 bg-gray-50 rounded border border-gray-200">
                 <div className="text-xs text-gray-600 mb-1">Last 7 Days</div>
-                <div className="text-xl font-bold text-gray-900">{triggers7d.length}</div>
+                <div className="text-xl font-bold text-gray-900">{safe7d.length}</div>
                 <div className="text-xs text-gray-500 mt-1">triggers</div>
               </div>
               <div className="p-3 bg-gray-50 rounded border border-gray-200">
                 <div className="text-xs text-gray-600 mb-1">Last 30 Days</div>
-                <div className="text-xl font-bold text-gray-900">{triggers30d.length}</div>
+                <div className="text-xl font-bold text-gray-900">{safe30d.length}</div>
                 <div className="text-xs text-gray-500 mt-1">triggers</div>
               </div>
             </div>

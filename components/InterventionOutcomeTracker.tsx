@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { TrendingDown, TrendingUp, Minus, CheckCircle, AlertCircle, Brain, Activity, Clock } from 'lucide-react';
+import { TrendingDown, TrendingUp, Minus, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Brain, Activity, Clock } from 'lucide-react';
 import { formatPercentage } from '@/lib/utils';
 
 interface OutcomeData {
@@ -18,7 +18,7 @@ interface OutcomeData {
   postRiskScore14d?: number;
   postRiskScore30d?: number;
   outcome: 'risk_reduced' | 'stabilized' | 'escalated' | 'no_change';
-  effectivenessScore: number;
+  effectivenessScore?: number;
   timeToImpactDays?: number;
   playerResponse?: string;
   playerEngagementLevel?: string;
@@ -74,7 +74,7 @@ export function InterventionOutcomeTracker({
   };
 
   const getRiskChange = () => {
-    if (!postRiskScore30d) return null;
+    if (postRiskScore30d == null || !preRiskScore) return null;
     const change = preRiskScore - postRiskScore30d;
     const percentChange = (change / preRiskScore) * 100;
     return { change, percentChange };
@@ -115,8 +115,8 @@ export function InterventionOutcomeTracker({
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="text-xs text-gray-600 mb-1">Effectiveness Score</div>
-            <div className="text-3xl font-bold text-brand-600 mb-2">{effectivenessScore}/100</div>
-            <Progress value={effectivenessScore} className="h-2" />
+            <div className="text-3xl font-bold text-brand-600 mb-2">{effectivenessScore ?? 0}/100</div>
+            <Progress value={effectivenessScore ?? 0} className="h-2" />
           </div>
 
           {timeToImpactDays && (
