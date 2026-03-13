@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
-import { Eye, FileText, BarChart3, CheckCircle, ArrowRight, Menu, X, Globe, AlertTriangle, Lock, Database, Bell, Building2, Award, Users, Download, TrendingUp, Activity } from 'lucide-react';
+import { Eye, FileText, ChartBar as BarChart3, CircleCheck as CheckCircle, ArrowRight, Menu, X, Globe, TriangleAlert as AlertTriangle, Lock, Database, Bell, Building2, Award, Users, Download, TrendingUp, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function RegulatorsPage() {

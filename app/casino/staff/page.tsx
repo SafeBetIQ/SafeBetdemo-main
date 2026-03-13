@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Users, Search, Award, Mail, Briefcase, ExternalLink, Plus, Edit, LogIn, BookOpen, Clock } from 'lucide-react';
+import { Users, Search, Award, Mail, Briefcase, ExternalLink, Plus, CreditCard as Edit, LogIn, BookOpen, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 

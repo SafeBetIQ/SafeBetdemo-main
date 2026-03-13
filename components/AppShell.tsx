@@ -16,37 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  LayoutDashboard,
-  Activity,
-  Users,
-  ShieldAlert,
-  Brain,
-  TrendingUp,
-  CheckCircle,
-  FileText,
-  Lock,
-  Settings,
-  CreditCard,
-  Plug,
-  Search,
-  Menu,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  Bell,
-  User,
-  LogOut,
-  Building2,
-  Shield,
-  Target,
-  Code,
-  BookOpen,
-  Webhook,
-  FileCode,
-  Globe,
-  Database,
-} from 'lucide-react';
+import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
