@@ -118,7 +118,7 @@ export function getRedirectPath(role: string): string {
     case 'regulator':
       return '/regulator/dashboard';
     case 'staff':
-      return '/staff/academy';
+      return '/staff/profile';
     default:
       return '/';
   }

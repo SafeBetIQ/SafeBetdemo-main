@@ -77,7 +77,7 @@ export default function LoginPage() {
           redirectPath = '/regulator/dashboard';
           break;
         case 'staff':
-          redirectPath = '/staff/academy';
+          redirectPath = '/staff/profile';
           break;
       }
 

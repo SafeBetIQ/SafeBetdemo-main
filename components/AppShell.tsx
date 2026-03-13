@@ -39,7 +39,6 @@ import {
   LogOut,
   Building2,
   Shield,
-  GraduationCap,
   Target,
   Code,
   BookOpen,
@@ -72,7 +71,7 @@ const navigationGroups: NavGroup[] = [
       { title: 'Dashboard', href: '/casino/dashboard', icon: LayoutDashboard, roles: ['casino_admin', 'casino_admin'] },
       { title: 'Dashboard', href: '/regulator/dashboard', icon: LayoutDashboard, roles: ['regulator'] },
       { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['super_admin'] },
-      { title: 'Dashboard', href: '/staff/academy', icon: LayoutDashboard, roles: ['casino_staff'] },
+      { title: 'Dashboard', href: '/staff/profile', icon: LayoutDashboard, roles: ['casino_staff'] },
       { title: 'Players', href: '/casino/players', icon: Users, roles: ['casino_admin', 'casino_admin'] },
     ],
   },
@@ -95,9 +94,6 @@ const navigationGroups: NavGroup[] = [
   {
     title: 'Platform',
     items: [
-      { title: 'Training Academy', href: '/casino/training', icon: GraduationCap, roles: ['casino_admin'] },
-      { title: 'My Training', href: '/staff/academy', icon: GraduationCap, roles: ['casino_staff'] },
-      { title: 'Course Management', href: '/admin/course-management', icon: GraduationCap, roles: ['super_admin'] },
       { title: 'Nova IQ', href: '/casino/wellbeing-games', icon: Target, roles: ['casino_admin', 'casino_admin'] },
       { title: 'Nova IQ Admin', href: '/admin/wellbeing-games', icon: Target, roles: ['super_admin'] },
       {

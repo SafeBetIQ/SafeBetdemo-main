@@ -240,7 +240,7 @@ export default function StaffListPage() {
       });
 
       toast.success(`Logged in as ${member.first_name} ${member.last_name}`);
-      router.push('/staff/academy');
+      router.push('/staff/profile');
     } catch (error: any) {
       toast.error('Failed to impersonate user');
     }

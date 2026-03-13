@@ -18,7 +18,7 @@ export function CasinoAdminGuard({ children }: CasinoAdminGuardProps) {
   useEffect(() => {
     if (!loading && user) {
       if (user.role === 'casino_staff') {
-        router.push('/staff/academy');
+        router.push('/staff/profile');
       } else if (user.role === 'regulator') {
         router.push('/regulator/dashboard');
       } else if (user.role === 'super_admin') {

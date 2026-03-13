@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
-import { Eye, FileText, BarChart3, CheckCircle, ArrowRight, Menu, X, Globe, AlertTriangle, Lock, Database, Bell, Building2, GraduationCap, Award, Users, Download, TrendingUp, Activity } from 'lucide-react';
+import { Eye, FileText, BarChart3, CheckCircle, ArrowRight, Menu, X, Globe, AlertTriangle, Lock, Database, Bell, Building2, Award, Users, Download, TrendingUp, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function RegulatorsPage() {
@@ -113,7 +113,7 @@ export default function RegulatorsPage() {
               Comprehensive Regulatory Oversight Platform
             </h2>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Monitor industry compliance, track operator performance, and oversee training standards across all licensed casinos
+              Monitor industry compliance, track operator performance, and oversee responsible gambling standards across all licensed casinos
             </p>
           </div>
 
@@ -126,21 +126,21 @@ export default function RegulatorsPage() {
                 features: ['View all casino operations', 'Real-time compliance status', 'License verification']
               },
               {
-                icon: GraduationCap,
-                title: 'Training Academy Oversight',
-                description: 'Monitor staff training compliance, certification status, and educational standards across all casino operators.',
-                features: ['Staff certification tracking', 'Course completion rates', 'Training credit verification']
+                icon: Activity,
+                title: 'Behavioural Risk Oversight',
+                description: 'Monitor AI-detected risk patterns across all licensed operators and track intervention compliance in real time.',
+                features: ['Risk level distribution', 'Intervention effectiveness', 'Behavioural trend analysis']
               },
               {
                 icon: Users,
-                title: 'Staff Compliance Monitoring',
-                description: 'Track total industry staff, active certifications, and training participation across all licensed operators.',
-                features: ['Industry-wide staff count', 'Enrollment statistics', 'Progress tracking']
+                title: 'Operator Compliance Monitoring',
+                description: 'Track responsible gambling obligations, player protection measures, and regulatory adherence across all licensed operators.',
+                features: ['Industry-wide operator count', 'Compliance status tracking', 'Progress monitoring']
               },
               {
                 icon: FileText,
                 title: 'Comprehensive Audit Reports',
-                description: 'Generate detailed compliance reports with complete training records, certification data, and audit trails for each operator.',
+                description: 'Generate detailed compliance reports with complete intervention records, ESG data, and audit trails for each operator.',
                 features: ['PDF report generation', 'Complete audit trails', 'Exportable data formats']
               },
               {
@@ -216,10 +216,10 @@ export default function RegulatorsPage() {
                   Industry-Wide Performance Metrics
                 </h3>
                 <p className="text-gray-400 mb-8 leading-relaxed">
-                  Access comprehensive statistics across all licensed operators including total staff counts, enrollment metrics, completion rates, and compliance scores.
+                  Access comprehensive statistics across all licensed operators including player risk profiles, intervention outcomes, ESG scores, and compliance metrics.
                 </p>
                 <div className="space-y-4">
-                  {['Total Industry Staff', 'Training Enrollments', 'Avg Completion Rate'].map((label, i) => (
+                  {['Total Active Players', 'Interventions Tracked', 'Avg ESG Score'].map((label, i) => (
                     <motion.div
                       key={i}
                       className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800"
@@ -323,12 +323,12 @@ export default function RegulatorsPage() {
               {
                 icon: Activity,
                 title: 'Proactive Industry Oversight',
-                description: 'Identify non-compliant operators early and ensure industry-wide adherence to responsible gambling standards and training requirements.'
+                description: 'Identify non-compliant operators early and ensure industry-wide adherence to responsible gambling standards and player protection requirements.'
               },
               {
                 icon: Database,
                 title: 'Complete Data Transparency',
-                description: 'Access detailed operator records, staff training data, and certification information with full audit trail documentation.'
+                description: 'Access detailed operator records, player intervention data, and ESG performance information with full audit trail documentation.'
               },
               {
                 icon: Bell,
