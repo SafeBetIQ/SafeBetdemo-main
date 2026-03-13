@@ -25,23 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  TrendingUp,
-  Shield,
-  Users,
-  AlertTriangle,
-  Download,
-  FileText,
-  DollarSign,
-  Activity,
-  Info,
-  CheckCircle,
-  ArrowRight,
-  Send,
-  Plug,
-  Gamepad2,
-  HeartPulse,
-} from 'lucide-react';
+import { TrendingUp, Shield, Users, TriangleAlert as AlertTriangle, Download, FileText, DollarSign, Activity, Info, CircleCheck as CheckCircle, ArrowRight, Send, Plug, Gamepad2, HeartPulse } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { formatPercentage } from '@/lib/utils';
