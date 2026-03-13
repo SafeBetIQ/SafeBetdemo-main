@@ -35,18 +35,12 @@ import {
   DollarSign,
   Activity,
   Info,
-  GraduationCap,
-  Award,
   CheckCircle,
-  BookOpen,
-  Clock,
   ArrowRight,
   Send,
   Plug,
   Gamepad2,
   HeartPulse,
-  TrendingDown,
-  Minus,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -55,7 +49,6 @@ import { useRouter } from 'next/navigation';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import RevenueProtectionDashboard from '@/components/RevenueProtectionDashboard';
 import { toast } from 'sonner';
-import { EmbeddedTrainingAcademy } from '@/components/EmbeddedTrainingAcademy';
 import { WellbeingGamesDashboardWidget } from '@/components/WellbeingGamesDashboardWidget';
 import { SendNovaIQInvitation } from '@/components/SendNovaIQInvitation';
 
@@ -258,7 +251,6 @@ export default function CasinoDashboardPage() {
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="revenue-protection">Revenue Protection</TabsTrigger>
               <TabsTrigger value="wellbeing-games">Nova IQ</TabsTrigger>
-              <TabsTrigger value="training">Training Academy</TabsTrigger>
               <TabsTrigger value="integrations">Platform Integrations</TabsTrigger>
             </TabsList>
 
@@ -702,10 +694,6 @@ export default function CasinoDashboardPage() {
 
             <TabsContent value="wellbeing-games" className="space-y-6">
               <WellbeingGamesDashboardWidget />
-            </TabsContent>
-
-            <TabsContent value="training" className="space-y-6">
-              <EmbeddedTrainingAcademy casinoId={user?.casino_id || ''} />
             </TabsContent>
 
             <TabsContent value="integrations" className="space-y-6">
