@@ -14,28 +14,141 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 async function authenticateRequest(
   supabase: ReturnType<typeof createClient>,
   casinoId: string | null,
   apiKey: string | null
-): Promise<{ valid: boolean; error?: string }> {
+): Promise<{ valid: boolean; tokenId?: string; error?: string }> {
   if (!casinoId || !apiKey) {
     return { valid: false, error: "Missing X-Casino-ID or X-API-Key header" };
   }
 
+  const keyHash = await sha256Hex(apiKey);
+
   const { data, error } = await supabase
-    .from("casino_integration_configs")
-    .select("id")
+    .from("api_tokens")
+    .select("id, casino_id, is_active, expires_at, scopes")
+    .eq("token_hash", keyHash)
     .eq("casino_id", casinoId)
-    .eq("is_enabled", true)
-    .filter("credentials->>'api_key'", "eq", apiKey)
+    .eq("is_active", true)
     .maybeSingle();
 
   if (error || !data) {
+    await logSecurityEvent(supabase, {
+      event_type: "api_auth_failed",
+      severity: "medium",
+      source: "api-ingest",
+      ip_hash: null,
+      resource: `casino:${casinoId}`,
+      details: { reason: "invalid_token", casino_id: casinoId },
+    });
     return { valid: false, error: "Invalid or disabled API key" };
   }
 
-  return { valid: true };
+  if (data.expires_at && new Date(data.expires_at) < new Date()) {
+    return { valid: false, error: "API key has expired" };
+  }
+
+  await supabase
+    .from("api_tokens")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", data.id);
+
+  return { valid: true, tokenId: data.id };
+}
+
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+  endpoint: string
+): Promise<{ allowed: boolean; remaining: number }> {
+  const windowMinutes = 1;
+  const maxRequests = 100;
+  const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+
+  try {
+    const { data, error } = await supabase
+      .from("api_rate_limits")
+      .select("id, request_count, window_start")
+      .eq("casino_id", casinoId)
+      .eq("endpoint", endpoint)
+      .gte("window_start", windowStart)
+      .order("window_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return { allowed: true, remaining: maxRequests };
+
+    if (!data) {
+      await supabase.from("api_rate_limits").insert({
+        casino_id: casinoId,
+        endpoint,
+        request_count: 1,
+        window_start: new Date().toISOString(),
+        window_minutes: windowMinutes,
+      });
+      return { allowed: true, remaining: maxRequests - 1 };
+    }
+
+    if (data.request_count >= maxRequests) {
+      await logSecurityEvent(supabase, {
+        event_type: "api_rate_limit",
+        severity: "low",
+        source: "api-ingest",
+        ip_hash: null,
+        resource: endpoint,
+        details: { casino_id: casinoId, request_count: data.request_count, limit: maxRequests },
+      });
+      return { allowed: false, remaining: 0 };
+    }
+
+    await supabase
+      .from("api_rate_limits")
+      .update({ request_count: data.request_count + 1 })
+      .eq("id", data.id);
+
+    return { allowed: true, remaining: maxRequests - data.request_count - 1 };
+  } catch (_err) {
+    return { allowed: true, remaining: maxRequests };
+  }
+}
+
+async function logSecurityEvent(
+  supabase: ReturnType<typeof createClient>,
+  event: {
+    event_type: string;
+    severity: string;
+    source: string;
+    ip_hash: string | null;
+    resource: string | null;
+    details: Record<string, unknown>;
+    actor_email_hash?: string | null;
+  }
+): Promise<void> {
+  try {
+    await supabase.from("security_events").insert({
+      event_type: event.event_type,
+      severity: event.severity,
+      source: event.source,
+      ip_hash: event.ip_hash,
+      resource: event.resource,
+      details: event.details,
+      actor_email_hash: event.actor_email_hash ?? null,
+      resolved: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch (_err) {
+    console.error("Failed to log security event:", _err);
+  }
 }
 
 async function logAuditEvent(
@@ -97,6 +210,17 @@ async function handleSession(
     is_flagged: isFlagged,
   });
 
+  if (isFlagged) {
+    await logSecurityEvent(supabase, {
+      event_type: "suspicious_activity",
+      severity: "medium",
+      source: "api-ingest",
+      ip_hash: null,
+      resource: `session:${data.id}`,
+      details: { reason: "high_value_session", player_token, casino_id: casinoId, total_wagered: totalWageredNum },
+    });
+  }
+
   return jsonResponse({ session_id: data.id, status: "recorded" });
 }
 
@@ -148,7 +272,6 @@ async function handleBets(
       metadata: { amount: amountNum, game_type, bet_type: bet_type ?? null },
       created_at: new Date().toISOString(),
     });
-
     if (behaviorError) {
       console.error("Behaviour event insert error:", behaviorError);
     }
@@ -212,6 +335,17 @@ async function handleDeposits(
     risk_flag: riskFlag,
   });
 
+  if (riskFlag) {
+    await logSecurityEvent(supabase, {
+      event_type: "suspicious_activity",
+      severity: "medium",
+      source: "api-ingest",
+      ip_hash: null,
+      resource: `transaction:${data.id}`,
+      details: { reason: "large_deposit", player_token, casino_id: casinoId, amount: amountNum },
+    });
+  }
+
   return jsonResponse({ transaction_id: data.id, status: "recorded" });
 }
 
@@ -231,7 +365,6 @@ async function handleWithdrawals(
     return jsonResponse({ error: "Invalid amount value" }, 400);
   }
 
-  // Check for active self-exclusion
   const { data: exclusionData, error: exclusionError } = await supabase
     .from("self_exclusions")
     .select("id")
@@ -246,6 +379,14 @@ async function handleWithdrawals(
   }
 
   if (exclusionData) {
+    await logSecurityEvent(supabase, {
+      event_type: "permission_denied",
+      severity: "high",
+      source: "api-ingest",
+      ip_hash: null,
+      resource: "withdrawals",
+      details: { reason: "self_excluded_player", player_token, casino_id: casinoId },
+    });
     return jsonResponse({ error: "Player is self-excluded" }, 403);
   }
 
@@ -282,19 +423,12 @@ async function handleSelfExclusion(
   body: Record<string, unknown>,
   casinoId: string
 ): Promise<Response> {
-  const {
-    player_token,
-    exclusion_type,
-    duration_type,
-    duration_days,
-    reason,
-  } = body;
+  const { player_token, exclusion_type, duration_type, duration_days, reason } = body;
 
   if (!player_token) {
     return jsonResponse({ error: "Missing required field: player_token" }, 400);
   }
 
-  // Look up player by player_token and casino_id
   const { data: playerData, error: playerError } = await supabase
     .from("players")
     .select("id")
@@ -309,7 +443,6 @@ async function handleSelfExclusion(
 
   const playerId = playerData?.id ?? null;
 
-  // Insert into self_exclusions
   const { data: exclusionData, error: exclusionError } = await supabase
     .from("self_exclusions")
     .insert({
@@ -331,7 +464,6 @@ async function handleSelfExclusion(
     return jsonResponse({ error: "Failed to record self-exclusion" }, 500);
   }
 
-  // Attempt to insert into sen_exclusion_events if the table exists
   try {
     const { error: senError } = await supabase.from("sen_exclusion_events").insert({
       exclusion_id: exclusionData.id,
@@ -340,26 +472,36 @@ async function handleSelfExclusion(
       event_type: exclusion_type ?? "self",
       created_at: new Date().toISOString(),
     });
-
     if (senError) {
-      // Log but do not fail — the table may not exist
       console.warn("sen_exclusion_events insert skipped or failed:", senError.message);
     }
   } catch (_err) {
     console.warn("sen_exclusion_events table may not exist, skipping:", _err);
   }
 
-  // Update player status to 'self_excluded'
   if (playerId) {
     const { error: updateError } = await supabase
       .from("players")
       .update({ status: "self_excluded", updated_at: new Date().toISOString() })
       .eq("id", playerId);
-
     if (updateError) {
       console.error("Player status update error:", updateError);
     }
   }
+
+  await logSecurityEvent(supabase, {
+    event_type: "self_exclusion",
+    severity: "info",
+    source: "api-ingest",
+    ip_hash: null,
+    resource: `exclusion:${exclusionData.id}`,
+    details: {
+      player_token,
+      casino_id: casinoId,
+      exclusion_type: exclusion_type ?? "self",
+      duration_type: duration_type ?? "indefinite",
+    },
+  });
 
   await logAuditEvent(supabase, "api_ingest_self-exclusion", {
     player_token,
@@ -369,16 +511,11 @@ async function handleSelfExclusion(
     duration_days: duration_days ?? null,
   });
 
-  return jsonResponse({
-    exclusion_id: exclusionData.id,
-    status: "recorded",
-    player_token,
-  });
+  return jsonResponse({ exclusion_id: exclusionData.id, status: "recorded", player_token });
 }
 
 Deno.serve(async (req: Request) => {
   try {
-    // Handle CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 200, headers: corsHeaders });
     }
@@ -386,7 +523,6 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const pathname = url.pathname;
 
-    // Only accept POST requests for all data routes
     if (req.method !== "POST") {
       return jsonResponse({ error: "Method not allowed" }, 405);
     }
@@ -401,7 +537,6 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Authenticate request
     const casinoId = req.headers.get("X-Casino-ID");
     const apiKey = req.headers.get("X-API-Key");
 
@@ -410,7 +545,23 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: auth.error ?? "Unauthorized" }, 401);
     }
 
-    // Parse request body
+    const endpoint = pathname.replace("/api-ingest/", "");
+    const rateCheck = await checkRateLimit(supabase, casinoId!, endpoint);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Max 100 requests/minute per casino." }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "X-RateLimit-Remaining": "0",
+            "Retry-After": "60",
+          },
+        }
+      );
+    }
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();
@@ -418,20 +569,33 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Invalid or missing JSON body" }, 400);
     }
 
-    // Route matching
+    const responseHeaders = {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "X-RateLimit-Remaining": String(rateCheck.remaining),
+    };
+
+    let result: Response;
+
     if (pathname === "/api-ingest/session") {
-      return await handleSession(supabase, body, casinoId!);
+      result = await handleSession(supabase, body, casinoId!);
     } else if (pathname === "/api-ingest/bets") {
-      return await handleBets(supabase, body, casinoId!);
+      result = await handleBets(supabase, body, casinoId!);
     } else if (pathname === "/api-ingest/deposits") {
-      return await handleDeposits(supabase, body, casinoId!);
+      result = await handleDeposits(supabase, body, casinoId!);
     } else if (pathname === "/api-ingest/withdrawals") {
-      return await handleWithdrawals(supabase, body, casinoId!);
+      result = await handleWithdrawals(supabase, body, casinoId!);
     } else if (pathname === "/api-ingest/self-exclusion") {
-      return await handleSelfExclusion(supabase, body, casinoId!);
+      result = await handleSelfExclusion(supabase, body, casinoId!);
     } else {
       return jsonResponse({ error: "Route not found" }, 404);
     }
+
+    const resultBody = await result.text();
+    return new Response(resultBody, {
+      status: result.status,
+      headers: responseHeaders,
+    });
   } catch (err) {
     console.error("Unhandled error in api-ingest function:", err);
     return new Response(
