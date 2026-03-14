@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database } from 'lucide-react';
+import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, GraduationCap, ChartBar as BarChart3, Microscope, DollarSign, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -38,12 +38,13 @@ const navigationGroups: NavGroup[] = [
   {
     title: 'Core',
     items: [
-      { title: 'Dashboard', href: '/casino/dashboard', icon: LayoutDashboard, roles: ['casino_admin', 'casino_admin'] },
+      { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['super_admin'] },
+      { title: 'Dashboard', href: '/casino/dashboard', icon: LayoutDashboard, roles: ['casino_admin'] },
       { title: 'Dashboard', href: '/regulator/dashboard', icon: LayoutDashboard, roles: ['regulator'] },
       { title: 'Dashboard', href: '/regulator/provincial-dashboard', icon: LayoutDashboard, roles: ['provincial_regulator'] },
-      { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['super_admin'] },
       { title: 'Dashboard', href: '/staff/profile', icon: LayoutDashboard, roles: ['casino_staff'] },
-      { title: 'Players', href: '/casino/players', icon: Users, roles: ['casino_admin', 'casino_admin'] },
+      { title: 'Players', href: '/casino/players', icon: Users, roles: ['casino_admin', 'super_admin'] },
+      { title: 'Staff', href: '/casino/staff', icon: Users, roles: ['casino_admin'] },
     ],
   },
   {
@@ -51,25 +52,39 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: 'Live Monitor', href: '/behavioral-risk-intelligence', icon: Activity, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
       { title: 'AI Intelligence', href: '/casino/ai-intelligence', icon: Brain, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Nova IQ XAI', href: '/nova-iq-xai', icon: Microscope, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
       { title: 'Interventions', href: '/casino/interventions', icon: ShieldAlert, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Revenue Protection', href: '/esg-performance', icon: DollarSign, roles: ['casino_admin', 'super_admin'] },
     ],
   },
   {
-    title: 'Governance',
+    title: 'Governance & ESG',
     items: [
       { title: 'ESG Performance', href: '/esg-performance', icon: CheckCircle, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'King IV ESG', href: '/esg-king-iv', icon: Shield, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
       { title: 'ESG Data Entry', href: '/casino/esg-data-entry', icon: FileText, roles: ['casino_admin'] },
+      { title: 'ESG Management', href: '/admin/esg-management', icon: BarChart3, roles: ['super_admin'] },
       { title: 'Wellbeing Compliance', href: '/regulator/wellbeing-compliance', icon: Shield, roles: ['regulator', 'provincial_regulator', 'super_admin'] },
+    ],
+  },
+  {
+    title: 'Training',
+    items: [
+      { title: 'Training Academy', href: '/casino/training', icon: GraduationCap, roles: ['casino_admin', 'super_admin'] },
+      { title: 'Training Settings', href: '/casino/training-settings', icon: Settings, roles: ['casino_admin', 'super_admin'] },
+      { title: 'Course Management', href: '/admin/course-management', icon: BookOpen, roles: ['super_admin'] },
     ],
   },
   {
     title: 'Platform',
     items: [
-      { title: 'Nova IQ', href: '/casino/wellbeing-games', icon: Target, roles: ['casino_admin', 'casino_admin'] },
+      { title: 'Nova IQ', href: '/casino/wellbeing-games', icon: Target, roles: ['casino_admin'] },
       { title: 'Nova IQ Admin', href: '/admin/wellbeing-games', icon: Target, roles: ['super_admin'] },
+      { title: 'Integrations', href: '/casino/integrations', icon: Plug, roles: ['casino_admin'] },
+      { title: 'Integrations', href: '/admin/integrations', icon: Plug, roles: ['super_admin'] },
       {
         title: 'SafePlay Connect',
-        icon: Plug,
+        icon: Globe,
         roles: ['casino_admin', 'super_admin'],
         subItems: [
           { title: 'Overview', href: '/safeplay-connect/overview', icon: Globe },
@@ -79,19 +94,15 @@ const navigationGroups: NavGroup[] = [
           { title: 'CTO Brief', href: '/safeplay-connect/cto-brief', icon: BookOpen },
           { title: 'README', href: '/safeplay-connect/readme', icon: FileText },
           { title: 'ESG Integration', href: '/safeplay-connect/esg-data-integration', icon: Database },
-        ]
+        ],
       },
     ],
   },
   {
-    title: 'Settings',
+    title: 'Admin',
     items: [
-      { title: 'Profile', href: '/staff/profile', icon: User, roles: ['casino_staff'] },
-      { title: 'Staff Management', href: '/casino/staff', icon: Users, roles: ['casino_admin'] },
-      { title: 'Integrations', href: '/admin/integrations', icon: Plug, roles: ['super_admin'] },
       { title: 'Module Management', href: '/admin/casino-modules', icon: Settings, roles: ['super_admin'] },
-      { title: 'User Management', href: '/admin/user-roles', icon: Settings, roles: ['super_admin'] },
-      { title: 'ESG Management', href: '/admin/esg-management', icon: Settings, roles: ['super_admin'] },
+      { title: 'User Management', href: '/admin/user-roles', icon: Users, roles: ['super_admin'] },
     ],
   },
 ];
