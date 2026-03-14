@@ -117,6 +117,8 @@ export function getRedirectPath(role: string): string {
       return '/casino/dashboard';
     case 'regulator':
       return '/regulator/dashboard';
+    case 'provincial_regulator':
+      return '/regulator/provincial-dashboard';
     case 'staff':
       return '/staff/profile';
     default:

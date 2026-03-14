@@ -40,6 +40,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: 'Dashboard', href: '/casino/dashboard', icon: LayoutDashboard, roles: ['casino_admin', 'casino_admin'] },
       { title: 'Dashboard', href: '/regulator/dashboard', icon: LayoutDashboard, roles: ['regulator'] },
+      { title: 'Dashboard', href: '/regulator/provincial-dashboard', icon: LayoutDashboard, roles: ['provincial_regulator'] },
       { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['super_admin'] },
       { title: 'Dashboard', href: '/staff/profile', icon: LayoutDashboard, roles: ['casino_staff'] },
       { title: 'Players', href: '/casino/players', icon: Users, roles: ['casino_admin', 'casino_admin'] },
@@ -48,17 +49,17 @@ const navigationGroups: NavGroup[] = [
   {
     title: 'Intelligence',
     items: [
-      { title: 'Live Monitor', href: '/behavioral-risk-intelligence', icon: Activity, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
-      { title: 'AI Intelligence', href: '/casino/ai-intelligence', icon: Brain, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
-      { title: 'Interventions', href: '/casino/interventions', icon: ShieldAlert, roles: ['casino_admin', 'casino_admin', 'regulator', 'super_admin'] },
+      { title: 'Live Monitor', href: '/behavioral-risk-intelligence', icon: Activity, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'AI Intelligence', href: '/casino/ai-intelligence', icon: Brain, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Interventions', href: '/casino/interventions', icon: ShieldAlert, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
     ],
   },
   {
     title: 'Governance',
     items: [
-      { title: 'ESG Performance', href: '/esg-performance', icon: CheckCircle, roles: ['casino_admin', 'regulator', 'super_admin'] },
-      { title: 'ESG Data Entry', href: '/casino/esg-data-entry', icon: FileText, roles: ['casino_admin', 'casino_admin'] },
-      { title: 'Wellbeing Compliance', href: '/regulator/wellbeing-compliance', icon: Shield, roles: ['regulator', 'super_admin'] },
+      { title: 'ESG Performance', href: '/esg-performance', icon: CheckCircle, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'ESG Data Entry', href: '/casino/esg-data-entry', icon: FileText, roles: ['casino_admin'] },
+      { title: 'Wellbeing Compliance', href: '/regulator/wellbeing-compliance', icon: Shield, roles: ['regulator', 'provincial_regulator', 'super_admin'] },
     ],
   },
   {
