@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -345,6 +346,7 @@ export default function InterventionsPage() {
   }
 
   return (
+    <ModuleGuard slug="responsible-gambling-alerts" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
         <div className="p-6 space-y-6">
@@ -979,5 +981,6 @@ export default function InterventionsPage() {
         </div>
       </TooltipProvider>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }

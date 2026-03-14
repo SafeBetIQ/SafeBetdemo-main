@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { PageHeader } from '@/components/saas/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -156,6 +157,7 @@ export default function AIIntelligencePage() {
   };
 
   return (
+    <ModuleGuard slug="ai-risk-forecasting" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
       <div className="flex h-full flex-col">
@@ -601,5 +603,6 @@ export default function AIIntelligencePage() {
       </div>
       </TooltipProvider>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }

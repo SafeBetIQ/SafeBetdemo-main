@@ -12,6 +12,7 @@ import { Globe as Globe2, Building2, Users, TriangleAlert as AlertTriangle, Acti
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { NationalGamblingInsights } from '@/components/regulator/NationalGamblingInsights';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { HighRiskPlayerAnalytics } from '@/components/regulator/HighRiskPlayerAnalytics';
 import { InterventionStatistics } from '@/components/regulator/InterventionStatistics';
 import { toast } from 'sonner';
@@ -136,6 +137,7 @@ export default function NationalRegulatorDashboard() {
   ];
 
   return (
+    <ModuleGuard slug="regulator-intelligence" fallbackHref="/regulator/dashboard">
     <DashboardLayout>
       <div className="flex h-full flex-col">
 
@@ -441,5 +443,6 @@ export default function NationalRegulatorDashboard() {
         </div>
       </div>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }

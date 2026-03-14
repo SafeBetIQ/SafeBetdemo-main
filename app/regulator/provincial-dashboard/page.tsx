@@ -11,6 +11,7 @@ import { MapPin, Building2, Users, TriangleAlert as AlertTriangle, Activity, Dow
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { NationalGamblingInsights } from '@/components/regulator/NationalGamblingInsights';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { HighRiskPlayerAnalytics } from '@/components/regulator/HighRiskPlayerAnalytics';
 import { InterventionStatistics } from '@/components/regulator/InterventionStatistics';
 import { toast } from 'sonner';
@@ -148,6 +149,7 @@ export default function ProvincialRegulatorDashboard() {
   ];
 
   return (
+    <ModuleGuard slug="regulator-intelligence" fallbackHref="/regulator/provincial-dashboard">
     <DashboardLayout>
       <div className="flex h-full flex-col">
 
@@ -454,5 +456,6 @@ export default function ProvincialRegulatorDashboard() {
         </div>
       </div>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }

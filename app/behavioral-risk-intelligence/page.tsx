@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { PageHeader } from '@/components/saas/PageHeader';
 import { KPICard } from '@/components/saas/KPICard';
 import { ChartCard } from '@/components/saas/ChartCard';
@@ -310,6 +311,7 @@ export default function BehavioralRiskIntelligencePage() {
   };
 
   return (
+    <ModuleGuard slug="behavioural-risk-intelligence" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
         <div className="flex h-full flex-col">
@@ -904,5 +906,6 @@ export default function BehavioralRiskIntelligencePage() {
         )}
       </TooltipProvider>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }

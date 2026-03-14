@@ -7,12 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Shield, Search, Building2, Package, Zap, CircleCheck as CheckCircle2, Circle as XCircle, Clock, ArrowLeft, Crown, TrendingUp, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Brain, Bell, FileCheck, Network, UserX, Sparkles, Landmark, Building2, ArrowLeft, Shield, CircleCheck as CheckCircle2, Lock, ChevronRight, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface SoftwareModule {
   id: string;
@@ -21,381 +20,178 @@ interface SoftwareModule {
   description: string;
   category: string;
   price_tier: string;
-  price_monthly: number;
   is_active: boolean;
+  is_default: boolean;
+  icon: string;
   sort_order: number;
 }
 
 interface Casino {
   id: string;
-  email: string;
   name: string;
+  province?: string;
 }
 
 interface CasinoModule {
   casino_id: string;
   module_id: string;
   enabled_at: string;
-  expires_at?: string;
 }
 
-interface PricingPackage {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  price_monthly: number;
-  price_annual: number;
-  features: string[];
-  sort_order: number;
-}
-
-interface PackageModule {
-  package_id: string;
-  module_id: string;
-  is_included: boolean;
-}
-
-const categoryIcons: Record<string, any> = {
-  core: Shield,
-  analytics: Zap,
-  compliance: CheckCircle2,
-  training: Building2,
-  ai: Zap,
+const MODULE_ICONS: Record<string, any> = {
+  brain: Brain,
+  bell: Bell,
+  'file-check': FileCheck,
+  network: Network,
+  'user-x': UserX,
+  sparkles: Sparkles,
+  landmark: Landmark,
+  shield: Shield,
 };
 
-const priceTierColors: Record<string, string> = {
-  included: 'bg-gray-500',
-  standard: 'bg-blue-500',
-  premium: 'bg-purple-500',
-  enterprise: 'bg-amber-500',
+const TIER_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  standard: { label: 'Default', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+  premium: { label: 'Premium', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+  enterprise: { label: 'Enterprise', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  core: 'Default Features',
+  intelligence: 'Intelligence',
+  compliance: 'Compliance',
+  ai: 'Artificial Intelligence',
 };
 
 export default function CasinoModulesPage() {
   const { user } = useAuth();
   const userRole = (user as any)?.role;
   const { toast } = useToast();
+  const router = useRouter();
+
   const [modules, setModules] = useState<SoftwareModule[]>([]);
   const [casinos, setCasinos] = useState<Casino[]>([]);
   const [casinoModules, setCasinoModules] = useState<CasinoModule[]>([]);
-  const [packages, setPackages] = useState<PricingPackage[]>([]);
-  const [packageModules, setPackageModules] = useState<PackageModule[]>([]);
   const [selectedCasino, setSelectedCasino] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [bulkUpdating, setBulkUpdating] = useState(false);
-  const [activeTab, setActiveTab] = useState('packages');
-  const router = useRouter();
 
   useEffect(() => {
-    if (user && userRole === 'super_admin') {
-      loadData();
-    }
+    if (user && userRole === 'super_admin') loadData();
   }, [user, userRole]);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const [modulesRes, casinosRes, casinoModulesRes, packagesRes, packageModulesRes] = await Promise.all([
-        supabase.from('software_modules').select('*').order('category, sort_order'),
-        supabase.from('casinos').select('id, name, contact_email').order('name'),
-        supabase.from('casino_modules').select('casino_id, module_id, enabled_at, expires_at'),
-        supabase.from('pricing_packages').select('*').order('sort_order'),
-        supabase.from('package_modules').select('package_id, module_id, is_included'),
+      const [modulesRes, casinosRes, casinoModulesRes] = await Promise.all([
+        supabase.from('software_modules').select('*').eq('is_active', true).order('sort_order'),
+        supabase.from('casinos').select('id, name, province').order('name'),
+        supabase.from('casino_modules').select('casino_id, module_id, enabled_at'),
       ]);
 
       if (modulesRes.data) setModules(modulesRes.data);
       if (casinosRes.data) {
-        const mappedCasinos = casinosRes.data.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          email: c.contact_email,
-        }));
-        setCasinos(mappedCasinos);
-        if (mappedCasinos.length > 0 && !selectedCasino) {
-          setSelectedCasino(mappedCasinos[0].id);
+        setCasinos(casinosRes.data);
+        if (casinosRes.data.length > 0 && !selectedCasino) {
+          setSelectedCasino(casinosRes.data[0].id);
         }
       }
       if (casinoModulesRes.data) setCasinoModules(casinoModulesRes.data);
-      if (packagesRes.data) setPackages(packagesRes.data);
-      if (packageModulesRes.data) setPackageModules(packageModulesRes.data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load module data',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const hasModule = (casinoId: string, moduleId: string) => {
-    return casinoModules.some(
-      (cm) => cm.casino_id === casinoId && cm.module_id === moduleId
-    );
-  };
+  const isEnabled = (casinoId: string, moduleId: string) =>
+    casinoModules.some((cm) => cm.casino_id === casinoId && cm.module_id === moduleId);
 
-  const toggleModule = async (casinoId: string, moduleId: string, currentlyEnabled: boolean) => {
+  const toggleModule = async (moduleId: string) => {
+    if (!selectedCasino) return;
+    const currentlyEnabled = isEnabled(selectedCasino, moduleId);
+    setUpdating(moduleId);
     try {
-      setUpdating(moduleId);
-
       if (currentlyEnabled) {
-        const { error } = await supabase
+        await supabase
           .from('casino_modules')
           .delete()
-          .eq('casino_id', casinoId)
+          .eq('casino_id', selectedCasino)
           .eq('module_id', moduleId);
-
-        if (error) {
-          throw error;
-        }
-
-        // Update local state immediately
         setCasinoModules((prev) =>
-          prev.filter((cm) => !(cm.casino_id === casinoId && cm.module_id === moduleId))
+          prev.filter((cm) => !(cm.casino_id === selectedCasino && cm.module_id === moduleId))
         );
-
-        toast({
-          title: 'Module Disabled',
-          description: 'Casino dashboard will update automatically',
-        });
+        toast({ title: 'Module disabled', description: 'Access removed immediately.' });
       } else {
-        const { data, error } = await supabase.from('casino_modules').insert({
-          casino_id: casinoId,
-          module_id: moduleId,
-          enabled_by: user?.id,
-        }).select().single();
-
-        if (error) {
-          throw error;
-        }
-
-        // Update local state with actual data from database
+        const { data, error } = await supabase
+          .from('casino_modules')
+          .insert({ casino_id: selectedCasino, module_id: moduleId, enabled_by: user?.id })
+          .select()
+          .single();
+        if (error) throw error;
         if (data) {
           setCasinoModules((prev) => [
             ...prev,
-            {
-              casino_id: data.casino_id,
-              module_id: data.module_id,
-              enabled_at: data.enabled_at,
-              expires_at: data.expires_at,
-            },
+            { casino_id: data.casino_id, module_id: data.module_id, enabled_at: data.enabled_at },
           ]);
         }
-
-        toast({
-          title: 'Module Enabled',
-          description: 'Casino dashboard will update automatically',
-        });
+        toast({ title: 'Module enabled', description: 'Casino access granted immediately.' });
       }
-
-      // Force a refresh of the data to ensure consistency
-      await loadData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.message || error?.error_description || 'Failed to update module assignment',
-        variant: 'destructive',
-      });
-      // Reload data even on error to ensure UI is consistent with database
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to update', variant: 'destructive' });
       await loadData();
     } finally {
       setUpdating(null);
     }
   };
 
-  const enableAllModules = async (casinoId: string) => {
+  const enableAllOptional = async () => {
+    if (!selectedCasino) return;
+    setUpdating('bulk');
     try {
-      setBulkUpdating(true);
-
-      const modulesToAdd = modules
-        .filter((m) => !hasModule(casinoId, m.id))
-        .map((m) => ({
-          casino_id: casinoId,
-          module_id: m.id,
-          enabled_by: user?.id,
-        }));
-
-      if (modulesToAdd.length === 0) {
-        toast({
-          title: 'Info',
-          description: 'All modules are already enabled for this casino',
-        });
-        setBulkUpdating(false);
+      const toAdd = modules
+        .filter((m) => !m.is_default && !isEnabled(selectedCasino, m.id))
+        .map((m) => ({ casino_id: selectedCasino, module_id: m.id, enabled_by: user?.id }));
+      if (toAdd.length === 0) {
+        toast({ title: 'All optional modules already enabled' });
         return;
       }
-
-      const { error } = await supabase.from('casino_modules').insert(modulesToAdd);
-
-      if (error) {
-        throw error;
-      }
-
-      // Reload all data to ensure consistency
+      await supabase.from('casino_modules').insert(toAdd);
       await loadData();
-
-      toast({
-        title: 'Success',
-        description: `Enabled ${modulesToAdd.length} modules for this casino`,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.message || error?.error_description || 'Failed to enable all modules',
-        variant: 'destructive',
-      });
-      await loadData();
+      toast({ title: 'All optional modules enabled', description: `${toAdd.length} modules activated.` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message, variant: 'destructive' });
     } finally {
-      setBulkUpdating(false);
+      setUpdating(null);
     }
   };
 
-  const disableAllModules = async (casinoId: string) => {
+  const disableAllOptional = async () => {
+    if (!selectedCasino) return;
+    setUpdating('bulk');
     try {
-      setBulkUpdating(true);
-
-      const { error } = await supabase
-        .from('casino_modules')
-        .delete()
-        .eq('casino_id', casinoId);
-
-      if (error) {
-        throw error;
+      const toRemove = modules.filter((m) => !m.is_default && isEnabled(selectedCasino, m.id));
+      for (const m of toRemove) {
+        await supabase
+          .from('casino_modules')
+          .delete()
+          .eq('casino_id', selectedCasino)
+          .eq('module_id', m.id);
       }
-
-      // Reload all data to ensure consistency
       await loadData();
-
-      toast({
-        title: 'Success',
-        description: 'All modules have been disabled for this casino',
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.message || error?.error_description || 'Failed to disable all modules',
-        variant: 'destructive',
-      });
-      await loadData();
+      toast({ title: 'Optional modules disabled', description: `${toRemove.length} modules deactivated.` });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message, variant: 'destructive' });
     } finally {
-      setBulkUpdating(false);
+      setUpdating(null);
     }
   };
-
-  const assignPackage = async (casinoId: string, packageId: string) => {
-    try {
-      setBulkUpdating(true);
-      const pkg = packages.find(p => p.id === packageId);
-
-      // Get all modules for this package
-      const moduleIds = packageModules
-        .filter(pm => pm.package_id === packageId && pm.is_included)
-        .map(pm => pm.module_id);
-
-      if (moduleIds.length === 0) {
-        toast({
-          title: 'Error',
-          description: 'This package has no modules configured',
-          variant: 'destructive',
-        });
-        setBulkUpdating(false);
-        return;
-      }
-
-      // First, remove all existing modules
-      await supabase
-        .from('casino_modules')
-        .delete()
-        .eq('casino_id', casinoId);
-
-      // Then add all modules from the package
-      const modulesToAdd = moduleIds.map(moduleId => ({
-        casino_id: casinoId,
-        module_id: moduleId,
-        enabled_by: user?.id,
-      }));
-
-      const { error } = await supabase
-        .from('casino_modules')
-        .insert(modulesToAdd);
-
-      if (error) {
-        throw error;
-      }
-
-      // Record package assignment
-      await supabase
-        .from('casino_packages')
-        .upsert({
-          casino_id: casinoId,
-          package_id: packageId,
-          activated_by: user?.id,
-          is_active: true,
-        });
-
-      await loadData();
-
-      toast({
-        title: 'Success',
-        description: `${pkg?.name} package assigned successfully`,
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error?.message || 'Failed to assign package',
-        variant: 'destructive',
-      });
-      await loadData();
-    } finally {
-      setBulkUpdating(false);
-    }
-  };
-
-  const getPackageIcon = (packageName: string) => {
-    switch (packageName.toLowerCase()) {
-      case 'standard':
-        return Package;
-      case 'enterprise':
-        return TrendingUp;
-      case 'premium':
-        return Crown;
-      default:
-        return Package;
-    }
-  };
-
-  const getModulesForPackage = (packageId: string) => {
-    const moduleIds = packageModules
-      .filter(pm => pm.package_id === packageId && pm.is_included)
-      .map(pm => pm.module_id);
-    return modules.filter(m => moduleIds.includes(m.id));
-  };
-
-  const filteredModules = modules.filter(
-    (m) =>
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const groupedModules = filteredModules.reduce((acc, module) => {
-    if (!acc[module.category]) {
-      acc[module.category] = [];
-    }
-    acc[module.category].push(module);
-    return acc;
-  }, {} as Record<string, SoftwareModule[]>);
 
   if (userRole !== 'super_admin') {
     return (
       <div className="p-8">
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Access denied. This page is only available to super administrators.
-            </p>
+          <CardContent className="pt-6 text-center text-muted-foreground">
+            Access restricted to Super Administrators.
           </CardContent>
         </Card>
       </div>
@@ -403,336 +199,299 @@ export default function CasinoModulesPage() {
   }
 
   const selectedCasinoData = casinos.find((c) => c.id === selectedCasino);
-  const enabledCount = modules.filter((m) => hasModule(selectedCasino, m.id)).length;
+  const defaultModules = modules.filter((m) => m.is_default);
+  const optionalModules = modules.filter((m) => !m.is_default);
+  const enabledOptionalCount = optionalModules.filter((m) => isEnabled(selectedCasino, m.id)).length;
+  const totalEnabledCount = modules.filter((m) => isEnabled(selectedCasino, m.id)).length;
+
+  const groupedOptional = optionalModules.reduce((acc, m) => {
+    const key = m.category;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(m);
+    return acc;
+  }, {} as Record<string, SoftwareModule[]>);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div>
-          <Button
-            variant="ghost"
-            className="mb-4"
-            onClick={() => router.push('/admin')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Admin Dashboard
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-7xl mx-auto p-6 lg:p-8 space-y-6">
+
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/admin')}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Admin
           </Button>
-          <h1 className="text-4xl font-bold mb-2">Casino Software Modules</h1>
-          <p className="text-muted-foreground">
-            Manage which features and modules each casino has access to
-          </p>
+          <div className="h-5 w-px bg-border" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Feature Module Management</h1>
+            <p className="text-sm text-muted-foreground">
+              Control which modules each casino can access
+            </p>
+          </div>
         </div>
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Casino</CardTitle>
-              <CardDescription>
-                Choose a casino to manage their software module access
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {casinos.map((casino) => {
-                  const casinoEnabledCount = modules.filter((m) =>
-                    hasModule(casino.id, m.id)
-                  ).length;
-                  const isSelected = selectedCasino === casino.id;
-
-                  return (
-                    <Card
-                      key={casino.id}
-                      className={`cursor-pointer transition-all hover:shadow-lg ${
-                        isSelected ? 'ring-2 ring-primary' : ''
-                      }`}
-                      onClick={() => setSelectedCasino(casino.id)}
-                    >
-                      <CardContent className="pt-6">
-                        <div className="flex items-center gap-3 mb-3">
-                          <Building2 className="h-5 w-5 text-primary" />
-                          <h3 className="font-semibold">{casino.name || casino.email}</h3>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {casinoEnabledCount} / {modules.length} modules enabled
-                        </div>
-                        <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{
-                              width: `${(casinoEnabledCount / modules.length) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+        {/* Module overview strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950 dark:border-emerald-800">
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                {defaultModules.length}
               </div>
+              <div className="text-xs text-emerald-600 dark:text-emerald-500 font-medium">Default modules</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Enabled for all casinos</div>
             </CardContent>
           </Card>
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                {optionalModules.length}
+              </div>
+              <div className="text-xs text-blue-600 dark:text-blue-500 font-medium">Optional modules</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Requires manual activation</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold">{casinos.length}</div>
+              <div className="text-xs text-muted-foreground font-medium">Licensed casinos</div>
+              <div className="text-xs text-muted-foreground mt-0.5">On the platform</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="text-2xl font-bold">{modules.length}</div>
+              <div className="text-xs text-muted-foreground font-medium">Total modules</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Available in platform</div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {selectedCasino && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>
-                      {selectedCasinoData?.name || selectedCasinoData?.email}
-                    </CardTitle>
-                    <CardDescription>
-                      {enabledCount} / {modules.length} modules enabled
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="packages">
-                      <Package className="mr-2 h-4 w-4" />
-                      Manage by Package
-                    </TabsTrigger>
-                    <TabsTrigger value="modules">
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Individual Modules
-                    </TabsTrigger>
-                  </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                  <TabsContent value="packages" className="space-y-6">
-                    <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold mb-2">Choose a Package</h3>
-                      <p className="text-muted-foreground">
-                        Select a pricing tier that includes the features this casino needs
-                      </p>
+          {/* Casino list */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Casinos
+              </h2>
+              <Button variant="ghost" size="sm" onClick={loadData} disabled={loading}>
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {casinos.map((casino) => {
+                const casinoEnabledCount = modules.filter((m) => isEnabled(casino.id, m.id)).length;
+                const pct = modules.length > 0 ? (casinoEnabledCount / modules.length) * 100 : 0;
+                const isSelected = selectedCasino === casino.id;
+
+                return (
+                  <button
+                    key={casino.id}
+                    onClick={() => setSelectedCasino(casino.id)}
+                    className={cn(
+                      'w-full text-left rounded-lg border p-3 transition-all',
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-border bg-card hover:border-primary/50 hover:bg-muted/50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm font-medium leading-tight">{casino.name}</span>
+                      </div>
+                      {isSelected && <ChevronRight className="h-4 w-4 text-primary" />}
                     </div>
-
-                    <div className="grid gap-6 md:grid-cols-3">
-                      {packages.map((pkg) => {
-                        const Icon = getPackageIcon(pkg.name);
-                        const packageModulesCount = getModulesForPackage(pkg.id).length;
-                        const packageCategories = Array.from(
-                          new Set(getModulesForPackage(pkg.id).map(m => m.category))
-                        );
-
-                        return (
-                          <Card
-                            key={pkg.id}
-                            className={`relative overflow-hidden transition-all hover:shadow-xl ${
-                              pkg.slug === 'premium' ? 'border-amber-500 border-2' : ''
-                            }`}
-                          >
-                            {pkg.slug === 'premium' && (
-                              <div className="absolute top-0 right-0 bg-amber-500 text-white px-3 py-1 text-xs font-bold">
-                                BEST VALUE
-                              </div>
-                            )}
-                            <CardHeader>
-                              <div className="flex items-center gap-3 mb-2">
-                                <Icon className="h-8 w-8 text-primary" />
-                                <CardTitle className="text-2xl">{pkg.name}</CardTitle>
-                              </div>
-                              <CardDescription className="text-base">
-                                {pkg.description}
-                              </CardDescription>
-                              <div className="mt-4">
-                                <div className="text-3xl font-bold">
-                                  R{pkg.price_monthly.toLocaleString()}
-                                  <span className="text-lg font-normal text-muted-foreground">/month</span>
-                                </div>
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  or R{pkg.price_annual.toLocaleString()}/year
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">Modules Included:</span>
-                                  <span className="font-semibold">{packageModulesCount}</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {packageCategories.map(cat => (
-                                    <Badge key={cat} variant="secondary" className="text-xs capitalize">
-                                      {cat}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <p className="text-sm font-semibold">Key Features:</p>
-                                <ul className="space-y-1">
-                                  {pkg.features.slice(0, 6).map((feature, idx) => (
-                                    <li key={idx} className="text-sm flex items-start gap-2">
-                                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                      <span>{feature}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-
-                              <Button
-                                className="w-full"
-                                onClick={() => assignPackage(selectedCasino, pkg.id)}
-                                disabled={bulkUpdating}
-                                variant={pkg.slug === 'premium' ? 'default' : 'outline'}
-                              >
-                                {bulkUpdating ? 'Assigning...' : `Assign ${pkg.name}`}
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
+                    {casino.province && (
+                      <p className="text-xs text-muted-foreground mb-1.5 pl-6">{casino.province}</p>
+                    )}
+                    <div className="pl-6">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">{casinoEnabledCount}/{modules.length} modules</span>
+                      </div>
+                      <Progress value={pct} className="h-1" />
                     </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                    <Card className="mt-8 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start gap-4">
-                          <Sparkles className="h-6 w-6 text-blue-600 mt-1" />
-                          <div>
-                            <h4 className="font-semibold mb-2">Upgrade Path</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Start with <strong>Standard</strong> for essential features, upgrade to <strong>Enterprise</strong>
-                              for AI-powered risk detection, or choose <strong>Premium</strong> for
-                              complete SafeBet IQ suite with ESG reporting and advanced behavioral monitoring.
-                            </p>
-                          </div>
+          {/* Module management panel */}
+          <div className="lg:col-span-2 space-y-5">
+            {selectedCasinoData ? (
+              <>
+                {/* Selected casino header */}
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Building2 className="h-5 w-5 text-primary" />
                         </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="modules" className="space-y-6">
-                    {(() => {
-                      const enabledModules = modules.filter(m => hasModule(selectedCasino, m.id));
-                      const totalMonthlyCost = enabledModules.reduce((sum, m) => sum + (m.price_monthly || 0), 0);
-
-                      return (
-                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">Current Monthly Cost (À la carte)</p>
-                                <p className="text-3xl font-bold">R{totalMonthlyCost.toLocaleString()}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {enabledModules.length} module{enabledModules.length !== 1 ? 's' : ''} enabled
-                                </p>
-                              </div>
-                              {totalMonthlyCost > 75000 && (
-                                <div className="text-right">
-                                  <Badge variant="destructive" className="mb-2">Could Save Money</Badge>
-                                  <p className="text-sm text-muted-foreground">
-                                    Consider switching to a package plan
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })()}
-
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex-1 max-w-md">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Search modules..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                          />
+                        <div>
+                          <h3 className="font-semibold">{selectedCasinoData.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {totalEnabledCount} of {modules.length} modules active
+                            {selectedCasinoData.province && ` · ${selectedCasinoData.province}`}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button
+                          size="sm"
                           variant="outline"
-                          onClick={() => enableAllModules(selectedCasino)}
-                          disabled={bulkUpdating}
+                          onClick={enableAllOptional}
+                          disabled={updating === 'bulk' || enabledOptionalCount === optionalModules.length}
                         >
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          {bulkUpdating ? 'Enabling...' : 'Enable All'}
+                          Enable all optional
                         </Button>
                         <Button
+                          size="sm"
                           variant="outline"
-                          onClick={() => disableAllModules(selectedCasino)}
-                          disabled={bulkUpdating}
+                          onClick={disableAllOptional}
+                          disabled={updating === 'bulk' || enabledOptionalCount === 0}
                         >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          {bulkUpdating ? 'Disabling...' : 'Disable All'}
+                          Disable optional
                         </Button>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
 
-                    <div className="space-y-6">
-                      {Object.entries(groupedModules).map(([category, categoryModules]) => {
-                        const Icon = categoryIcons[category] || Package;
-
-                        return (
-                          <div key={category}>
-                            <div className="flex items-center gap-2 mb-3">
-                              <Icon className="h-5 w-5 text-primary" />
-                              <h3 className="text-lg font-semibold capitalize">{category}</h3>
+                {/* Default modules */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="h-4 w-4 text-emerald-600" />
+                    <h2 className="text-sm font-semibold">Default Features</h2>
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+                      Always enabled
+                    </Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {defaultModules.map((module) => {
+                      const Icon = MODULE_ICONS[module.icon] || Shield;
+                      return (
+                        <Card key={module.id} className="border-emerald-100 dark:border-emerald-900">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="flex items-start gap-4">
+                              <div className="h-9 w-9 rounded-lg bg-emerald-50 dark:bg-emerald-900 flex items-center justify-center flex-shrink-0">
+                                <Icon className="h-4.5 w-4.5 text-emerald-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="font-medium text-sm">{module.name}</span>
+                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-normal">
+                                    Default
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {module.description}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                                <Switch checked={true} disabled className="opacity-60" />
+                              </div>
                             </div>
-                            <div className="grid gap-3">
-                              {categoryModules.map((module) => {
-                                const enabled = hasModule(selectedCasino, module.id);
-                                const isUpdating = updating === module.id;
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                                return (
-                                  <Card key={module.id}>
-                                    <CardContent className="pt-6">
-                                      <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <h4 className="font-semibold">{module.name}</h4>
-                                            <Badge
-                                              className={priceTierColors[module.price_tier]}
-                                            >
-                                              {module.price_tier}
-                                            </Badge>
-                                          </div>
-                                          <p className="text-sm text-muted-foreground">
-                                            {module.description}
-                                          </p>
-                                          {module.price_monthly > 0 && (
-                                            <div className="mt-2">
-                                              <span className="text-lg font-bold text-primary">
-                                                R{module.price_monthly.toLocaleString()}
-                                              </span>
-                                              <span className="text-sm text-muted-foreground">/month</span>
-                                            </div>
-                                          )}
-                                          {module.price_monthly === 0 && (
-                                            <div className="mt-2">
-                                              <span className="text-sm font-semibold text-green-600">
-                                                Included (No additional cost)
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <Switch
-                                          checked={enabled}
-                                          onCheckedChange={() =>
-                                            toggleModule(selectedCasino, module.id, enabled)
-                                          }
-                                          disabled={isUpdating}
-                                        />
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
+                {/* Optional modules by category */}
+                {Object.entries(groupedOptional).map(([category, categoryModules]) => {
+                  const tierConfig = TIER_CONFIG[categoryModules[0]?.price_tier] || TIER_CONFIG.premium;
+
+                  return (
+                    <div key={category}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="h-4 w-4 text-blue-500" />
+                        <h2 className="text-sm font-semibold">
+                          {CATEGORY_LABELS[category] || category}
+                        </h2>
+                        <Badge variant="outline" className={cn('text-xs', tierConfig.color)}>
+                          {tierConfig.label}
+                        </Badge>
+                      </div>
+                      <div className="space-y-3">
+                        {categoryModules.map((module) => {
+                          const Icon = MODULE_ICONS[module.icon] || Shield;
+                          const enabled = isEnabled(selectedCasino, module.id);
+                          const isUpdating = updating === module.id;
+                          const moduleTier = TIER_CONFIG[module.price_tier] || TIER_CONFIG.premium;
+
+                          return (
+                            <Card
+                              key={module.id}
+                              className={cn(
+                                'transition-all',
+                                enabled ? 'border-primary/30 bg-primary/2' : 'opacity-80'
+                              )}
+                            >
+                              <CardContent className="pt-4 pb-4">
+                                <div className="flex items-start gap-4">
+                                  <div
+                                    className={cn(
+                                      'h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
+                                      enabled
+                                        ? 'bg-primary/10'
+                                        : 'bg-muted'
+                                    )}
+                                  >
+                                    <Icon
+                                      className={cn(
+                                        'h-4.5 w-4.5 transition-colors',
+                                        enabled ? 'text-primary' : 'text-muted-foreground'
+                                      )}
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="font-medium text-sm">{module.name}</span>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn('text-xs font-normal', moduleTier.color)}
+                                      >
+                                        {moduleTier.label}
+                                      </Badge>
+                                      {enabled && (
+                                        <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                          <CheckCircle2 className="h-3 w-3" />
+                                          Active
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                      {module.description}
+                                    </p>
+                                  </div>
+                                  <Switch
+                                    checked={enabled}
+                                    onCheckedChange={() => toggleModule(module.id)}
+                                    disabled={isUpdating || updating === 'bulk'}
+                                    className="flex-shrink-0"
+                                  />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          )}
+                  );
+                })}
+              </>
+            ) : (
+              <Card>
+                <CardContent className="pt-12 pb-12 text-center text-muted-foreground">
+                  Select a casino to manage its modules.
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>

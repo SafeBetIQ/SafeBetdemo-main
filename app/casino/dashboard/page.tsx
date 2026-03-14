@@ -15,6 +15,7 @@ import { InterventionAlerts } from '@/components/compliance/InterventionAlerts';
 import { ComplianceReports } from '@/components/compliance/ComplianceReports';
 import { SessionBehaviourAnalytics } from '@/components/compliance/SessionBehaviourAnalytics';
 import { SelfExclusionCompliance } from '@/components/compliance/SelfExclusionCompliance';
+import { ModuleGuard } from '@/components/ModuleGuard';
 
 interface PlatformSummary {
   totalPlayers: number;
@@ -134,6 +135,7 @@ export default function CasinoDashboardPage() {
   ];
 
   return (
+    <ModuleGuard slug="behavioural-risk-intelligence" fallbackHref="/casino/dashboard">
     <CasinoAdminGuard>
       <DashboardLayout>
         <div className="flex h-full flex-col">
@@ -307,5 +309,6 @@ export default function CasinoDashboardPage() {
         </div>
       </DashboardLayout>
     </CasinoAdminGuard>
+    </ModuleGuard>
   );
 }
