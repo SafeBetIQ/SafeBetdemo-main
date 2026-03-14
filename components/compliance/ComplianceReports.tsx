@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Shield, BookOpen, TrendingUp, RefreshCw, Clock, Award, Building2 } from 'lucide-react';
+import { FileText, Download, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Shield, BookOpen, TrendingUp, RefreshCw, Clock, Award, Building2, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -223,9 +224,16 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
   const scoreBg    = overallScore >= 85 ? 'bg-emerald-50 border-emerald-200' : overallScore >= 70 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* Compliance Score Hero */}
-      <div className={`rounded-xl border p-6 ${scoreBg}`}>
+      <div className={`rounded-xl border p-6 ${scoreBg} relative`}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-4 right-4 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Weighted compliance score across six regulatory obligations under the National Gambling Act and SARGF guidelines. A score below 70% requires immediate remediation action.</p></TooltipContent>
+        </Tooltip>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -250,7 +258,13 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
 
       {/* Metrics + Radar */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Visual representation of compliance performance across six dimensions. A balanced, outward shape indicates strong all-round compliance.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Compliance Radar</CardTitle>
             <CardDescription className="text-xs">Six-dimension compliance assessment</CardDescription>
@@ -267,7 +281,13 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Individual scores for each compliance dimension. Each metric is derived from live database records and updated in real time.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Key Metrics</CardTitle>
           </CardHeader>
@@ -295,7 +315,13 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
       </div>
 
       {/* Compliance Checklist */}
-      <Card>
+      <Card className="relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Checklist of mandatory obligations under the National Gambling Act. Each item is scored and weighted towards the overall compliance score.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-primary" />
@@ -341,7 +367,13 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
       </Card>
 
       {/* Report Library */}
-      <Card>
+      <Card className="relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Pre-built reports ready for download or submission to your provincial gambling board. Reports are generated from live data at the time of export.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
@@ -400,5 +432,6 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }

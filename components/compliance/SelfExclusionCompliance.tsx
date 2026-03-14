@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { ShieldOff, Clock, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Search, RefreshCw, Circle as XCircle, UserCheck, BookOpen, PhoneCall, Network, Shield } from 'lucide-react';
+import { ShieldOff, Clock, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Search, RefreshCw, Circle as XCircle, UserCheck, BookOpen, PhoneCall, Network, Shield, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -131,10 +132,17 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-red-200 bg-red-50/40">
+        <Card className="border-red-200 bg-red-50/40 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Players currently under a self-exclusion order. These players must be prevented from accessing gambling services.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-red-600 flex items-center gap-1 mb-1">
               <ShieldOff className="h-3.5 w-3.5" /> Active Exclusions
@@ -143,7 +151,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
             <p className="text-xs text-muted-foreground">Currently excluded</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Players whose self-exclusion period has been fully served and closed in accordance with the minimum period requirements.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Completed
@@ -152,7 +166,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
             <p className="text-xs text-muted-foreground">Successfully served</p>
           </CardContent>
         </Card>
-        <Card className={reinstatementPending > 0 ? 'border-blue-200 bg-blue-50/40' : ''}>
+        <Card className={`relative ${reinstatementPending > 0 ? 'border-blue-200 bg-blue-50/40' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Active exclusions where the player has requested reinstatement. These require counselling verification before access can be restored.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-blue-600 flex items-center gap-1 mb-1">
               <UserCheck className="h-3.5 w-3.5" /> Reinstatement Pending
@@ -161,7 +181,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
             <p className="text-xs text-muted-foreground">Awaiting review</p>
           </CardContent>
         </Card>
-        <Card className={breached > 0 ? 'border-orange-200 bg-orange-50/40' : ''}>
+        <Card className={`relative ${breached > 0 ? 'border-orange-200 bg-orange-50/40' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Instances where a self-excluded player was detected accessing gambling services. These are serious compliance violations requiring immediate escalation.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-orange-600 flex items-center gap-1 mb-1">
               <AlertTriangle className="h-3.5 w-3.5" /> Breached
@@ -174,7 +200,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
 
       {/* SARGF Counselling + Type Breakdown */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>SARGF requires a minimum of 6 counselling sessions before a self-excluded player can be considered for reinstatement. This tracks compliance with that requirement.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
@@ -211,7 +243,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Breakdown of exclusions by how they were initiated. Self-requested and voluntary exclusions indicate proactive help-seeking behaviour.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Exclusions by Type</CardTitle>
           </CardHeader>
@@ -261,7 +299,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
 
       {/* Network Events */}
       {networkEvents.length > 0 && (
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Exclusion events broadcast to the SafeBet IQ cross-operator network. Broadcasted events are visible to all participating casinos to prevent re-entry across operators.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Network className="h-4 w-4 text-primary" />
@@ -292,7 +336,13 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
       )}
 
       {/* Exclusion Register */}
-      <Card>
+      <Card className="relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Complete record of all self-exclusion orders at this operator. Maintained in accordance with NRGP reporting requirements.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
@@ -382,5 +432,6 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }

@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Users, TriangleAlert as AlertTriangle, TrendingUp, TrendingDown, Search, Eye, RefreshCw, Activity, ArrowUpRight, Minus, ChevronRight } from 'lucide-react';
+import { Users, TriangleAlert as AlertTriangle, TrendingUp, TrendingDown, Search, Eye, RefreshCw, Activity, ArrowUpRight, Minus, ChevronRight, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
@@ -116,10 +117,17 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card className="md:col-span-1">
+        <Card className="md:col-span-1 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Total number of registered players at this casino operator.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Users className="h-3.5 w-3.5" /> Total Players
@@ -127,7 +135,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <p className="text-3xl font-bold">{players.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-red-200 bg-red-50/50">
+        <Card className="border-red-200 bg-red-50/50 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Players with a risk score of 80 or above. These require immediate intervention under the National Gambling Act.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-red-600 flex items-center gap-1 mb-1">
               <AlertTriangle className="h-3.5 w-3.5" /> Critical
@@ -136,7 +150,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <p className="text-xs text-muted-foreground">Score 80+</p>
           </CardContent>
         </Card>
-        <Card className="border-orange-200 bg-orange-50/50">
+        <Card className="border-orange-200 bg-orange-50/50 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Players scoring 60–79. Elevated risk indicators detected; interventions are recommended.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-orange-600 flex items-center gap-1 mb-1">
               <TrendingUp className="h-3.5 w-3.5" /> High Risk
@@ -145,7 +165,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <p className="text-xs text-muted-foreground">Score 60–79</p>
           </CardContent>
         </Card>
-        <Card className="border-yellow-200 bg-yellow-50/50">
+        <Card className="border-yellow-200 bg-yellow-50/50 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Players with a risk score of 40–59. Monitoring is advised; no immediate action required.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-yellow-600 flex items-center gap-1 mb-1">
               <Minus className="h-3.5 w-3.5" /> Medium
@@ -154,7 +180,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <p className="text-xs text-muted-foreground">Score 40–59</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Average risk score across all players at this casino. Higher scores indicate a greater overall portfolio risk.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Activity className="h-3.5 w-3.5" /> Avg Risk
@@ -167,7 +199,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Proportion of players in each risk band. A larger critical/high segment indicates greater compliance obligations.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Risk Distribution</CardTitle>
           </CardHeader>
@@ -184,7 +222,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>7-day trend showing the number of critical and high-risk players. An upward trend warrants urgent review.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Critical & High Risk Trend (7 days)</CardTitle>
           </CardHeader>
@@ -204,7 +248,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
       </div>
 
       {/* Player Table */}
-      <Card>
+      <Card className="relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Live list of all players ranked by risk score. Click any row to view full behavioural risk intelligence for that player.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -311,5 +361,6 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }

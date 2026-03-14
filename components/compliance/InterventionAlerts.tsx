@@ -9,7 +9,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle2, Clock, MessageSquare, Send, RefreshCw, Circle as XCircle, Zap, Settings2, ChevronRight, Users } from 'lucide-react';
+import { Bell, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle2, Clock, MessageSquare, Send, RefreshCw, Circle as XCircle, Zap, Settings2, ChevronRight, Users, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -113,10 +114,17 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className={pending > 0 ? 'border-yellow-200 bg-yellow-50/50' : ''}>
+        <Card className={`relative ${pending > 0 ? 'border-yellow-200 bg-yellow-50/50' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Interventions that have been triggered but not yet sent to the player. Review delivery configuration if this number is high.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Clock className="h-3.5 w-3.5 text-yellow-500" /> Pending
@@ -125,7 +133,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
             <p className="text-xs text-muted-foreground">Awaiting dispatch</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Interventions successfully sent to players via the configured delivery channel (SMS, email, WhatsApp, or in-app).</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Send className="h-3.5 w-3.5 text-blue-500" /> Sent
@@ -134,7 +148,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
             <p className="text-xs text-muted-foreground">Delivered to player</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Interventions that resulted in a measurable reduction in the player's risk score following the interaction.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Successful
@@ -143,7 +163,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
             <p className="text-xs text-muted-foreground">Risk score reduced</p>
           </CardContent>
         </Card>
-        <Card className={failed > 0 ? 'border-red-200 bg-red-50/40' : ''}>
+        <Card className={`relative ${failed > 0 ? 'border-red-200 bg-red-50/40' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Interventions where delivery failed. This may indicate an invalid contact number, blocked address, or integration issue.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <XCircle className="h-3.5 w-3.5 text-red-500" /> Failed
@@ -172,7 +198,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
 
         {/* ALERT QUEUE */}
         <TabsContent value="alerts" className="mt-4">
-          <Card>
+          <Card className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs"><p>Full log of all player interventions ordered by date. Click a row to see the full detail including message content and outcome.</p></TooltipContent>
+            </Tooltip>
             <CardContent className="pt-4">
               {pending > 0 && (
                 <div className="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 flex items-center gap-2">
@@ -244,7 +276,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
 
         {/* TYPE BREAKDOWN */}
         <TabsContent value="breakdown" className="mt-4">
-          <Card>
+          <Card className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs"><p>Breakdown of how many interventions were issued per type. Helps identify which responsible gambling tools are used most frequently.</p></TooltipContent>
+            </Tooltip>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Interventions by Type</CardTitle>
               <CardDescription className="text-xs">Distribution of intervention categories issued to your players</CardDescription>
@@ -267,7 +305,13 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
 
         {/* THRESHOLD RULES */}
         <TabsContent value="rules" className="mt-4">
-          <Card>
+          <Card className="relative">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs"><p>Rules configured to automatically trigger interventions when a player's risk score crosses a defined threshold. Configure these in the Interventions settings.</p></TooltipContent>
+            </Tooltip>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-primary" />
@@ -313,7 +357,7 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Intervention Detail Dialog */}
+      {/* Intervention Detail Dialog — outside TooltipProvider scope intentionally */}
       <Dialog open={!!selectedIntervention} onOpenChange={() => setSelectedIntervention(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -368,5 +412,6 @@ export function InterventionAlerts({ casinoId }: InterventionAlertsProps) {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }

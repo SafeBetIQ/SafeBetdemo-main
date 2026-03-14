@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Activity, Clock, TrendingDown, TriangleAlert as AlertTriangle, RefreshCw, Gamepad2, DollarSign, Timer, CircleDot, ChartBar as BarChart3 } from 'lucide-react';
+import { Activity, Clock, TrendingDown, TriangleAlert as AlertTriangle, RefreshCw, Gamepad2, DollarSign, Timer, CircleDot, ChartBar as BarChart3, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -138,6 +139,7 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {/* Controls */}
       <div className="flex items-center gap-2 flex-wrap justify-between">
@@ -176,7 +178,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Number of gaming sessions currently in progress across all players at this casino.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Activity className="h-3.5 w-3.5 text-emerald-500" /> Active Now
@@ -185,7 +193,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
             <p className="text-xs text-muted-foreground">Live sessions</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Total sessions recorded during the selected time period after applying any active game type filter.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <BarChart3 className="h-3.5 w-3.5" /> Total Sessions
@@ -193,7 +207,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
             <p className="text-3xl font-bold">{filtered.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Average session length in minutes for the filtered period. Sessions averaging over 180 minutes may require proactive outreach.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Timer className="h-3.5 w-3.5" /> Avg Duration
@@ -201,7 +221,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
             <p className="text-3xl font-bold">{avgDuration}<span className="text-base font-normal text-muted-foreground">m</span></p>
           </CardContent>
         </Card>
-        <Card className={extendedSessions > 0 ? 'border-orange-200 bg-orange-50/40' : ''}>
+        <Card className={`relative ${extendedSessions > 0 ? 'border-orange-200 bg-orange-50/40' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Sessions exceeding 3 continuous hours. These are flagged as a responsible gambling concern and may require an intervention.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-orange-600 flex items-center gap-1 mb-1">
               <AlertTriangle className="h-3.5 w-3.5" /> Extended (&gt;3hrs)
@@ -210,7 +236,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
             <p className="text-xs text-muted-foreground">Flagged sessions</p>
           </CardContent>
         </Card>
-        <Card className={lateNight > 0 ? 'border-yellow-200 bg-yellow-50/40' : ''}>
+        <Card className={`relative ${lateNight > 0 ? 'border-yellow-200 bg-yellow-50/40' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Sessions that started between 00:00 and 05:00. Late-night gambling is a recognised responsible gambling risk indicator.</p></TooltipContent>
+          </Tooltip>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-yellow-600 flex items-center gap-1 mb-1">
               <Clock className="h-3.5 w-3.5" /> Late Night
@@ -223,7 +255,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
 
       {/* Charts Row */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Session volume broken down by game category. Helps identify which game types are most frequently associated with problem gambling behaviour.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Sessions by Game Type</CardTitle>
           </CardHeader>
@@ -242,7 +280,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Distribution of sessions by length. The red bar (over 3 hrs) represents sessions flagged for responsible gambling review.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Session Duration Distribution</CardTitle>
             <CardDescription className="text-xs">Sessions over 3 hours are flagged for review</CardDescription>
@@ -266,7 +310,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
       </div>
 
       {/* Hourly Activity Pattern */}
-      <Card>
+      <Card className="relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Hourly distribution of session start times. Red bars (00:00–05:00) highlight activity during hours associated with compulsive gambling patterns.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
@@ -293,7 +343,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
 
       {/* Flagged Sessions */}
       {suspiciousSessions.length > 0 && (
-        <Card className="border-orange-200">
+        <Card className="border-orange-200 relative">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Sessions that match one or more risk patterns: extended duration, late-night activity, or linked to a high-risk player. Manual review is recommended.</p></TooltipContent>
+          </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -361,7 +417,13 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
       )}
 
       {/* Suspicious Patterns Reference */}
-      <Card className="border-dashed">
+      <Card className="border-dashed relative">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs"><p>Reference list of all behavioural patterns the SafeBet IQ risk engine monitors. These patterns contribute to a player's overall risk score.</p></TooltipContent>
+        </Tooltip>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Monitored Behaviour Patterns</CardTitle>
           <CardDescription className="text-xs">Patterns automatically flagged by the SafeBet IQ risk engine</CardDescription>
@@ -381,5 +443,6 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
