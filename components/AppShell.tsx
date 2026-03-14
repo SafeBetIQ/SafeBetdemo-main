@@ -93,6 +93,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: 'Security & Compliance',
     items: [
+      { title: 'Command Center', href: '/security-command-center', icon: ShieldAlert, roles: ['super_admin', 'national_regulator', 'regulator'] },
       { title: 'Compliance Overview', href: '/admin/compliance-overview', icon: Award, roles: ['super_admin', 'national_regulator', 'regulator'] },
       { title: 'Compliance Controls', href: '/admin/compliance', icon: CheckCircle, roles: ['super_admin', 'casino_admin'] },
       { title: 'Threat Monitoring', href: '/admin/threat-monitoring', icon: AlertTriangle, roles: ['super_admin'] },
