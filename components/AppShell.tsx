@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, ChartBar as BarChart3, Microscope, DollarSign, MapPin, Cloud, Award, Key, Fingerprint, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, ChartBar as BarChart3, Microscope, DollarSign, MapPin, Cloud, Award, Key, Fingerprint, TriangleAlert as AlertTriangle, Cpu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -102,6 +102,7 @@ const navigationGroups: NavGroup[] = [
       { title: 'Data Governance', href: '/admin/data-governance', icon: Database, roles: ['super_admin'] },
       { title: 'Privacy Centre', href: '/admin/privacy', icon: Shield, roles: ['super_admin', 'casino_admin'] },
       { title: 'Infrastructure', href: '/admin/infrastructure', icon: Cloud, roles: ['super_admin'] },
+      { title: 'Performance', href: '/admin/performance', icon: Cpu, roles: ['super_admin'] },
     ],
   },
   {
