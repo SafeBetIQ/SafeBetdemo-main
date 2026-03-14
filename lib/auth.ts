@@ -36,7 +36,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     }
 
     const { data: userData, error: userError } = await supabase.rpc('get_user_by_email_fast', {
-      user_email: email
+      p_email: email
     });
 
     if (userError || !userData) {
@@ -87,7 +87,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     }
 
     const { data, error } = await supabase.rpc('get_user_by_email_fast', {
-      user_email: user.email
+      p_email: user.email
     });
 
     if (error || !data) {
