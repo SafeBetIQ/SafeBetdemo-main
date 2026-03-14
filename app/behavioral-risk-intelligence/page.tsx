@@ -34,8 +34,9 @@ import { RiskSignalBreakdown } from '@/components/RiskSignalBreakdown';
 import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
 import { InterventionModal } from '@/components/InterventionModal';
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
+import { SelfExclusionNetwork } from '@/components/SelfExclusionNetwork';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle, Network } from 'lucide-react';
+import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle, Network, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -332,18 +333,22 @@ export default function BehavioralRiskIntelligencePage() {
 
           <div className="flex-1 overflow-auto p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+              <TabsList className="grid w-full grid-cols-5 max-w-3xl">
                 <TabsTrigger value="live-monitor">
                   <Activity className="mr-1.5 h-3.5 w-3.5" />
                   Live Monitor
                 </TabsTrigger>
                 <TabsTrigger value="analytics">
                   <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
-                  Signal Analytics
+                  Analytics
                 </TabsTrigger>
                 <TabsTrigger value="cross-operator">
                   <Network className="mr-1.5 h-3.5 w-3.5" />
                   Cross-Operator
+                </TabsTrigger>
+                <TabsTrigger value="exclusion-network">
+                  <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                  SE Network
                 </TabsTrigger>
                 <TabsTrigger value="interventions">
                   <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
@@ -731,6 +736,11 @@ export default function BehavioralRiskIntelligencePage() {
               {/* ── CROSS-OPERATOR INTELLIGENCE ── */}
               <TabsContent value="cross-operator" className="space-y-6">
                 <CrossOperatorIntelligence />
+              </TabsContent>
+
+              {/* ── SELF-EXCLUSION NETWORK ── */}
+              <TabsContent value="exclusion-network" className="space-y-6">
+                <SelfExclusionNetwork />
               </TabsContent>
 
               <TabsContent value="interventions" className="space-y-6">
