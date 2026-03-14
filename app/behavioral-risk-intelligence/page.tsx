@@ -33,8 +33,9 @@ import { ImpulseVsIntentionTable } from '@/components/ImpulseVsIntentionTable';
 import { RiskSignalBreakdown } from '@/components/RiskSignalBreakdown';
 import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
 import { InterventionModal } from '@/components/InterventionModal';
+import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle } from 'lucide-react';
+import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle, Network } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -331,7 +332,7 @@ export default function BehavioralRiskIntelligencePage() {
 
           <div className="flex-1 overflow-auto p-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3 max-w-lg">
+              <TabsList className="grid w-full grid-cols-4 max-w-2xl">
                 <TabsTrigger value="live-monitor">
                   <Activity className="mr-1.5 h-3.5 w-3.5" />
                   Live Monitor
@@ -339,6 +340,10 @@ export default function BehavioralRiskIntelligencePage() {
                 <TabsTrigger value="analytics">
                   <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                   Signal Analytics
+                </TabsTrigger>
+                <TabsTrigger value="cross-operator">
+                  <Network className="mr-1.5 h-3.5 w-3.5" />
+                  Cross-Operator
                 </TabsTrigger>
                 <TabsTrigger value="interventions">
                   <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
@@ -723,6 +728,11 @@ export default function BehavioralRiskIntelligencePage() {
               </TabsContent>
 
               {/* ── INTERVENTIONS ── */}
+              {/* ── CROSS-OPERATOR INTELLIGENCE ── */}
+              <TabsContent value="cross-operator" className="space-y-6">
+                <CrossOperatorIntelligence />
+              </TabsContent>
+
               <TabsContent value="interventions" className="space-y-6">
                 <div className="grid gap-5 md:grid-cols-3">
                   <KPICard
