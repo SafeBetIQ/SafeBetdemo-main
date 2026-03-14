@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, GraduationCap, ChartBar as BarChart3, Microscope, DollarSign, MapPin } from 'lucide-react';
+import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, ChartBar as BarChart3, Microscope, DollarSign, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -65,14 +65,6 @@ const navigationGroups: NavGroup[] = [
       { title: 'ESG Data Entry', href: '/casino/esg-data-entry', icon: FileText, roles: ['casino_admin'] },
       { title: 'ESG Management', href: '/admin/esg-management', icon: BarChart3, roles: ['super_admin'] },
       { title: 'Wellbeing Compliance', href: '/regulator/wellbeing-compliance', icon: Shield, roles: ['regulator', 'provincial_regulator', 'super_admin'] },
-    ],
-  },
-  {
-    title: 'Training',
-    items: [
-      { title: 'Training Academy', href: '/casino/training', icon: GraduationCap, roles: ['casino_admin', 'super_admin'] },
-      { title: 'Training Settings', href: '/casino/training-settings', icon: Settings, roles: ['casino_admin', 'super_admin'] },
-      { title: 'Course Management', href: '/admin/course-management', icon: BookOpen, roles: ['super_admin'] },
     ],
   },
   {

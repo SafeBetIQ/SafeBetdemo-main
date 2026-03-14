@@ -28,7 +28,6 @@ import {
 import { ESGPerformanceCard } from '@/components/ESGPerformanceCard';
 import { NRGPContributionTracker } from '@/components/NRGPContributionTracker';
 import { SelfExclusionMonitor } from '@/components/SelfExclusionMonitor';
-import { EmployeeTrainingTracker } from '@/components/EmployeeTrainingTracker';
 import { InterventionEffectivenessCard } from '@/components/InterventionEffectivenessCard';
 import KingIVESGDashboard from '@/components/KingIVESGDashboard';
 import { useAuth } from '@/contexts/AuthContext';

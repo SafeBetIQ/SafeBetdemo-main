@@ -593,7 +593,7 @@ export default function CasinoModulesPage() {
                             <h4 className="font-semibold mb-2">Upgrade Path</h4>
                             <p className="text-sm text-muted-foreground">
                               Start with <strong>Standard</strong> for essential features, upgrade to <strong>Enterprise</strong>
-                              for AI-powered risk detection and full training academy, or choose <strong>Premium</strong> for
+                              for AI-powered risk detection, or choose <strong>Premium</strong> for
                               complete SafeBet IQ suite with ESG reporting and advanced behavioral monitoring.
                             </p>
                           </div>
