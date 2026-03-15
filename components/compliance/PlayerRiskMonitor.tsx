@@ -59,6 +59,9 @@ function getRiskLevel(score: number): string {
 export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [riskCounts, setRiskCounts] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
+  const [avgRisk, setAvgRisk] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
@@ -70,15 +73,41 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
 
   async function loadPlayers() {
     setLoading(true);
-    const { data } = await supabase
-      .from('players')
-      .select('id, player_id, first_name, last_name, email, risk_score, risk_level, status, total_wagered, session_count, last_active')
-      .eq('casino_id', casinoId)
-      .order('risk_score', { ascending: false })
-      .limit(200);
-    setPlayers(data || []);
+
+    const [countResult, statsResult, tableResult] = await Promise.all([
+      supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq('casino_id', casinoId),
+      supabase
+        .from('players')
+        .select('risk_score')
+        .eq('casino_id', casinoId),
+      supabase
+        .from('players')
+        .select('id, player_id, first_name, last_name, email, risk_score, risk_level, status, total_wagered, session_count, last_active')
+        .eq('casino_id', casinoId)
+        .order('risk_score', { ascending: false })
+        .limit(500),
+    ]);
+
+    const total = countResult.count ?? 0;
+    setTotalCount(total);
+
+    const allScores = statsResult.data || [];
+    const critical = allScores.filter(p => p.risk_score >= 80).length;
+    const high      = allScores.filter(p => p.risk_score >= 60 && p.risk_score < 80).length;
+    const medium    = allScores.filter(p => p.risk_score >= 40 && p.risk_score < 60).length;
+    const low       = allScores.filter(p => p.risk_score < 40).length;
+    const avg       = allScores.length ? Math.round(allScores.reduce((s, p) => s + p.risk_score, 0) / allScores.length) : 0;
+    setRiskCounts({ critical, high, medium, low });
+    setAvgRisk(avg);
+
+    setPlayers(tableResult.data || []);
     setLoading(false);
   }
+
+  const { critical, high, medium, low } = riskCounts;
 
   const filtered = players.filter(p => {
     const name = `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase();
@@ -88,12 +117,6 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
     return true;
   });
-
-  const critical = players.filter(p => p.risk_score >= 80).length;
-  const high      = players.filter(p => p.risk_score >= 60 && p.risk_score < 80).length;
-  const medium    = players.filter(p => p.risk_score >= 40 && p.risk_score < 60).length;
-  const low       = players.filter(p => p.risk_score < 40).length;
-  const avgRisk   = players.length ? Math.round(players.reduce((s, p) => s + p.risk_score, 0) / players.length) : 0;
 
   const pieData = [
     { name: 'Critical', value: critical, color: '#ef4444' },
@@ -132,7 +155,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
               <Users className="h-3.5 w-3.5" /> Total Players
             </p>
-            <p className="text-3xl font-bold">{players.length}</p>
+            <p className="text-3xl font-bold">{totalCount.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card className="border-red-200 bg-red-50/50 relative">
@@ -192,7 +215,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
               <Activity className="h-3.5 w-3.5" /> Avg Risk
             </p>
             <p className="text-3xl font-bold">{avgRisk}</p>
-            <p className="text-xs text-muted-foreground">Portfolio score</p>
+            <p className="text-xs text-muted-foreground">Across all {totalCount.toLocaleString()} players</p>
           </CardContent>
         </Card>
       </div>
@@ -356,7 +379,9 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             </Table>
           </div>
           {filtered.length > 50 && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">Showing 50 of {filtered.length} results</p>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Showing 50 of {filtered.length} filtered results ({totalCount.toLocaleString()} total players)
+            </p>
           )}
         </CardContent>
       </Card>

@@ -1,6 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
 
 export interface Player {
   id: string;
@@ -48,6 +50,7 @@ interface CasinoData {
   totalWagered: number;
   totalWon: number;
   activePlayers: number;
+  totalPlayers: number;
   avgBetSize: number;
   riskDistribution: {
     low: number;
@@ -89,81 +92,90 @@ const SA_NAMES = [
   { first: 'Neo', last: 'Phiri' },
 ];
 
+function calculateRiskLevel(score: number): 'low' | 'medium' | 'high' | 'critical' {
+  if (score >= 80) return 'critical';
+  if (score >= 60) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+
+function buildSimulatedPlayers(dbPlayers: Array<{ first_name: string; last_name: string; player_id: string; risk_score: number; status: string; total_wagered?: number }>): Player[] {
+  return dbPlayers.map((p, i) => ({
+    id: `db-${p.player_id}`,
+    playerName: `${p.first_name} ${p.last_name}`,
+    playerId: p.player_id,
+    game: GAME_TYPES[i % GAME_TYPES.length],
+    betAmount: Math.floor(Math.random() * 1900) + 100,
+    totalWagered: Number(p.total_wagered) || 0,
+    sessionDuration: Math.floor(Math.random() * 180) + 15,
+    riskScore: p.risk_score,
+    riskLevel: calculateRiskLevel(p.risk_score),
+    isActive: p.status === 'active',
+    lastBetTime: new Date(Date.now() - Math.random() * 3600000),
+  }));
+}
+
+function buildFallbackPlayers(count: number): Player[] {
+  return Array.from({ length: count }, (_, i) => {
+    const name = SA_NAMES[i % SA_NAMES.length];
+    const suffix = Math.floor(i / SA_NAMES.length);
+    const playerName = suffix > 0 ? `${name.first} ${name.last} ${suffix + 1}` : `${name.first} ${name.last}`;
+    const riskScore = Math.floor(Math.random() * 100);
+    return {
+      id: `fallback-${i}`,
+      playerName,
+      playerId: `PLR${String(i + 1).padStart(6, '0')}`,
+      game: GAME_TYPES[Math.floor(Math.random() * GAME_TYPES.length)],
+      betAmount: Math.floor(Math.random() * 1900) + 100,
+      totalWagered: Math.floor(Math.random() * 50000) + 5000,
+      sessionDuration: Math.floor(Math.random() * 180) + 15,
+      riskScore,
+      riskLevel: calculateRiskLevel(riskScore),
+      isActive: Math.random() > 0.3,
+      lastBetTime: new Date(Date.now() - Math.random() * 3600000),
+    };
+  });
+}
+
 export function CasinoDataProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const casinoId = (user as any)?.casino_id as string | undefined;
+
   const [data, setData] = useState<CasinoData>({
     players: [],
     liveBets: [],
     interventions: [],
-    totalWagered: 1847250,
-    totalWon: 823580,
+    totalWagered: 0,
+    totalWon: 0,
     activePlayers: 0,
-    avgBetSize: 385,
-    riskDistribution: {
-      low: 0,
-      medium: 0,
-      high: 0,
-      critical: 0,
-    },
+    totalPlayers: 0,
+    avgBetSize: 0,
+    riskDistribution: { low: 0, medium: 0, high: 0, critical: 0 },
   });
 
-  const getSATime = () => {
-    return new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
-  };
-
-  const calculateRiskLevel = (score: number): 'low' | 'medium' | 'high' | 'critical' => {
-    if (score >= 80) return 'critical';
-    if (score >= 60) return 'high';
-    if (score >= 40) return 'medium';
-    return 'low';
-  };
-
-  const generatePlayers = (): Player[] => {
-    const players: Player[] = [];
-    const playerCount = 127;
-    const usedNames = new Set<string>();
-
-    for (let i = 0; i < playerCount; i++) {
-      let playerName: string;
-      let attempts = 0;
-
-      do {
-        const nameIndex = (i + attempts) % SA_NAMES.length;
-        const name = SA_NAMES[nameIndex];
-        const suffix = Math.floor((i + attempts) / SA_NAMES.length);
-        playerName = suffix > 0 ? `${name.first} ${name.last} ${suffix + 1}` : `${name.first} ${name.last}`;
-        attempts++;
-      } while (usedNames.has(playerName) && attempts < 200);
-
-      usedNames.add(playerName);
-
-      const riskScore = Math.floor(Math.random() * 100);
-      const totalWagered = Math.floor(Math.random() * 50000) + 5000;
-      const isActive = Math.random() > 0.3;
-
-      players.push({
-        id: `player-${i}`,
-        playerName,
-        playerId: `PLR${String(i + 1).padStart(6, '0')}`,
-        game: GAME_TYPES[Math.floor(Math.random() * GAME_TYPES.length)],
-        betAmount: Math.floor(Math.random() * 1900) + 100,
-        totalWagered,
-        sessionDuration: Math.floor(Math.random() * 180) + 15,
-        riskScore,
-        riskLevel: calculateRiskLevel(riskScore),
-        isActive,
-        lastBetTime: new Date(Date.now() - Math.random() * 3600000),
-      });
-    }
-
-    return players;
-  };
+  const getSATime = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Johannesburg' }));
 
   const generateBet = (players: Player[]): LiveBet => {
-    const activePlayers = players.filter(p => p.isActive);
-    const player = activePlayers[Math.floor(Math.random() * activePlayers.length)] || players[0];
+    const active = players.filter(p => p.isActive);
+    const player = active[Math.floor(Math.random() * active.length)] || players[0];
+    if (!player) {
+      const fallback = SA_NAMES[Math.floor(Math.random() * SA_NAMES.length)];
+      const betAmount = Math.floor(Math.random() * 1900) + 100;
+      const isWin = Math.random() > 0.55;
+      return {
+        id: `${Date.now()}-${Math.random()}`,
+        playerName: `${fallback.first} ${fallback.last}`,
+        playerId: `PLR000001`,
+        game: GAME_TYPES[Math.floor(Math.random() * GAME_TYPES.length)],
+        betAmount,
+        outcome: isWin ? 'win' : 'loss',
+        winAmount: isWin ? Math.floor(betAmount * (1.5 + Math.random() * 2)) : 0,
+        timestamp: getSATime(),
+        riskScore: 50,
+      };
+    }
     const betAmount = Math.floor(Math.random() * 1900) + 100;
     const isWin = Math.random() > 0.55;
-
     return {
       id: `${Date.now()}-${Math.random()}`,
       playerName: player.playerName,
@@ -177,195 +189,129 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
     };
   };
 
-  const generateInterventions = (players: Player[]): Intervention[] => {
-    const interventions: Intervention[] = [];
-    const highRiskPlayers = players.filter(p => p.riskScore >= 60);
+  const loadRealStats = async (players: Player[]) => {
+    if (!casinoId) return;
 
-    const triggerReasons = {
-      high_risk: 'High-risk activity detected (Risk Score: ',
-      rapid_betting: 'Rapid betting pattern detected - ',
-      session_duration: 'Extended session duration - ',
-      loss_chasing: 'Loss chasing behavior detected - ',
-      bet_escalation: 'Bet amount escalation pattern - ',
-    };
+    const [countResult, sessionResult, wagerResult] = await Promise.all([
+      supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
+      supabase.from('gaming_sessions').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId).eq('is_active', true),
+      supabase.from('players').select('total_wagered').eq('casino_id', casinoId).eq('status', 'active'),
+    ]);
 
-    const channels: Array<'WhatsApp' | 'Email' | 'SMS'> = ['WhatsApp', 'WhatsApp', 'Email', 'SMS'];
-    const statuses: Array<'sent' | 'delivered' | 'failed' | 'pending'> = ['sent', 'delivered', 'sent', 'delivered', 'sent', 'pending'];
+    const totalPlayers = countResult.count ?? players.length;
+    const activeSessions = sessionResult.count ?? 0;
+    const wagerData = wagerResult.data || [];
+    const totalWagered = wagerData.reduce((sum, p) => sum + (Number(p.total_wagered) || 0), 0);
+    const avgBetSize = wagerData.length > 0 ? Math.round(totalWagered / wagerData.length / 100) : 0;
 
-    const interventionCount = Math.min(45, highRiskPlayers.length);
-
-    for (let i = 0; i < interventionCount; i++) {
-      const player = highRiskPlayers[i % highRiskPlayers.length];
-      const triggerTypes: Array<'high_risk' | 'rapid_betting' | 'session_duration' | 'loss_chasing' | 'bet_escalation'> =
-        ['high_risk', 'rapid_betting', 'session_duration', 'loss_chasing', 'bet_escalation'];
-      const triggerType = triggerTypes[Math.floor(Math.random() * triggerTypes.length)];
-      const channel = channels[Math.floor(Math.random() * channels.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-
-      let reason = '';
-      switch (triggerType) {
-        case 'high_risk':
-          reason = `${triggerReasons.high_risk}${player.riskScore}/100)`;
-          break;
-        case 'rapid_betting':
-          reason = `${triggerReasons.rapid_betting}${Math.floor(Math.random() * 15) + 10} bets in ${Math.floor(Math.random() * 10) + 5} minutes`;
-          break;
-        case 'session_duration':
-          reason = `${triggerReasons.session_duration}${player.sessionDuration} minutes active`;
-          break;
-        case 'loss_chasing':
-          reason = `${triggerReasons.loss_chasing}R${Math.floor(Math.random() * 5000) + 2000} in losses`;
-          break;
-        case 'bet_escalation':
-          reason = `${triggerReasons.bet_escalation}${Math.floor(Math.random() * 150) + 50}% increase`;
-          break;
-      }
-
-      const minutesAgo = Math.floor(Math.random() * 240) + 2;
-
-      interventions.push({
-        id: `intervention-${i}-${Date.now()}`,
-        playerName: player.playerName,
-        playerId: player.playerId,
-        channel,
-        status,
-        timestamp: new Date(Date.now() - minutesAgo * 60000),
-        reason,
-        riskScore: player.riskScore,
-        automated: true,
-        triggerType,
-      });
-    }
-
-    return interventions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  };
-
-  useEffect(() => {
-    const initialPlayers = generatePlayers();
-    const initialBets = [
-      generateBet(initialPlayers),
-      generateBet(initialPlayers),
-      generateBet(initialPlayers),
-    ];
-    const initialInterventions = generateInterventions(initialPlayers);
-
-    const activePlayers = initialPlayers.filter(p => p.isActive);
-    const riskDist = {
-      low: activePlayers.filter(p => p.riskLevel === 'low').length,
-      medium: activePlayers.filter(p => p.riskLevel === 'medium').length,
-      high: activePlayers.filter(p => p.riskLevel === 'high').length,
-      critical: activePlayers.filter(p => p.riskLevel === 'critical').length,
-    };
+    const activeCount = players.filter(p => p.isActive).length;
 
     setData(prev => ({
       ...prev,
-      players: initialPlayers,
-      liveBets: initialBets,
-      interventions: initialInterventions,
-      activePlayers: activePlayers.length,
-      riskDistribution: riskDist,
+      totalPlayers,
+      activePlayers: activeSessions > 0 ? activeSessions : activeCount,
+      totalWagered: totalWagered > 0 ? totalWagered : prev.totalWagered,
+      avgBetSize: avgBetSize > 0 ? avgBetSize : prev.avgBetSize,
     }));
+  };
 
-    const betInterval = setInterval(() => {
-      setData(prev => {
-        const newBet = generateBet(prev.players);
-        const updatedBets = [newBet, ...prev.liveBets].slice(0, 15);
+  const initializePlayers = async (): Promise<Player[]> => {
+    if (!casinoId) {
+      return buildFallbackPlayers(50);
+    }
 
-        return {
-          ...prev,
-          liveBets: updatedBets,
-          totalWagered: prev.totalWagered + newBet.betAmount,
-          totalWon: prev.totalWon + (newBet.winAmount || 0),
-        };
-      });
-    }, Math.random() * 2000 + 1500);
+    const { data: dbPlayers } = await supabase
+      .from('players')
+      .select('first_name, last_name, player_id, risk_score, status, total_wagered')
+      .eq('casino_id', casinoId)
+      .eq('status', 'active')
+      .order('risk_score', { ascending: false })
+      .limit(100);
 
-    const statsInterval = setInterval(() => {
+    if (dbPlayers && dbPlayers.length > 0) {
+      return buildSimulatedPlayers(dbPlayers);
+    }
+
+    return buildFallbackPlayers(50);
+  };
+
+  useEffect(() => {
+    let betInterval: NodeJS.Timeout;
+    let statsInterval: NodeJS.Timeout;
+
+    const init = async () => {
+      const players = await initializePlayers();
+
+      const activePlayers = players.filter(p => p.isActive);
+      const riskDist = {
+        low: players.filter(p => p.riskLevel === 'low').length,
+        medium: players.filter(p => p.riskLevel === 'medium').length,
+        high: players.filter(p => p.riskLevel === 'high').length,
+        critical: players.filter(p => p.riskLevel === 'critical').length,
+      };
+      const totalWagered = players.reduce((s, p) => s + p.totalWagered, 0);
+
+      const initialBets = [generateBet(players), generateBet(players), generateBet(players)];
+
       setData(prev => ({
         ...prev,
-        avgBetSize: Math.floor(300 + Math.random() * 200),
+        players,
+        liveBets: initialBets,
+        activePlayers: activePlayers.length,
+        totalPlayers: players.length,
+        totalWagered,
+        totalWon: Math.round(totalWagered * 0.446),
+        avgBetSize: players.length > 0 ? Math.round(totalWagered / players.length / 100) : 385,
+        riskDistribution: riskDist,
       }));
-    }, 3000);
 
-    const interventionInterval = setInterval(() => {
-      setData(prev => {
-        const highRiskPlayers = prev.players.filter(p => p.riskScore >= 60 && p.isActive);
+      await loadRealStats(players);
 
-        if (highRiskPlayers.length === 0) return prev;
+      betInterval = setInterval(() => {
+        setData(prev => {
+          const newBet = generateBet(prev.players);
+          return {
+            ...prev,
+            liveBets: [newBet, ...prev.liveBets].slice(0, 15),
+            totalWagered: prev.totalWagered + newBet.betAmount,
+            totalWon: prev.totalWon + (newBet.winAmount || 0),
+          };
+        });
+      }, Math.random() * 2000 + 1500);
 
-        const player = highRiskPlayers[Math.floor(Math.random() * highRiskPlayers.length)];
-        const triggerTypes: Array<'high_risk' | 'rapid_betting' | 'session_duration' | 'loss_chasing' | 'bet_escalation'> =
-          ['high_risk', 'rapid_betting', 'session_duration', 'loss_chasing', 'bet_escalation'];
-        const triggerType = triggerTypes[Math.floor(Math.random() * triggerTypes.length)];
-        const channels: Array<'WhatsApp' | 'Email' | 'SMS'> = ['WhatsApp', 'WhatsApp', 'Email', 'SMS'];
-        const channel = channels[Math.floor(Math.random() * channels.length)];
-
-        let reason = '';
-        switch (triggerType) {
-          case 'high_risk':
-            reason = `High-risk activity detected (Risk Score: ${player.riskScore}/100)`;
-            break;
-          case 'rapid_betting':
-            reason = `Rapid betting pattern detected - ${Math.floor(Math.random() * 15) + 10} bets in ${Math.floor(Math.random() * 10) + 5} minutes`;
-            break;
-          case 'session_duration':
-            reason = `Extended session duration - ${player.sessionDuration} minutes active`;
-            break;
-          case 'loss_chasing':
-            reason = `Loss chasing behavior detected - R${Math.floor(Math.random() * 5000) + 2000} in losses`;
-            break;
-          case 'bet_escalation':
-            reason = `Bet amount escalation pattern - ${Math.floor(Math.random() * 150) + 50}% increase`;
-            break;
-        }
-
-        const newIntervention: Intervention = {
-          id: `intervention-${Date.now()}-${Math.random()}`,
-          playerName: player.playerName,
-          playerId: player.playerId,
-          channel,
-          status: 'sent',
-          timestamp: getSATime(),
-          reason,
-          riskScore: player.riskScore,
-          automated: true,
-          triggerType,
-        };
-
-        const updatedInterventions = [newIntervention, ...prev.interventions].slice(0, 50);
-
-        return {
+      statsInterval = setInterval(() => {
+        setData(prev => ({
           ...prev,
-          interventions: updatedInterventions,
-        };
-      });
-    }, Math.random() * 30000 + 45000);
+          avgBetSize: Math.floor(300 + Math.random() * 200),
+        }));
+      }, 3000);
+    };
+
+    init();
 
     return () => {
       clearInterval(betInterval);
       clearInterval(statsInterval);
-      clearInterval(interventionInterval);
     };
-  }, []);
+  }, [casinoId]);
 
-  const refreshData = () => {
-    const newPlayers = generatePlayers();
-    const newInterventions = generateInterventions(newPlayers);
-    const activePlayers = newPlayers.filter(p => p.isActive);
+  const refreshData = async () => {
+    const players = await initializePlayers();
+    const activePlayers = players.filter(p => p.isActive);
     const riskDist = {
-      low: activePlayers.filter(p => p.riskLevel === 'low').length,
-      medium: activePlayers.filter(p => p.riskLevel === 'medium').length,
-      high: activePlayers.filter(p => p.riskLevel === 'high').length,
-      critical: activePlayers.filter(p => p.riskLevel === 'critical').length,
+      low: players.filter(p => p.riskLevel === 'low').length,
+      medium: players.filter(p => p.riskLevel === 'medium').length,
+      high: players.filter(p => p.riskLevel === 'high').length,
+      critical: players.filter(p => p.riskLevel === 'critical').length,
     };
-
     setData(prev => ({
       ...prev,
-      players: newPlayers,
-      interventions: newInterventions,
+      players,
       activePlayers: activePlayers.length,
+      totalPlayers: players.length,
       riskDistribution: riskDist,
     }));
+    await loadRealStats(players);
   };
 
   return (

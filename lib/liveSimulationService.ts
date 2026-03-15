@@ -44,14 +44,19 @@ class LiveSimulationService {
     return 'low';
   }
 
-  async generateLiveEvent(): Promise<LiveEvent | null> {
+  async generateLiveEvent(casinoId?: string): Promise<LiveEvent | null> {
     try {
-      // Get a random player from the database
-      const { data: players, error } = await supabase
+      let query = supabase
         .from('players')
         .select('id, player_id, first_name, last_name, casino_id, risk_score')
-        .eq('is_active', true)
+        .eq('status', 'active')
         .limit(50);
+
+      if (casinoId) {
+        query = query.eq('casino_id', casinoId);
+      }
+
+      const { data: players, error } = await query;
 
       if (error || !players || players.length === 0) {
         console.error('Error fetching players for simulation:', error);

@@ -85,7 +85,7 @@ export default function ProvincialRegulatorDashboard() {
 
       const casinoIds = casinoList.map(c => c.id);
       const [playersRes, intRes, exclRes, sessRes, enrollRes] = await Promise.all([
-        supabase.from('players').select('casino_id, risk_level').in('casino_id', casinoIds),
+        supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds),
         supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds),
         supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active'),
         supabase.from('gaming_sessions').select('casino_id').in('casino_id', casinoIds).eq('is_active', true),
@@ -109,8 +109,8 @@ export default function ProvincialRegulatorDashboard() {
           license_number: c.license_number || 'N/A',
           is_active: c.is_active,
           player_count: cp.length,
-          high_risk: cp.filter(p => p.risk_level === 'high' || p.risk_level === 'critical').length,
-          critical: cp.filter(p => p.risk_level === 'critical').length,
+          high_risk: cp.filter(p => p.risk_score >= 60).length,
+          critical: cp.filter(p => p.risk_score >= 80).length,
           interventions: ci, exclusions: ce,
           training_rate: enr.length > 0 ? Math.round((done / enr.length) * 100) : 0,
         };
@@ -121,8 +121,8 @@ export default function ProvincialRegulatorDashboard() {
       setSummary({
         totalCasinos: cards.length,
         totalPlayers: players.length,
-        highRiskPlayers: players.filter(p => p.risk_level === 'high' || p.risk_level === 'critical').length,
-        criticalPlayers: players.filter(p => p.risk_level === 'critical').length,
+        highRiskPlayers: players.filter(p => p.risk_score >= 60).length,
+        criticalPlayers: players.filter(p => p.risk_score >= 80).length,
         totalInterventions: interventions.length,
         totalExclusions: exclusions.length,
         avgCompliance,

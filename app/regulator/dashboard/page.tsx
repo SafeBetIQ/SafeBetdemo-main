@@ -69,7 +69,7 @@ export default function NationalRegulatorDashboard() {
       const casinoIds = casinoList.map(c => c.id);
 
       const [playersRes, intRes, exclRes, sessRes, enrollRes] = await Promise.all([
-        supabase.from('players').select('casino_id, risk_level').in('casino_id', casinoIds),
+        supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds),
         supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds),
         supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active'),
         supabase.from('gaming_sessions').select('casino_id').in('casino_id', casinoIds).eq('is_active', true),
@@ -96,7 +96,7 @@ export default function NationalRegulatorDashboard() {
           license_number: c.license_number || 'N/A',
           is_active: c.is_active,
           player_count: cp.length,
-          high_risk: cp.filter(p => p.risk_level === 'high' || p.risk_level === 'critical').length,
+          high_risk: cp.filter(p => p.risk_score >= 60).length,
           interventions: ci,
           exclusions: ce,
           training_rate: trainingRate,
@@ -105,8 +105,8 @@ export default function NationalRegulatorDashboard() {
       setCasinos(casinoRows);
 
       const totalPlayers     = players.length;
-      const highRisk         = players.filter(p => p.risk_level === 'high' || p.risk_level === 'critical').length;
-      const critical         = players.filter(p => p.risk_level === 'critical').length;
+      const highRisk         = players.filter(p => p.risk_score >= 60).length;
+      const critical         = players.filter(p => p.risk_score >= 80).length;
       const avgCompliance    = casinoRows.length > 0 ? Math.round(casinoRows.reduce((s, c) => s + c.training_rate, 0) / casinoRows.length) : 0;
       const nonCompliant     = casinoRows.filter(c => c.training_rate < 80).length;
 
