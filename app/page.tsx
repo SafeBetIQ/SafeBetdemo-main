@@ -106,7 +106,7 @@ export default function HomePage() {
             <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8">
               <Link href="/login">Access Platform</Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white px-8">
+            <Button asChild size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8">
               <Link href="/safeplay-connect">API Documentation</Link>
             </Button>
           </div>
