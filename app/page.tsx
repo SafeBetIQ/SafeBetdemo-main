@@ -115,6 +115,96 @@ export default function HomePage() {
       </section>
 
 
+      {/* BEFORE / AFTER */}
+      <section className="py-20 px-6 border-t border-gray-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
+              The Transformation
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">What changes when you use SafeBet IQ</h2>
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+              A clear picture of the operational difference — before and after deploying the platform.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* BEFORE */}
+            <div className="rounded-2xl border border-red-900/40 bg-red-950/10 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-7 h-7 rounded-full bg-red-900/40 flex items-center justify-center">
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                </div>
+                <span className="text-sm font-semibold text-red-400 uppercase tracking-wider">Before SafeBet IQ</span>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { label: 'Player risk visibility', value: 'None — no behavioural data collected' },
+                  { label: 'Harm detection', value: 'Manual, reactive, or non-existent' },
+                  { label: 'Interventions', value: 'Ad-hoc phone calls, if any' },
+                  { label: 'Self-exclusion', value: 'Siloed per operator — no cross-network check' },
+                  { label: 'Compliance reporting', value: 'Spreadsheets, manual consolidation' },
+                  { label: 'Regulator oversight', value: 'Delayed, incomplete, paper-based' },
+                  { label: 'Multi-casino visibility', value: 'Zero — no operator-level aggregation' },
+                  { label: 'Audit trail', value: 'Fragmented or absent' },
+                ].map((row, i) => (
+                  <div key={i} className="flex flex-col gap-0.5 pb-4 border-b border-red-900/20 last:border-0 last:pb-0">
+                    <span className="text-xs font-medium text-gray-400">{row.label}</span>
+                    <span className="text-sm text-red-300/80">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* AFTER */}
+            <div className="rounded-2xl border border-brand-800/40 bg-brand-950/10 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-7 h-7 rounded-full bg-brand-900/40 flex items-center justify-center">
+                  <CheckCircle className="h-3.5 w-3.5 text-brand-400" />
+                </div>
+                <span className="text-sm font-semibold text-brand-400 uppercase tracking-wider">After SafeBet IQ</span>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { label: 'Player risk visibility', value: 'Real-time scoring: Low · Moderate · High · Critical' },
+                  { label: 'Harm detection', value: 'AI-driven pattern detection across every session' },
+                  { label: 'Interventions', value: 'Automated via WhatsApp, Twilio & email with outcome tracking' },
+                  { label: 'Self-exclusion', value: 'Network-wide distribution across all connected operators' },
+                  { label: 'Compliance reporting', value: 'One-click NGA reports, live audit trail, NRGP tracking' },
+                  { label: 'Regulator oversight', value: 'Live dashboards — national & 9 provincial regulators' },
+                  { label: 'Multi-casino visibility', value: 'Cross-operator intelligence with full data isolation' },
+                  { label: 'Audit trail', value: 'Every action logged, timestamped, and exportable' },
+                ].map((row, i) => (
+                  <div key={i} className="flex flex-col gap-0.5 pb-4 border-b border-brand-800/20 last:border-0 last:pb-0">
+                    <span className="text-xs font-medium text-gray-400">{row.label}</span>
+                    <span className="text-sm text-brand-300/90">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom summary strip */}
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { before: 'Blind', after: 'Full Visibility', label: 'Player Behaviour' },
+              { before: 'Days', after: 'Real-Time', label: 'Intervention Speed' },
+              { before: 'Per Casino', after: 'Cross-Network', label: 'Self-Exclusion Reach' },
+              { before: 'Manual', after: 'Automated', label: 'Compliance Reporting' },
+            ].map((item, i) => (
+              <div key={i} className="rounded-xl border border-gray-800 bg-gray-950 p-4 text-center">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{item.label}</p>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xs text-red-400 font-medium line-through">{item.before}</span>
+                  <ArrowRight className="h-3 w-3 text-gray-600 flex-shrink-0" />
+                  <span className="text-xs text-brand-400 font-semibold">{item.after}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CORE MODULES */}
       <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
         <div className="max-w-5xl mx-auto">
