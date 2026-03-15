@@ -10,15 +10,6 @@ import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Loc
 import AINetworkBackground from '@/components/AINetworkBackground';
 import TypewriterText from '@/components/TypewriterText';
 
-const PLATFORM_LAYERS = [
-  { label: 'Casino Platforms', desc: 'SOFTSWISS / Altenar / Bet Software / Playtech', color: 'bg-slate-100 text-slate-700' },
-  { label: 'SafeBet IQ Integration Layer', desc: 'Tenant-aware API connectors per operator', color: 'bg-blue-50 text-blue-700' },
-  { label: 'Data Ingestion Engine', desc: 'Sessions · Bets · Deposits · Withdrawals', color: 'bg-sky-50 text-sky-700' },
-  { label: 'Behavioural Intelligence Engine', desc: 'Rule-based risk scoring & pattern detection', color: 'bg-brand-50 text-brand-700' },
-  { label: 'Intervention Engine', desc: 'Automated alerts · WhatsApp · Twilio · Email', color: 'bg-amber-50 text-amber-700' },
-  { label: 'Operator Compliance Dashboards', desc: 'Player risk · Interventions · Self-exclusion', color: 'bg-brand-50 text-brand-700' },
-  { label: 'Regulator Intelligence Platform', desc: 'National & 9 provincial regulators', color: 'bg-brand-50 text-brand-700' },
-];
 
 const CORE_MODULES = [
   {
@@ -76,12 +67,6 @@ const USER_ROLES = [
   { role: 'Casino Compliance Officer', desc: 'Intervention queue and reporting', href: '/login' },
 ];
 
-const STATS = [
-  { value: '50K+', label: 'Players Protected' },
-  { value: '13', label: 'Licensed Operators' },
-  { value: '9', label: 'Provincial Regulators' },
-  { value: '99.8%', label: 'Platform Uptime' },
-];
 
 export default function HomePage() {
   return (
@@ -126,49 +111,9 @@ export default function HomePage() {
             </Button>
           </div>
 
-          {/* Stats Strip */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
-            {STATS.map((s, i) => (
-              <div key={i} className="text-center">
-                <p className="text-3xl font-bold text-white">{s.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* ARCHITECTURE LAYERS */}
-      <section className="py-20 px-6 border-t border-gray-900">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">Platform Architecture</h2>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              A layered intelligence design built for scale, security, and strict multi-tenant data isolation.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {PLATFORM_LAYERS.map((layer, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-gray-700 transition-colors"
-              >
-                <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-xs text-gray-400 font-mono flex-shrink-0">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-white">{layer.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{layer.desc}</p>
-                </div>
-                {i < PLATFORM_LAYERS.length - 1 && (
-                  <ArrowRight className="h-4 w-4 text-gray-700 flex-shrink-0 rotate-90 md:rotate-0" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* CORE MODULES */}
       <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
