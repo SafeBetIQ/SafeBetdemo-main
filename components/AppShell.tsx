@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -178,13 +178,13 @@ export function AppShell({ children }: AppShellProps) {
     router.push('/login');
   };
 
-  const filteredNavigation = navigationGroups.map((group) => ({
+  const filteredNavigation = useMemo(() => navigationGroups.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
       if (!item.roles || item.roles.length === 0) return true;
       return user?.role && item.roles.includes(user.role);
     }),
-  })).filter((group) => group.items.length > 0);
+  })).filter((group) => group.items.length > 0), [user?.role]);
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex h-full flex-col bg-sidebar-background text-sidebar-foreground">

@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, AlertTriangle, Shield, TrendingUp } from 'lucide-react';
+import { Activity, TriangleAlert as AlertTriangle, Shield, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function LiveAIDashboard() {
@@ -11,18 +11,22 @@ export default function LiveAIDashboard() {
   const [complianceScore, setComplianceScore] = useState(0);
 
   useEffect(() => {
-    const interval1 = setInterval(() => {
-      setInterventionCount((prev) => (prev < 47 ? prev + 1 : 47));
-    }, 50);
+    const start = performance.now();
+    const duration = 1500;
+    let rafId: number;
 
-    const interval2 = setInterval(() => {
-      setComplianceScore((prev) => (prev < 94 ? prev + 1 : 94));
-    }, 30);
-
-    return () => {
-      clearInterval(interval1);
-      clearInterval(interval2);
+    const tick = (now: number) => {
+      const elapsed = Math.min(now - start, duration);
+      const progress = elapsed / duration;
+      setInterventionCount(Math.round(47 * progress));
+      setComplianceScore(Math.round(94 * progress));
+      if (elapsed < duration) {
+        rafId = requestAnimationFrame(tick);
+      }
     };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   const riskLevels = [

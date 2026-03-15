@@ -71,7 +71,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
       if (cachedUser && cacheTime) {
         const age = Date.now() - parseInt(cacheTime);
-        if (age < 30000) {
+        if (age < 300000) {
           const parsed = JSON.parse(cachedUser);
           console.log(`💾 Using cached user (age: ${age}ms)`);
           return parsed as AuthUser;

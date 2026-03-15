@@ -7,33 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import MainNavigation from '@/components/MainNavigation';
-import AINetworkBackground from '@/components/AINetworkBackground';
+import dynamic from 'next/dynamic';
 import TypewriterText from '@/components/TypewriterText';
-import FloatingAIPulse from '@/components/FloatingAIPulse';
-import CursorTrail from '@/components/CursorTrail';
-import LiveAIDashboard from '@/components/LiveAIDashboard';
-import AIMonitoringIndicator from '@/components/AIMonitoringIndicator';
+const AINetworkBackground = dynamic(() => import('@/components/AINetworkBackground'), { ssr: false });
+const FloatingAIPulse = dynamic(() => import('@/components/FloatingAIPulse'), { ssr: false });
+const CursorTrail = dynamic(() => import('@/components/CursorTrail'), { ssr: false });
+const LiveAIDashboard = dynamic(() => import('@/components/LiveAIDashboard'), { ssr: false });
+const AIMonitoringIndicator = dynamic(() => import('@/components/AIMonitoringIndicator'), { ssr: false });
 import { Footer } from '@/components/Footer';
-import {
-  Shield,
-  Brain,
-  TrendingUp,
-  Users,
-  Activity,
-  Zap,
-  CheckCircle,
-  ArrowRight,
-  Lock,
-  BarChart3,
-  Globe,
-  Target,
-  Bell,
-  Heart,
-  DollarSign,
-  TrendingDown,
-  AlertTriangle,
-  Crown,
-} from 'lucide-react';
+import { Shield, Brain, TrendingUp, Users, Activity, Zap, CircleCheck as CheckCircle, ArrowRight, Lock, ChartBar as BarChart3, Globe, Target, Bell, Heart, DollarSign, TrendingDown, TriangleAlert as AlertTriangle, Crown } from 'lucide-react';
 
 export default function HomePage() {
   const features = [
