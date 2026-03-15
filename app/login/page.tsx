@@ -33,15 +33,20 @@ const CASINO_ADMINS: Credential[] = [
   { label: 'Emperors Palace Casino', email: 'admin@emperorspalace.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
   { label: 'Montecasino', email: 'admin@montecasino.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
   { label: 'Golden Dragon Gaming', email: 'admin@goldendragon.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
+  { label: 'CapeWin Casino', email: 'admin@capewin.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
   { label: 'Sun International Cape Town', email: 'admin@sunintcpt.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
   { label: 'Silver Star Resort', email: 'admin@silverstar.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
   { label: 'Sibaya Casino & Entertainment', email: 'admin@sibaya.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
+  { label: 'Casino Durban', email: 'admin@casinodurban.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
   { label: 'Graceland Casino', email: 'admin@graceland.safebetiq.com', password: 'Casino@Admin1', sub: 'Mpumalanga' },
   { label: 'Meropa Casino', email: 'admin@meropa.safebetiq.com', password: 'Casino@Admin1', sub: 'Limpopo' },
   { label: 'Windmill Casino', email: 'admin@windmill.safebetiq.com', password: 'Casino@Admin1', sub: 'Free State' },
   { label: 'East London ICC Casino', email: 'admin@easternlcasino.safebetiq.com', password: 'Casino@Admin1', sub: 'Eastern Cape' },
   { label: 'Mmabatho Palms Casino', email: 'admin@mmabatho.safebetiq.com', password: 'Casino@Admin1', sub: 'North West' },
   { label: 'Flamingo Casino', email: 'admin@flamingo.safebetiq.com', password: 'Casino@Admin1', sub: 'Northern Cape' },
+  { label: 'Gold Reef Gaming', email: 'admin@goldreef.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
+  { label: 'Platinum Bets', email: 'admin@platinumbets.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
+  { label: 'SunBet SA', email: 'admin@sunbet.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
 ];
 
 const NATIONAL_REGULATOR: Credential[] = [
@@ -182,7 +187,9 @@ export default function LoginPage() {
       switch (profile?.role) {
         case 'super_admin': redirectPath = '/admin'; break;
         case 'casino_admin': redirectPath = '/casino/dashboard'; break;
-        case 'regulator': redirectPath = '/regulator/dashboard'; break;
+        case 'compliance_officer': redirectPath = '/casino/dashboard'; break;
+        case 'regulator':
+        case 'national_regulator': redirectPath = '/regulator/dashboard'; break;
         case 'provincial_regulator': redirectPath = '/regulator/provincial-dashboard'; break;
         case 'staff': redirectPath = '/staff/profile'; break;
       }
@@ -336,7 +343,7 @@ export default function LoginPage() {
                     <div className="flex items-center gap-1.5 mb-2">
                       <Building2 className="h-3 w-3 text-gray-500" />
                       <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        13 Licensed operators — all use Casino@Admin1
+                        18 Licensed operators — all use Casino@Admin1
                       </span>
                     </div>
                     <div className="space-y-1 max-h-64 overflow-y-auto pr-0.5 custom-scrollbar">
