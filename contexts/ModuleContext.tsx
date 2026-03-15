@@ -90,7 +90,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         } else {
           setModules(data || []);
         }
-      } else if (userRole === 'super_admin' || userRole === 'regulator') {
+      } else if (userRole === 'super_admin' || userRole === 'regulator' || userRole === 'provincial_regulator') {
         console.log('[ModuleContext] Loading all active modules for admin/regulator');
         const { data } = await supabase
           .from('software_modules')
@@ -194,7 +194,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
   }, [user, userRole]);
 
   const hasModule = (slug: string): boolean => {
-    if (userRole === 'super_admin' || userRole === 'regulator') {
+    if (userRole === 'super_admin' || userRole === 'regulator' || userRole === 'provincial_regulator') {
       return true;
     }
     return modules.some((m) => m.slug === slug);

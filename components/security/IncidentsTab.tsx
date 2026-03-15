@@ -7,8 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ShieldAlert, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, Clock, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SEV_CONFIG, STATUS_BADGE, timeAgo } from '@/app/security-command-center/page';
-import type { SecurityIncident, Casino } from '@/app/security-command-center/page';
+import { SEV_CONFIG, STATUS_BADGE, timeAgo } from '@/components/security/securityUtils';
+import type { SecurityIncident, Casino } from '@/components/security/securityUtils';
 
 interface Props {
   incidents: SecurityIncident[];

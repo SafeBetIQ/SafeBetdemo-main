@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, Circle as XCircle, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
-import { SEV_CONFIG, THREAT_LEVEL_ORDER } from '@/app/security-command-center/page';
-import type { TenantStatus, Casino } from '@/app/security-command-center/page';
+import { SEV_CONFIG, THREAT_LEVEL_ORDER } from '@/components/security/securityUtils';
+import type { TenantStatus, Casino } from '@/components/security/securityUtils';
 
 interface Props {
   tenantStatuses: TenantStatus[];

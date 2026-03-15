@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { SecurityEvent } from '@/app/security-command-center/page';
+import type { SecurityEvent } from '@/components/security/securityUtils';
 
 interface Props {
   events: SecurityEvent[];

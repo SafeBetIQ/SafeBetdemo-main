@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Clock, Shield, Database, Cpu, Eye, Lock } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { cn } from '@/lib/utils';
-import { timeAgo, formatEventType } from '@/app/security-command-center/page';
-import type { RGOverlay, SecurityEvent, Casino } from '@/app/security-command-center/page';
+import { timeAgo, formatEventType } from '@/components/security/securityUtils';
+import type { RGOverlay, SecurityEvent, Casino } from '@/components/security/securityUtils';
 
 interface Props {
   rgOverlay: RGOverlay[];

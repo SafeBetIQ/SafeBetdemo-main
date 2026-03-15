@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Database, Lock, Shield } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
-import { SEV_CONFIG, timeAgo, formatEventType } from '@/app/security-command-center/page';
-import type { DataSecurityEvent } from '@/app/security-command-center/page';
+import { SEV_CONFIG, timeAgo, formatEventType } from '@/components/security/securityUtils';
+import type { DataSecurityEvent } from '@/components/security/securityUtils';
 
 interface Props {
   dataSecEvents: DataSecurityEvent[];

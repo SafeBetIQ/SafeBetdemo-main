@@ -6,8 +6,8 @@ import {
 } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { timeAgo } from '@/app/security-command-center/page';
-import type { APIActivity } from '@/app/security-command-center/page';
+import { timeAgo } from '@/components/security/securityUtils';
+import type { APIActivity } from '@/components/security/securityUtils';
 
 interface Props {
   apiActivity: APIActivity[];

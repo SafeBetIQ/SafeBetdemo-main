@@ -7,8 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveEventFeed } from './LiveEventFeed';
-import { SEV_CONFIG, formatEventType } from '@/app/security-command-center/page';
-import type { SecurityEvent } from '@/app/security-command-center/page';
+import { SEV_CONFIG, formatEventType } from '@/components/security/securityUtils';
+import type { SecurityEvent } from '@/components/security/securityUtils';
 
 interface Props {
   events: SecurityEvent[];

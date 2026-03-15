@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Server, Database, Shield, Globe, Cpu, Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MetricGauge } from './MetricGauge';
-import type { HealthMetric, AWSMetric } from '@/app/security-command-center/page';
+import type { HealthMetric, AWSMetric } from '@/components/security/securityUtils';
 
 interface Props {
   healthMetrics: HealthMetric[];

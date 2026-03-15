@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Lock, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SEV_CONFIG, formatEventType } from '@/app/security-command-center/page';
-import type { SecurityEvent } from '@/app/security-command-center/page';
+import { SEV_CONFIG, formatEventType } from '@/components/security/securityUtils';
+import type { SecurityEvent } from '@/components/security/securityUtils';
 
 interface Props {
   events: SecurityEvent[];

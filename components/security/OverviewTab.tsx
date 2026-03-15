@@ -7,7 +7,7 @@ import {
 import { SecurityStatusGlobe } from './SecurityStatusGlobe';
 import { CompliancePill } from './CompliancePill';
 import { MetricGauge } from './MetricGauge';
-import type { SecurityEvent, SecurityIncident, APIActivity, TenantStatus, ComplianceSnap } from '@/app/security-command-center/page';
+import type { SecurityEvent, SecurityIncident, APIActivity, TenantStatus, ComplianceSnap } from '@/components/security/securityUtils';
 
 interface Props {
   events: SecurityEvent[];

@@ -3,8 +3,8 @@
 import { Badge } from '@/components/ui/badge';
 import { Eye, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle2, Brain, TrendingUp, Globe, Zap, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SEV_CONFIG, timeAgo, formatEventType } from '@/app/security-command-center/page';
-import type { AIInsight, SecurityEvent, TenantStatus, ComplianceSnap, SecurityIncident, Casino } from '@/app/security-command-center/page';
+import { SEV_CONFIG, timeAgo, formatEventType } from '@/components/security/securityUtils';
+import type { AIInsight, SecurityEvent, TenantStatus, ComplianceSnap, SecurityIncident, Casino } from '@/components/security/securityUtils';
 
 interface Props {
   aiInsights: AIInsight[];

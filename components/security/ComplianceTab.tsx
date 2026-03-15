@@ -4,7 +4,7 @@ import { CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Clock } from '
 import { Badge } from '@/components/ui/badge';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { cn } from '@/lib/utils';
-import type { ComplianceSnap } from '@/app/security-command-center/page';
+import type { ComplianceSnap } from '@/components/security/securityUtils';
 
 interface Props {
   complianceSnaps: ComplianceSnap[];
