@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
 import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Lock, ChartBar as BarChart3, Users, ArrowRight, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, TrendingUp, FileText, Server, Layers, Database, Bell } from 'lucide-react';
+import AINetworkBackground from '@/components/AINetworkBackground';
 
 const PLATFORM_LAYERS = [
   { label: 'Casino Platforms', desc: 'SOFTSWISS / Altenar / Bet Software / Playtech', color: 'bg-slate-100 text-slate-700' },
@@ -88,6 +89,7 @@ export default function HomePage() {
 
       {/* HERO */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
+        <AINetworkBackground />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto text-center">
