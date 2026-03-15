@@ -73,6 +73,14 @@ const config: Config = {
           900: '#27531e',
           950: '#122e0c',
         },
+        sidebar: {
+          background: 'hsl(var(--sidebar-background))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          hover: 'hsl(var(--sidebar-hover))',
+          active: 'hsl(var(--sidebar-active))',
+          'active-foreground': 'hsl(var(--sidebar-active-foreground))',
+        },
       },
       keyframes: {
         'accordion-down': {
