@@ -44,12 +44,18 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
       let casinoId: string | null = null;
 
       if (userRole === 'casino_admin') {
-        // For casino admins, use the casino_id from the user object
         casinoId = (user as any).casino_id;
-        console.log('[ModuleContext] Casino admin, casino_id:', casinoId);
 
         if (!casinoId) {
-          console.error('[ModuleContext] Casino admin has no casino_id');
+          const { data: userData } = await supabase
+            .from('users')
+            .select('casino_id')
+            .eq('id', user.id)
+            .maybeSingle();
+          casinoId = userData?.casino_id ?? null;
+        }
+
+        if (!casinoId) {
           setModules([]);
           setLoading(false);
           return;
@@ -82,8 +88,6 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
           console.error('[ModuleContext] Error loading modules:', error);
           setModules([]);
         } else {
-          console.log('[ModuleContext] Loaded modules:', data?.length || 0, 'modules');
-          console.log('[ModuleContext] Module slugs:', data?.map((m: any) => m.slug));
           setModules(data || []);
         }
       } else if (userRole === 'super_admin' || userRole === 'regulator') {
@@ -126,6 +130,14 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
         if (userRole === 'casino_admin') {
           casinoId = (user as any).casino_id;
+          if (!casinoId) {
+            const { data: ud } = await supabase
+              .from('users')
+              .select('casino_id')
+              .eq('id', user.id)
+              .maybeSingle();
+            casinoId = ud?.casino_id ?? null;
+          }
         } else if (userRole === 'staff') {
           const { data: staffData } = await supabase
             .from('staff')
