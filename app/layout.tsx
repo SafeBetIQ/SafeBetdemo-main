@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ModuleProvider } from '@/contexts/ModuleContext';
 import { Toaster } from '@/components/ui/sonner';
+import AIMonitoringIndicator from '@/components/AIMonitoringIndicator';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -31,6 +32,7 @@ export default function RootLayout({
           <ModuleProvider>
             {children}
             <Toaster />
+            <AIMonitoringIndicator />
           </ModuleProvider>
         </AuthProvider>
       </body>
