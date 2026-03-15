@@ -102,7 +102,6 @@ export default function BehavioralRiskIntelligencePage() {
         .from('gaming_sessions')
         .select('*, players!inner(*)')
         .eq('is_active', true)
-        .eq('players.is_active', true)
         .order('start_time', { ascending: false })
         .limit(100);
 
