@@ -89,11 +89,11 @@ export default function HomePage() {
       <MainNavigation />
 
       {/* HERO */}
-      <section className="relative pt-28 pb-20 px-6 overflow-hidden min-h-[600px]">
+      <section className="relative pt-28 pb-24 px-6 overflow-hidden" style={{ minHeight: '680px' }}>
         <AINetworkBackground />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" style={{ zIndex: 1 }} />
 
-        <div className="relative max-w-5xl mx-auto text-center">
+        <div className="relative max-w-5xl mx-auto text-center" style={{ zIndex: 2 }}>
           <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-sm px-5 py-2 rounded-full font-mono tracking-wide">
             <TypewriterText
               text="Global Responsible Gambling Intelligence Platform"

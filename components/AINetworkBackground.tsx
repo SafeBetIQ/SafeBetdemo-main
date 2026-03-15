@@ -22,37 +22,45 @@ export default function AINetworkBackground() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const resize = () => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        const rect = parent.getBoundingClientRect();
-        canvas.width = rect.width || window.innerWidth;
-        canvas.height = rect.height || window.innerHeight;
-      } else {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
-    };
-
-    resize();
-
     const NODE_COUNT = 80;
     const CONNECTION_DISTANCE = 150;
-
-    const nodes: Node[] = Array.from({ length: NODE_COUNT }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      size: Math.random() * 2.5 + 1.5,
-      pulsePhase: Math.random() * Math.PI * 2,
-      pulseSpeed: 0.02 + Math.random() * 0.03,
-    }));
-
+    let nodes: Node[] = [];
     let animationFrameId: number;
+    let roCleanup: (() => void) | null = null;
+
+    const getParentDimensions = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return { w: window.innerWidth, h: window.innerHeight };
+      const rect = parent.getBoundingClientRect();
+      return {
+        w: rect.width > 0 ? rect.width : parent.offsetWidth || window.innerWidth,
+        h: rect.height > 0 ? rect.height : parent.offsetHeight || window.innerHeight,
+      };
+    };
+
+    const setSize = () => {
+      const { w, h } = getParentDimensions();
+      canvas.width = w;
+      canvas.height = h;
+      return { w, h };
+    };
+
+    const initNodes = (w: number, h: number) => {
+      nodes = Array.from({ length: NODE_COUNT }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        size: Math.random() * 2.5 + 1.5,
+        pulsePhase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.02 + Math.random() * 0.03,
+      }));
+    };
 
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cw = canvas.width;
+      const ch = canvas.height;
+      ctx.clearRect(0, 0, cw, ch);
 
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
@@ -61,9 +69,9 @@ export default function AINetworkBackground() {
         node.y += node.vy;
 
         if (node.x < 0) { node.x = 0; node.vx *= -1; }
-        if (node.x > canvas.width) { node.x = canvas.width; node.vx *= -1; }
+        if (node.x > cw) { node.x = cw; node.vx *= -1; }
         if (node.y < 0) { node.y = 0; node.vy *= -1; }
-        if (node.y > canvas.height) { node.y = canvas.height; node.vy *= -1; }
+        if (node.y > ch) { node.y = ch; node.vy *= -1; }
 
         node.pulsePhase += node.pulseSpeed;
         const pulse = 0.6 + 0.4 * Math.sin(node.pulsePhase);
@@ -110,29 +118,48 @@ export default function AINetworkBackground() {
       animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    const start = () => {
+      const { w, h } = setSize();
+      initNodes(w, h);
+      animate();
 
-    const handleResize = () => {
-      resize();
-      nodes.forEach(node => {
-        node.x = Math.min(node.x, canvas.width);
-        node.y = Math.min(node.y, canvas.height);
-      });
+      if (canvas.parentElement) {
+        const ro = new ResizeObserver(() => {
+          const { w: nw, h: nh } = setSize();
+          nodes.forEach(node => {
+            node.x = Math.min(node.x, nw);
+            node.y = Math.min(node.y, nh);
+          });
+        });
+        ro.observe(canvas.parentElement);
+        roCleanup = () => ro.disconnect();
+      }
     };
 
-    window.addEventListener('resize', handleResize);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(start);
+    });
 
     return () => {
-      window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
+      roCleanup?.();
     };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.6, display: 'block' }}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0.6,
+        display: 'block',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
     />
   );
 }
