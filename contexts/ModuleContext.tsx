@@ -43,7 +43,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
       let casinoId: string | null = null;
 
-      if (userRole === 'casino_admin') {
+      if (userRole === 'casino_admin' || userRole === 'compliance_officer') {
         casinoId = (user as any).casino_id;
 
         if (!casinoId) {
@@ -53,12 +53,6 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
             .eq('id', user.id)
             .maybeSingle();
           casinoId = userData?.casino_id ?? null;
-        }
-
-        if (!casinoId) {
-          setModules([]);
-          setLoading(false);
-          return;
         }
       } else if (userRole === 'staff') {
         const { data: staffData } = await supabase
@@ -78,19 +72,28 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (userRole === 'casino_admin' || userRole === 'staff') {
-        console.log('[ModuleContext] Calling get_casino_modules for casino:', casinoId);
-        const { data, error } = await supabase.rpc('get_casino_modules', {
-          p_casino_id: casinoId,
-        });
+      if (userRole === 'casino_admin' || userRole === 'compliance_officer' || userRole === 'staff') {
+        if (casinoId) {
+          console.log('[ModuleContext] Calling get_casino_modules for casino:', casinoId);
+          const { data, error } = await supabase.rpc('get_casino_modules', {
+            p_casino_id: casinoId,
+          });
 
-        if (error) {
-          console.error('[ModuleContext] Error loading modules:', error);
-          setModules([]);
+          if (error) {
+            console.error('[ModuleContext] Error loading modules:', error);
+            setModules([]);
+          } else {
+            setModules(data || []);
+          }
         } else {
-          setModules(data || []);
+          setModules([]);
         }
-      } else if (userRole === 'super_admin' || userRole === 'regulator' || userRole === 'provincial_regulator') {
+      } else if (
+        userRole === 'super_admin' ||
+        userRole === 'regulator' ||
+        userRole === 'provincial_regulator' ||
+        userRole === 'national_regulator'
+      ) {
         console.log('[ModuleContext] Loading all active modules for admin/regulator');
         const { data } = await supabase
           .from('software_modules')
@@ -123,12 +126,11 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
     loadModules();
 
     // Set up realtime subscription for casino_modules changes
-    if (user && (userRole === 'casino_admin' || userRole === 'staff')) {
-      // For staff users, we need to get their casino_id first
+    if (user && (userRole === 'casino_admin' || userRole === 'compliance_officer' || userRole === 'staff')) {
       const setupSubscription = async () => {
         let casinoId: string | null = null;
 
-        if (userRole === 'casino_admin') {
+        if (userRole === 'casino_admin' || userRole === 'compliance_officer') {
           casinoId = (user as any).casino_id;
           if (!casinoId) {
             const { data: ud } = await supabase
@@ -194,7 +196,12 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
   }, [user, userRole]);
 
   const hasModule = (slug: string): boolean => {
-    if (userRole === 'super_admin' || userRole === 'regulator' || userRole === 'provincial_regulator') {
+    if (
+      userRole === 'super_admin' ||
+      userRole === 'regulator' ||
+      userRole === 'provincial_regulator' ||
+      userRole === 'national_regulator'
+    ) {
       return true;
     }
     return modules.some((m) => m.slug === slug);

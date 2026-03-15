@@ -26,11 +26,11 @@ interface ModuleGuardProps {
 
 export function ModuleGuard({ slug, children, fallbackHref = '/casino/dashboard' }: ModuleGuardProps) {
   const { hasModule, loading } = useModules();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const userRole = (user as any)?.role;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
