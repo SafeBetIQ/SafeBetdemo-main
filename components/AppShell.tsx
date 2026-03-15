@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
@@ -16,17 +15,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Activity, Users, ShieldAlert, Brain, TrendingUp, CircleCheck as CheckCircle, FileText, Lock, Settings, CreditCard, Plug, Search, Menu, ChevronLeft, ChevronRight, ChevronDown, Bell, User, LogOut, Building2, Shield, Target, Code, BookOpen, Webhook, FileCode, Globe, Database, ChartBar as BarChart3, Microscope, DollarSign, MapPin, Cloud, Award, Key, Fingerprint, TriangleAlert as AlertTriangle, Cpu } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Database, Server, GraduationCap, CircleCheck as CheckCircle, TrendingUp, Eye, Layers, MapPin, Award, Key, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 
 interface NavItem {
   title: string;
-  href?: string;
+  href: string;
   icon: React.ElementType;
   badge?: string;
-  roles?: string[];
-  subItems?: NavItem[];
+  roles: string[];
 }
 
 interface NavGroup {
@@ -34,82 +31,69 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navigationGroups: NavGroup[] = [
+const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Core',
     items: [
-      { title: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['super_admin'] },
-      { title: 'Dashboard', href: '/casino/dashboard', icon: LayoutDashboard, roles: ['casino_admin'] },
-      { title: 'Dashboard', href: '/regulator/dashboard', icon: LayoutDashboard, roles: ['regulator'] },
-      { title: 'Dashboard', href: '/regulator/provincial-dashboard', icon: LayoutDashboard, roles: ['provincial_regulator'] },
-      { title: 'Dashboard', href: '/staff/profile', icon: LayoutDashboard, roles: ['casino_staff'] },
-      { title: 'Players', href: '/casino/players', icon: Users, roles: ['casino_admin', 'super_admin'] },
-      { title: 'Staff', href: '/casino/staff', icon: Users, roles: ['casino_admin'] },
+      { title: 'Platform Overview',         href: '/admin',                          icon: LayoutDashboard,  roles: ['super_admin'] },
+      { title: 'Operator Compliance',        href: '/casino/dashboard',               icon: LayoutDashboard,  roles: ['casino_admin', 'compliance_officer'] },
+      { title: 'National Intelligence',      href: '/regulator/dashboard',            icon: LayoutDashboard,  roles: ['regulator', 'national_regulator'] },
+      { title: 'Provincial Intelligence',    href: '/regulator/provincial-dashboard', icon: LayoutDashboard,  roles: ['provincial_regulator'] },
+      { title: 'My Profile',                 href: '/staff/profile',                  icon: User,             roles: ['staff'] },
     ],
   },
   {
-    title: 'Intelligence',
+    title: 'Behavioural Intelligence',
     items: [
-      { title: 'Live Monitor', href: '/behavioral-risk-intelligence', icon: Activity, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'AI Intelligence', href: '/casino/ai-intelligence', icon: Brain, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'Nova IQ XAI', href: '/nova-iq-xai', icon: Microscope, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'Interventions', href: '/casino/interventions', icon: ShieldAlert, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'Revenue Protection', href: '/esg-performance', icon: DollarSign, roles: ['casino_admin', 'super_admin'] },
+      { title: 'Player Risk Monitor',        href: '/casino/players',                 icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Intervention Engine',        href: '/casino/interventions',           icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Session Analytics',          href: '/behavioral-risk-intelligence',   icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'AI Intelligence',            href: '/casino/ai-intelligence',         icon: Brain,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'Nova IQ XAI',                href: '/nova-iq-xai',                    icon: Eye,              roles: ['casino_admin', 'super_admin'] },
     ],
   },
   {
-    title: 'Governance & ESG',
+    title: 'Network Intelligence',
     items: [
-      { title: 'ESG Performance', href: '/esg-performance', icon: CheckCircle, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'King IV ESG', href: '/esg-king-iv', icon: Shield, roles: ['casino_admin', 'regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'ESG Data Entry', href: '/casino/esg-data-entry', icon: FileText, roles: ['casino_admin'] },
-      { title: 'ESG Management', href: '/admin/esg-management', icon: BarChart3, roles: ['super_admin'] },
-      { title: 'Wellbeing Compliance', href: '/regulator/wellbeing-compliance', icon: Shield, roles: ['regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Cross-Operator Intelligence',href: '/admin/integrations',             icon: Network,          roles: ['super_admin', 'regulator', 'national_regulator'] },
+      { title: 'Self-Exclusion Network',     href: '/regulator/wellbeing-compliance', icon: ShieldOff,        roles: ['regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'High-Risk Player Analytics', href: '/regulator/dashboard',            icon: AlertTriangle,    roles: ['regulator', 'national_regulator', 'provincial_regulator'] },
     ],
   },
   {
-    title: 'Platform',
+    title: 'Compliance & ESG',
     items: [
-      { title: 'Nova IQ', href: '/casino/wellbeing-games', icon: Target, roles: ['casino_admin'] },
-      { title: 'Nova IQ Admin', href: '/admin/wellbeing-games', icon: Target, roles: ['super_admin'] },
-      { title: 'Integrations', href: '/casino/integrations', icon: Plug, roles: ['casino_admin'] },
-      { title: 'Integrations', href: '/admin/integrations', icon: Plug, roles: ['super_admin'] },
-      {
-        title: 'SafePlay Connect',
-        icon: Globe,
-        roles: ['casino_admin', 'super_admin'],
-        subItems: [
-          { title: 'Overview', href: '/safeplay-connect/overview', icon: Globe },
-          { title: 'API Documentation', href: '/safeplay-connect/api-docs', icon: Code },
-          { title: 'Integration Demo', href: '/safeplay-connect/integration-demo', icon: Webhook },
-          { title: 'Postman Samples', href: '/safeplay-connect/postman-samples', icon: FileCode },
-          { title: 'CTO Brief', href: '/safeplay-connect/cto-brief', icon: BookOpen },
-          { title: 'README', href: '/safeplay-connect/readme', icon: FileText },
-          { title: 'ESG Integration', href: '/safeplay-connect/esg-data-integration', icon: Database },
-        ],
-      },
+      { title: 'Compliance Reports',         href: '/admin/compliance-overview',      icon: FileText,         roles: ['super_admin', 'regulator', 'national_regulator'] },
+      { title: 'Compliance Controls',        href: '/admin/compliance',               icon: CheckCircle,      roles: ['super_admin', 'casino_admin'] },
+      { title: 'ESG Performance',            href: '/esg-performance',                icon: TrendingUp,       roles: ['casino_admin', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'King IV ESG',                href: '/esg-king-iv',                    icon: Award,            roles: ['casino_admin', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'ESG Data Entry',             href: '/casino/esg-data-entry',          icon: Database,         roles: ['casino_admin'] },
     ],
   },
   {
-    title: 'Security & Compliance',
+    title: 'Platform Management',
     items: [
-      { title: 'Command Center', href: '/security-command-center', icon: ShieldAlert, roles: ['super_admin', 'national_regulator', 'regulator'] },
-      { title: 'Compliance Overview', href: '/admin/compliance-overview', icon: Award, roles: ['super_admin', 'national_regulator', 'regulator'] },
-      { title: 'Compliance Controls', href: '/admin/compliance', icon: CheckCircle, roles: ['super_admin', 'casino_admin'] },
-      { title: 'Threat Monitoring', href: '/admin/threat-monitoring', icon: AlertTriangle, roles: ['super_admin'] },
-      { title: 'Security Audit Log', href: '/admin/security', icon: Lock, roles: ['super_admin'] },
-      { title: 'Access Control', href: '/admin/access-control', icon: Key, roles: ['super_admin'] },
-      { title: 'Data Governance', href: '/admin/data-governance', icon: Database, roles: ['super_admin'] },
-      { title: 'Privacy Centre', href: '/admin/privacy', icon: Shield, roles: ['super_admin', 'casino_admin'] },
-      { title: 'Infrastructure', href: '/admin/infrastructure', icon: Cloud, roles: ['super_admin'] },
-      { title: 'Performance', href: '/admin/performance', icon: Cpu, roles: ['super_admin'] },
+      { title: 'Nova IQ (Wellbeing)',        href: '/casino/wellbeing-games',         icon: Shield,           roles: ['casino_admin', 'super_admin'] },
+      { title: 'Staff Training',             href: '/casino/training',                icon: GraduationCap,    roles: ['casino_admin'] },
+      { title: 'Training Academy',           href: '/staff/academy',                  icon: BookOpen,         roles: ['staff'] },
+      { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,             roles: ['casino_admin'] },
+      { title: 'SafePlay Connect (API)',     href: '/safeplay-connect',               icon: Globe,            roles: ['casino_admin', 'super_admin'] },
     ],
   },
   {
-    title: 'Admin',
+    title: 'Security & Admin',
     items: [
-      { title: 'Module Management', href: '/admin/casino-modules', icon: Settings, roles: ['super_admin'] },
-      { title: 'User Management', href: '/admin/user-roles', icon: Users, roles: ['super_admin'] },
+      { title: 'Security Command Center',    href: '/security-command-center',        icon: ShieldAlert,      roles: ['super_admin'] },
+      { title: 'Module Management',          href: '/admin/casino-modules',           icon: Layers,           roles: ['super_admin'] },
+      { title: 'User Management',            href: '/admin/user-roles',               icon: Users,            roles: ['super_admin'] },
+      { title: 'Access Control',             href: '/admin/access-control',           icon: Key,              roles: ['super_admin'] },
+      { title: 'Data Governance',            href: '/admin/data-governance',          icon: Lock,             roles: ['super_admin'] },
+      { title: 'Infrastructure',             href: '/admin/infrastructure',           icon: Server,           roles: ['super_admin'] },
+      { title: 'Performance',                href: '/admin/performance',              icon: BarChart3,        roles: ['super_admin'] },
+      { title: 'Threat Monitoring',          href: '/admin/threat-monitoring',        icon: AlertTriangle,    roles: ['super_admin'] },
+      { title: 'ESG Management',             href: '/admin/esg-management',           icon: Globe,            roles: ['super_admin'] },
+      { title: 'Wellbeing Games Admin',      href: '/admin/wellbeing-games',          icon: Shield,           roles: ['super_admin'] },
+      { title: 'Integrations Admin',         href: '/admin/integrations',             icon: Plug,             roles: ['super_admin'] },
     ],
   },
 ];
@@ -121,80 +105,44 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const [originalUserEmail, setOriginalUserEmail] = useState('');
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['SafePlay Connect']);
   const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
 
-  const toggleMenu = (title: string) => {
-    setExpandedMenus((prev) =>
-      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
-    );
-  };
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const impersonatedBy = localStorage.getItem('impersonated_by');
-      const originalEmail = localStorage.getItem('original_user_email');
-      if (impersonatedBy && originalEmail) {
-        setIsImpersonating(true);
-        setOriginalUserEmail(originalEmail);
-      }
-    }
-  }, []);
-
-  const handleExitImpersonation = async () => {
-    try {
-      const originalEmail = localStorage.getItem('original_user_email');
-      if (!originalEmail) {
-        throw new Error('Original user email not found');
-      }
-
-      localStorage.removeItem('impersonated_by');
-      localStorage.removeItem('original_user_email');
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: originalEmail,
-        password: 'Casino123!',
-      });
-
-      if (error) throw error;
-
-      setIsImpersonating(false);
-      router.push('/casino/dashboard');
-    } catch (error) {
-      console.error('Failed to exit impersonation:', error);
-    }
-  };
-
   const handleLogout = async () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('impersonated_by');
-      localStorage.removeItem('original_user_email');
-    }
     await signOut();
     router.push('/login');
   };
 
-  const filteredNavigation = useMemo(() => navigationGroups.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (!item.roles || item.roles.length === 0) return true;
-      return user?.role && item.roles.includes(user.role);
-    }),
-  })).filter((group) => group.items.length > 0), [user?.role]);
+  const filteredNavigation = useMemo(() => {
+    const role = user?.role || '';
+    return NAV_GROUPS
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.roles.includes(role)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [user?.role]);
+
+  const roleLabel: Record<string, string> = {
+    super_admin: 'Super Admin',
+    casino_admin: 'Casino Admin',
+    compliance_officer: 'Compliance Officer',
+    regulator: 'National Regulator',
+    national_regulator: 'National Regulator',
+    provincial_regulator: 'Provincial Regulator',
+    staff: 'Staff Member',
+  };
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex h-full flex-col bg-sidebar-background text-sidebar-foreground">
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-sidebar-border px-4 bg-sidebar-background">
+      <div className="flex h-16 items-center border-b border-sidebar-border px-4">
         {!sidebarCollapsed || mobile ? (
           <Link href="/" className="flex items-center">
             <img
               src="/safebet_website_logo copy copy.png"
-              alt="Logo"
+              alt="SafeBet IQ"
               className="h-10 w-auto object-contain"
               style={{ mixBlendMode: 'lighten' }}
             />
@@ -203,7 +151,7 @@ export function AppShell({ children }: AppShellProps) {
           <Link href="/" className="flex items-center mx-auto">
             <img
               src="/safebet_website_logo copy copy.png"
-              alt="Logo"
+              alt="SafeBet IQ"
               className="h-8 w-auto object-contain"
               style={{ mixBlendMode: 'lighten' }}
             />
@@ -211,112 +159,48 @@ export function AppShell({ children }: AppShellProps) {
         )}
       </div>
 
-      {/* Search */}
-      {(!sidebarCollapsed || mobile) && (
-        <div className="p-4 bg-sidebar-background">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sidebar-foreground/60" />
-            <Input
-              placeholder="Search..."
-              className="pl-9 bg-sidebar-hover border-sidebar-border text-sidebar-foreground placeholder:text-sidebar-foreground/60"
-            />
+      {/* Role Indicator */}
+      {(!sidebarCollapsed || mobile) && user && (
+        <div className="px-4 py-2 border-b border-sidebar-border">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-sidebar-hover">
+            <div className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-sidebar-foreground/80">
+              {roleLabel[user.role] || user.role}
+            </span>
           </div>
         </div>
       )}
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 bg-sidebar-background">
-        <div className="space-y-6 py-4">
+      <ScrollArea className="flex-1 px-3">
+        <div className="space-y-5 py-4">
           {filteredNavigation.map((group, groupIndex) => (
             <div key={groupIndex}>
               {(!sidebarCollapsed || mobile) && (
-                <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+                <h3 className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40">
                   {group.title}
                 </h3>
               )}
-              <nav className="space-y-1">
+              <nav className="space-y-0.5">
                 {group.items.map((item, itemIndex) => {
                   const Icon = item.icon;
-                  const hasSubItems = item.subItems && item.subItems.length > 0;
-                  const isExpanded = expandedMenus.includes(item.title);
-                  const isActive = item.href ? (pathname === item.href || pathname.startsWith(item.href + '/')) : false;
-                  const isAnySubItemActive = hasSubItems && item.subItems?.some(sub => pathname === sub.href || pathname.startsWith(sub.href! + '/'));
-
-                  if (hasSubItems) {
-                    return (
-                      <div key={itemIndex}>
-                        <button
-                          onClick={() => toggleMenu(item.title)}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-base w-full',
-                            isAnySubItemActive
-                              ? 'bg-sidebar-active text-sidebar-active-foreground'
-                              : 'text-sidebar-foreground hover:bg-sidebar-hover'
-                          )}
-                        >
-                          <Icon className="h-5 w-5 flex-shrink-0" />
-                          {(!sidebarCollapsed || mobile) && (
-                            <>
-                              <span className="flex-1 text-left">{item.title}</span>
-                              <ChevronDown
-                                className={cn(
-                                  'h-4 w-4 transition-transform',
-                                  isExpanded && 'rotate-180'
-                                )}
-                              />
-                            </>
-                          )}
-                        </button>
-                        {(!sidebarCollapsed || mobile) && isExpanded && item.subItems && (
-                          <div className="ml-8 mt-1 space-y-1">
-                            {item.subItems.map((subItem, subIndex) => {
-                              const SubIcon = subItem.icon;
-                              const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href! + '/');
-                              return (
-                                <Link
-                                  key={subIndex}
-                                  href={subItem.href!}
-                                  onClick={() => mobile && setMobileOpen(false)}
-                                  className={cn(
-                                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-base',
-                                    isSubActive
-                                      ? 'bg-sidebar-active text-sidebar-active-foreground'
-                                      : 'text-sidebar-foreground hover:bg-sidebar-hover'
-                                  )}
-                                >
-                                  <SubIcon className="h-4 w-4 flex-shrink-0" />
-                                  <span className="flex-1">{subItem.title}</span>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                   return (
                     <Link
                       key={itemIndex}
-                      href={item.href!}
+                      href={item.href}
                       onClick={() => mobile && setMobileOpen(false)}
+                      title={sidebarCollapsed && !mobile ? item.title : undefined}
                       className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-base',
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                         isActive
                           ? 'bg-sidebar-active text-sidebar-active-foreground'
-                          : 'text-sidebar-foreground hover:bg-sidebar-hover'
+                          : 'text-sidebar-foreground/70 hover:bg-sidebar-hover hover:text-sidebar-foreground'
                       )}
                     >
-                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <Icon className="h-4 w-4 flex-shrink-0" />
                       {(!sidebarCollapsed || mobile) && (
-                        <>
-                          <span className="flex-1">{item.title}</span>
-                          {item.badge && (
-                            <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
-                              {item.badge}
-                            </span>
-                          )}
-                        </>
+                        <span className="flex-1 truncate">{item.title}</span>
                       )}
                     </Link>
                   );
@@ -328,57 +212,52 @@ export function AppShell({ children }: AppShellProps) {
       </ScrollArea>
 
       {/* User Menu */}
-      <div className="border-t border-sidebar-border p-4 bg-sidebar-background">
+      <div className="border-t border-sidebar-border p-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               className={cn(
-                'w-full justify-start gap-3 hover:bg-sidebar-hover text-sidebar-foreground',
-                sidebarCollapsed && !mobile && 'justify-center'
+                'w-full justify-start gap-3 hover:bg-sidebar-hover text-sidebar-foreground h-auto py-2',
+                sidebarCollapsed && !mobile && 'justify-center px-2'
               )}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
-                <User className="h-4 w-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0 text-xs font-bold">
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
               </div>
               {(!sidebarCollapsed || mobile) && (
-                <div className="flex flex-col items-start text-sm">
-                  <span className="font-medium text-sidebar-foreground">{user?.email || 'User'}</span>
-                  <span className="text-xs text-sidebar-foreground/60 capitalize">
-                    {user?.role?.replace('_', ' ') || 'Role'}
+                <div className="flex flex-col items-start text-xs min-w-0">
+                  <span className="font-medium text-sidebar-foreground truncate max-w-[140px]">
+                    {user?.full_name || user?.email || 'User'}
+                  </span>
+                  <span className="text-sidebar-foreground/50 truncate max-w-[140px]">
+                    {user?.email}
                   </span>
                 </div>
               )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/staff/profile')}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/admin/user-roles')}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </DropdownMenuItem>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              {roleLabel[user?.role || ''] || user?.role}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
-              Log out
+              Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* Collapse Toggle - Desktop only */}
+      {/* Collapse Toggle */}
       {!mobile && (
-        <div className="border-t border-sidebar-border p-2 bg-sidebar-background">
+        <div className="border-t border-sidebar-border p-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="w-full hover:bg-sidebar-hover text-sidebar-foreground"
+            className="w-full hover:bg-sidebar-hover text-sidebar-foreground/60 text-xs"
           >
             {sidebarCollapsed ? (
               <ChevronRight className="h-4 w-4" />
@@ -400,7 +279,7 @@ export function AppShell({ children }: AppShellProps) {
       <aside
         className={cn(
           'hidden md:flex flex-col border-r border-sidebar-border bg-sidebar-background transition-all duration-300',
-          sidebarCollapsed ? 'w-16' : 'w-[260px]'
+          sidebarCollapsed ? 'w-16' : 'w-[240px]'
         )}
       >
         <SidebarContent />
@@ -408,7 +287,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-[260px] p-0 bg-sidebar-background">
+        <SheetContent side="left" className="w-[260px] p-0 bg-sidebar-background border-r border-sidebar-border">
           <SidebarContent mobile />
         </SheetContent>
       </Sheet>
@@ -416,7 +295,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile Header */}
-        <header className="flex h-16 items-center gap-4 border-b border-border bg-card px-4 md:hidden">
+        <header className="flex h-14 items-center gap-4 border-b border-border bg-card px-4 md:hidden">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -427,41 +306,20 @@ export function AppShell({ children }: AppShellProps) {
           <Link href="/" className="flex items-center">
             <img
               src="/safebet_website_logo copy copy.png"
-              alt="Logo"
-              className="h-8 w-auto object-contain"
-              style={{ mixBlendMode: 'lighten' }}
+              alt="SafeBet IQ"
+              className="h-7 w-auto object-contain"
+              style={{ mixBlendMode: 'multiply' }}
             />
           </Link>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-4 w-4" />
             </Button>
           </div>
         </header>
 
-        {/* Impersonation Banner */}
-        {isImpersonating && (
-          <div className="bg-yellow-500 text-yellow-900 px-4 py-3 flex items-center justify-between shadow-md">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                Viewing as <strong>{user?.email}</strong> - You are impersonating this staff member
-              </span>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleExitImpersonation}
-              className="bg-white hover:bg-gray-100 text-yellow-900"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Exit & Return to Dashboard
-            </Button>
-          </div>
-        )}
-
         {/* Page Content */}
-        <main className="flex-1 overflow-auto custom-scrollbar">
+        <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>
