@@ -57,8 +57,9 @@ export default function CasinoDashboardPage() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [playersRes, intRes, sessionsRes, exclRes, casinoRes, networkRes] = await Promise.all([
-      supabase.from('players').select('risk_score, status').eq('casino_id', casinoId),
+    const [playerCountRes, playerStatsRes, intRes, sessionsRes, exclRes, casinoRes, networkRes] = await Promise.all([
+      supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
+      supabase.from('players').select('risk_score').eq('casino_id', casinoId),
       supabase.from('player_protection_interventions').select('outcome, intervention_date').eq('casino_id', casinoId),
       supabase.from('gaming_sessions').select('is_active').eq('casino_id', casinoId).eq('is_active', true),
       supabase.from('self_exclusion_registry').select('status').eq('casino_id', casinoId).eq('status', 'active'),
@@ -66,22 +67,23 @@ export default function CasinoDashboardPage() {
       supabase.from('sen_breach_detections').select('status').or(`detecting_casino_id.eq.${casinoId},originating_casino_id.eq.${casinoId}`).eq('status', 'open'),
     ]);
 
-    const players = playersRes.data || [];
+    const totalPlayers = playerCountRes.count ?? 0;
+    const playerScores = playerStatsRes.data || [];
     const interventions = intRes.data || [];
     const todayInt = interventions.filter(i => new Date(i.intervention_date) >= todayStart);
 
     if (casinoRes.data?.name) setCasinoName(casinoRes.data.name);
 
-    const critical = players.filter(p => p.risk_score >= 80).length;
+    const critical = playerScores.filter(p => p.risk_score >= 80).length;
     const pending  = interventions.filter(i => !i.outcome || i.outcome === 'pending').length;
 
     // Simple compliance estimate
-    const coveragePct = players.length > 0 ? Math.min(100, Math.round((players.filter(p => p.risk_score != null).length / players.length) * 100)) : 100;
+    const coveragePct = playerScores.length > 0 ? Math.min(100, Math.round((playerScores.filter(p => p.risk_score != null).length / playerScores.length) * 100)) : 100;
     const interventionCoverage = critical > 0 ? Math.min(100, Math.round((interventions.filter(i => i.outcome && i.outcome !== 'pending').length / critical) * 100)) : 100;
     const complianceScore = Math.round((coveragePct + interventionCoverage) / 2);
 
     setSummary({
-      totalPlayers: players.length,
+      totalPlayers,
       criticalPlayers: critical,
       pendingInterventions: pending,
       activeSessions: sessionsRes.data?.length || 0,
