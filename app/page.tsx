@@ -88,7 +88,7 @@ export default function HomePage() {
       <MainNavigation />
 
       {/* HERO */}
-      <section className="relative pt-28 pb-20 px-6 overflow-hidden">
+      <section className="relative pt-28 pb-20 px-6 overflow-hidden min-h-[600px]">
         <AINetworkBackground />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
 

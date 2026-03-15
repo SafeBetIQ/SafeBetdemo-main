@@ -23,9 +23,17 @@ export default function AINetworkBackground() {
     if (!ctx) return;
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const parent = canvas.parentElement;
+      if (parent) {
+        const rect = parent.getBoundingClientRect();
+        canvas.width = rect.width || window.innerWidth;
+        canvas.height = rect.height || window.innerHeight;
+      } else {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
     };
+
     resize();
 
     const NODE_COUNT = 80;
@@ -42,11 +50,9 @@ export default function AINetworkBackground() {
     }));
 
     let animationFrameId: number;
-    let time = 0;
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      time++;
 
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
@@ -60,14 +66,10 @@ export default function AINetworkBackground() {
         if (node.y > canvas.height) { node.y = canvas.height; node.vy *= -1; }
 
         node.pulsePhase += node.pulseSpeed;
-
         const pulse = 0.6 + 0.4 * Math.sin(node.pulsePhase);
         const glowRadius = node.size * (2.5 + pulse * 2);
 
-        const gradient = ctx.createRadialGradient(
-          node.x, node.y, 0,
-          node.x, node.y, glowRadius
-        );
+        const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowRadius);
         gradient.addColorStop(0, `rgba(137, 216, 72, ${0.9 * pulse})`);
         gradient.addColorStop(0.4, `rgba(137, 216, 72, ${0.4 * pulse})`);
         gradient.addColorStop(1, 'rgba(137, 216, 72, 0)');
@@ -110,7 +112,14 @@ export default function AINetworkBackground() {
 
     animate();
 
-    const handleResize = () => resize();
+    const handleResize = () => {
+      resize();
+      nodes.forEach(node => {
+        node.x = Math.min(node.x, canvas.width);
+        node.y = Math.min(node.y, canvas.height);
+      });
+    };
+
     window.addEventListener('resize', handleResize);
 
     return () => {
@@ -123,7 +132,7 @@ export default function AINetworkBackground() {
     <canvas
       ref={canvasRef}
       className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.6, display: 'block' }}
     />
   );
 }
