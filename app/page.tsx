@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
-import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Lock, ChartBar as BarChart3, Users, ArrowRight, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, TrendingUp, FileText, Server, Layers, Database, Bell } from 'lucide-react';
+import AINetworkBackground from '@/components/AINetworkBackground';
+import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Lock, ChartBar as BarChart3, Users, ArrowRight, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, TrendingUp, FileText, Server, Layers, Database, Bell, Cpu, Eye, ChartBar as BarChart2 } from 'lucide-react';
 
 const PLATFORM_LAYERS = [
   { label: 'Casino Platforms', desc: 'SOFTSWISS / Altenar / Bet Software / Playtech', color: 'bg-slate-100 text-slate-700' },
@@ -81,6 +82,39 @@ const STATS = [
   { value: '99.8%', label: 'Platform Uptime' },
 ];
 
+const AI_FEATURES = [
+  {
+    icon: Cpu,
+    title: 'AI Risk Detection',
+    description: 'Machine learning algorithms examine player behaviour patterns in real-time to identify problem gambling indicators before they escalate.',
+  },
+  {
+    icon: Zap,
+    title: 'Instant Interventions',
+    description: 'Automated protective actions activate within seconds when risk thresholds are triggered — WhatsApp, SMS, and email simultaneously.',
+  },
+  {
+    icon: Shield,
+    title: 'Regulatory Compliance',
+    description: 'Maintain alignment with South African gaming regulations through comprehensive audit documentation and real-time compliance scoring.',
+  },
+  {
+    icon: Eye,
+    title: 'Real-Time Monitoring',
+    description: 'Live dashboards track player activity across multiple channels with instant notifications and sub-100ms alert response times.',
+  },
+  {
+    icon: BarChart2,
+    title: 'Advanced Analytics',
+    description: 'Behavioural insights examining spending patterns, session data, and risk factors across the entire player base.',
+  },
+  {
+    icon: Building2,
+    title: 'Multi-Casino Platform',
+    description: 'Centralised dashboard managing multiple casino properties through one unified interface with strict tenant data isolation.',
+  },
+];
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-black text-white">
@@ -89,6 +123,7 @@ export default function HomePage() {
       {/* HERO */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
+        <AINetworkBackground />
 
         <div className="relative max-w-5xl mx-auto text-center">
           <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full">
@@ -130,8 +165,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ARCHITECTURE LAYERS */}
+      {/* AI POWERED FEATURES */}
       <section className="py-20 px-6 border-t border-gray-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-4">
+            <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest text-brand-400 uppercase mb-4">
+              <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse" />
+              Powerful Features
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">Built for Modern Casinos</h2>
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+              An all-in-one AI platform that combines advanced machine learning with real-time behavioural analysis to monitor player risk and ensure regulatory compliance.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
+            {AI_FEATURES.map((feature, i) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={i}
+                  className="group relative p-6 rounded-2xl border border-gray-800 bg-gray-950 hover:border-brand-800 hover:bg-gray-900 transition-all duration-300"
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-900/0 to-brand-900/0 group-hover:from-brand-900/10 group-hover:to-transparent transition-all duration-300" />
+                  <div className="relative">
+                    <div className="w-11 h-11 rounded-xl bg-brand-900/30 border border-brand-800/50 flex items-center justify-center mb-4 group-hover:bg-brand-900/50 transition-colors">
+                      <Icon className="h-5 w-5 text-brand-400" />
+                    </div>
+                    <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
+                    <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ARCHITECTURE LAYERS */}
+      <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold mb-3">Platform Architecture</h2>

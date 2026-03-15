@@ -23,15 +23,15 @@ export default function AINetworkBackground() {
       size: number;
     }> = [];
 
-    const particleCount = 50;
+    const particleCount = 80;
 
     for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        size: Math.random() * 2 + 1,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        size: Math.random() * 2.5 + 1,
       });
     }
 
@@ -49,7 +49,7 @@ export default function AINetworkBackground() {
 
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(137, 216, 72, 0.3)';
+        ctx.fillStyle = 'rgba(137, 216, 72, 0.6)';
         ctx.fill();
 
         particles.forEach((otherParticle, j) => {
@@ -58,12 +58,12 @@ export default function AINetworkBackground() {
           const dy = particle.y - otherParticle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 120) {
+          if (distance < 150) {
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);
             ctx.lineTo(otherParticle.x, otherParticle.y);
-            ctx.strokeStyle = `rgba(137, 216, 72, ${0.15 * (1 - distance / 120)})`;
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = `rgba(137, 216, 72, ${0.25 * (1 - distance / 150)})`;
+            ctx.lineWidth = 0.6;
             ctx.stroke();
           }
         });
@@ -90,7 +90,7 @@ export default function AINetworkBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none opacity-40"
+      className="absolute inset-0 pointer-events-none opacity-60"
       style={{ mixBlendMode: 'screen' }}
     />
   );
