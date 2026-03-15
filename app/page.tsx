@@ -12,10 +12,10 @@ const PLATFORM_LAYERS = [
   { label: 'Casino Platforms', desc: 'SOFTSWISS / Altenar / Bet Software / Playtech', color: 'bg-slate-100 text-slate-700' },
   { label: 'SafeBet IQ Integration Layer', desc: 'Tenant-aware API connectors per operator', color: 'bg-blue-50 text-blue-700' },
   { label: 'Data Ingestion Engine', desc: 'Sessions · Bets · Deposits · Withdrawals', color: 'bg-sky-50 text-sky-700' },
-  { label: 'Behavioural Intelligence Engine', desc: 'Rule-based risk scoring & pattern detection', color: 'bg-green-50 text-green-700' },
+  { label: 'Behavioural Intelligence Engine', desc: 'Rule-based risk scoring & pattern detection', color: 'bg-brand-50 text-brand-700' },
   { label: 'Intervention Engine', desc: 'Automated alerts · WhatsApp · Twilio · Email', color: 'bg-amber-50 text-amber-700' },
-  { label: 'Operator Compliance Dashboards', desc: 'Player risk · Interventions · Self-exclusion', color: 'bg-emerald-50 text-emerald-700' },
-  { label: 'Regulator Intelligence Platform', desc: 'National & 9 provincial regulators', color: 'bg-green-50 text-green-700' },
+  { label: 'Operator Compliance Dashboards', desc: 'Player risk · Interventions · Self-exclusion', color: 'bg-brand-50 text-brand-700' },
+  { label: 'Regulator Intelligence Platform', desc: 'National & 9 provincial regulators', color: 'bg-brand-50 text-brand-700' },
 ];
 
 const CORE_MODULES = [
@@ -88,17 +88,17 @@ export default function HomePage() {
 
       {/* HERO */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/20 via-black to-black pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto text-center">
-          <Badge className="mb-6 bg-green-900/40 text-green-300 border border-green-800 text-xs px-4 py-1.5 rounded-full">
+          <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full">
             Global Responsible Gambling Intelligence Platform
           </Badge>
 
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
             The Intelligence Layer
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
               Above Casino Platforms
             </span>
           </h1>
@@ -180,7 +180,7 @@ export default function HomePage() {
                 <div key={i} className="p-5 rounded-xl border border-gray-800 bg-gray-950 hover:border-gray-700 transition-colors">
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center">
-                      <Icon className="h-5 w-5 text-green-400" />
+                      <Icon className="h-5 w-5 text-brand-400" />
                     </div>
                     <div className="flex gap-1">
                       {module.tags.map((tag, j) => (
@@ -188,7 +188,7 @@ export default function HomePage() {
                           key={j}
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                             tag === 'Default Module'
-                              ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-800'
+                              ? 'bg-brand-900/40 text-brand-400 border border-brand-800'
                               : 'bg-gray-800 text-gray-400 border border-gray-700'
                           }`}
                         >
@@ -245,7 +245,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12">
           <div>
             <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-              <Layers className="h-5 w-5 text-green-400" />
+              <Layers className="h-5 w-5 text-brand-400" />
               Casino Platform Integrations
             </h3>
             <p className="text-gray-400 text-sm mb-5">
@@ -262,7 +262,7 @@ export default function HomePage() {
 
           <div>
             <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-green-400" />
+              <Shield className="h-5 w-5 text-brand-400" />
               Security & Compliance
             </h3>
             <p className="text-gray-400 text-sm mb-5">
@@ -283,7 +283,7 @@ export default function HomePage() {
                 'API rate limiting and circuit breakers',
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                  <CheckCircle className="h-3.5 w-3.5 text-brand-500 flex-shrink-0" />
                   {item}
                 </div>
               ))}
