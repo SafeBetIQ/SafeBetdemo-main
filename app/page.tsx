@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
 import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Lock, ChartBar as BarChart3, Users, ArrowRight, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, TrendingUp, FileText, Server, Layers, Database, Bell } from 'lucide-react';
-import AINetworkBackground from '@/components/AINetworkBackground';
 import TypewriterText from '@/components/TypewriterText';
 
 
@@ -75,10 +74,9 @@ export default function HomePage() {
 
       {/* HERO */}
       <section className="relative pt-28 pb-24 px-6 overflow-hidden" style={{ minHeight: '680px' }}>
-        <AINetworkBackground />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" style={{ zIndex: 1 }} />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
 
-        <div className="relative max-w-5xl mx-auto text-center" style={{ zIndex: 2 }}>
+        <div className="relative max-w-5xl mx-auto text-center">
           <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-sm px-5 py-2 rounded-full font-mono tracking-wide">
             <TypewriterText
               text="Global Responsible Gambling Intelligence Platform"
