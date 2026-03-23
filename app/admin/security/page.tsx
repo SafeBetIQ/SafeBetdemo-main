@@ -304,7 +304,7 @@ export default function SecurityAuditLogPage() {
             <div className="text-sm text-amber-800">
               <span className="font-semibold">Append-only integrity guarantee:</span> Events in this log cannot be
               modified or deleted through the application. All entries are timestamped server-side. Access to this
-              log is restricted to Super Admins and Compliance Officers per ISO 27001 A.9.2 and SOC 2 CC6.
+              log is restricted to Super Admins and Compliance Officers per ISO 27001 A.9.2 and POPIA s.8.
             </div>
           </CardContent>
         </Card>

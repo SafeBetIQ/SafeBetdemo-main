@@ -56,7 +56,7 @@ const INTEGRATIONS = [
 ];
 
 const COMPLIANCE = [
-  'ISO 27001', 'SOC 2', 'GDPR', 'POPIA', 'National Gambling Act (SA)',
+  'ISO 27001', 'POPIA', 'National Gambling Act (SA)',
 ];
 
 const USER_ROLES = [

@@ -22,28 +22,6 @@ const COMPLIANCE_DETAILS: Record<string, { description: string; controls: { id: 
       { id: 'A.16', title: 'Incident management', status: 'compliant', evidence: 'Incident workflow active — INC lifecycle managed' },
     ],
   },
-  SOC2: {
-    description: 'SOC 2 Type II — Trust Services Criteria (AICPA)',
-    controls: [
-      { id: 'CC1', title: 'Control environment', status: 'compliant', evidence: 'Governance framework established, board oversight active' },
-      { id: 'CC6', title: 'Logical & physical access', status: 'compliant', evidence: 'MFA enforced for all admin roles' },
-      { id: 'CC7', title: 'System operations', status: 'compliant', evidence: 'Monitoring dashboards and alerting configured' },
-      { id: 'CC8', title: 'Change management', status: 'compliant', evidence: 'Migration-based database changes with approval workflow' },
-      { id: 'CC9', title: 'Risk mitigation', status: 'compliant', evidence: 'Annual risk assessments + continuous monitoring' },
-      { id: 'PI1', title: 'Processing integrity', status: 'compliant', evidence: 'Data integrity checks validated via checksums' },
-    ],
-  },
-  GDPR: {
-    description: 'General Data Protection Regulation (EU) 2016/679',
-    controls: [
-      { id: 'Art.5', title: 'Principles of processing', status: 'compliant', evidence: 'Data minimisation and purpose limitation enforced' },
-      { id: 'Art.25', title: 'Data protection by design', status: 'compliant', evidence: 'Pseudonymisation, encryption implemented by default' },
-      { id: 'Art.32', title: 'Security of processing', status: 'compliant', evidence: 'AES-256 at rest, TLS 1.3 in transit' },
-      { id: 'Art.33', title: 'Breach notification', status: 'compliant', evidence: '72-hour notification workflow configured and tested' },
-      { id: 'Art.35', title: 'Data protection impact', status: 'partial', evidence: 'DPIA completed for high-risk processing activities' },
-      { id: 'Art.17', title: 'Right to erasure', status: 'compliant', evidence: 'Deletion workflows and data retention policies active' },
-    ],
-  },
   POPIA: {
     description: 'Protection of Personal Information Act 4 of 2013 (South Africa)',
     controls: [
@@ -62,8 +40,6 @@ export function ComplianceTab({ complianceSnaps }: Props) {
     ? complianceSnaps.map(c => ({ framework: c.framework, score: c.compliance_score }))
     : [
         { framework: 'ISO27001', score: 91 },
-        { framework: 'SOC2', score: 88 },
-        { framework: 'GDPR', score: 85 },
         { framework: 'POPIA', score: 92 },
       ];
 
@@ -72,8 +48,6 @@ export function ComplianceTab({ complianceSnaps }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(complianceSnaps.length > 0 ? complianceSnaps : [
           { framework: 'ISO27001', compliance_score: 91, total_controls: 24, compliant: 22 },
-          { framework: 'SOC2', compliance_score: 88, total_controls: 16, compliant: 14 },
-          { framework: 'GDPR', compliance_score: 85, total_controls: 12, compliant: 10 },
           { framework: 'POPIA', compliance_score: 92, total_controls: 10, compliant: 9 },
         ]).map(c => (
           <div key={c.framework} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
@@ -149,12 +123,12 @@ export function ComplianceTab({ complianceSnaps }: Props) {
             {[
               { label: 'ISO 27001 A.9 — Access Control', status: 'compliant', detail: 'RBAC + ABAC via Supabase RLS' },
               { label: 'ISO 27001 A.12.4 — Logging', status: 'compliant', detail: 'Immutable, tamper-evident audit log' },
-              { label: 'SOC 2 CC6 — Logical Access', status: 'compliant', detail: 'MFA enforced for all admin roles' },
-              { label: 'SOC 2 CC7 — Incident Response', status: 'compliant', detail: 'Incident management workflow active' },
-              { label: 'GDPR Art.32 — Security', status: 'compliant', detail: 'AES-256 rest, TLS 1.3 transit' },
-              { label: 'GDPR Art.33 — Breach Notification', status: 'compliant', detail: '72-hour notification workflow' },
+              { label: 'ISO 27001 A.16 — Incident Management', status: 'compliant', detail: 'Incident workflow active — INC lifecycle managed' },
+              { label: 'ISO 27001 A.17 — Business Continuity', status: 'compliant', detail: 'DR tested, RTO < 4h, RPO < 1h' },
               { label: 'POPIA s.22 — Data Breach', status: 'compliant', detail: 'DLP + notification process defined' },
               { label: 'POPIA s.15 — Security Safeguards', status: 'compliant', detail: 'Encryption + access controls active' },
+              { label: 'POPIA s.14 — Security Measures', status: 'compliant', detail: 'Technical and organisational safeguards implemented' },
+              { label: 'POPIA s.8 — Accountability', status: 'compliant', detail: 'DPO appointed, register maintained' },
               { label: 'NIST CSF — Identify', status: 'compliant', detail: 'Asset inventory and risk register maintained' },
               { label: 'NIST CSF — Protect', status: 'compliant', detail: 'IAM, data security, WAF deployed' },
             ].map(item => (

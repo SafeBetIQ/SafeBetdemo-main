@@ -35,64 +35,62 @@ interface RetentionRule {
 
 const JURISDICTION_CONFIG: Record<string, { label: string; flag: string; className: string }> = {
   ZA: { label: 'South Africa (POPIA)', flag: '🇿🇦', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  EU: { label: 'European Union (GDPR)', flag: '🇪🇺', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  UK: { label: 'United Kingdom (UK GDPR)', flag: '🇬🇧', className: 'bg-slate-50 text-slate-700 border-slate-200' },
   GLOBAL: { label: 'Global', flag: '🌍', className: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
 const PRIVACY_PRINCIPLES = [
   {
     principle: 'Data Minimisation',
-    regulation: 'GDPR Art.5(1)(c) / POPIA s.10',
+    regulation: 'POPIA s.10',
     description: 'Only data strictly necessary for the responsible gambling mandate is collected.',
     implementation: 'Players represented as PTOKEN pseudonymous tokens. No name, address, or national ID stored.',
     status: 'implemented',
   },
   {
     principle: 'Purpose Limitation',
-    regulation: 'GDPR Art.5(1)(b) / POPIA s.9',
+    regulation: 'POPIA s.9',
     description: 'Data used exclusively for responsible gambling risk assessment and regulatory compliance.',
     implementation: 'Strict query policies via RLS. Cross-purpose data access blocked at DB layer.',
     status: 'implemented',
   },
   {
     principle: 'Storage Limitation',
-    regulation: 'GDPR Art.5(1)(e) / POPIA s.14',
+    regulation: 'POPIA s.14',
     description: 'Automated retention schedules enforce data lifecycle per jurisdiction.',
     implementation: 'Configurable retention engine with auto-anonymisation and secure deletion.',
     status: 'implemented',
   },
   {
     principle: 'Integrity & Confidentiality',
-    regulation: 'GDPR Art.5(1)(f) / POPIA s.15',
+    regulation: 'POPIA s.15',
     description: 'AES-256 encryption at rest, TLS 1.3 in transit, SHA-256 PII hashing.',
     implementation: 'AWS KMS managed keys, Supabase encrypted storage, hash-only identifiers.',
     status: 'implemented',
   },
   {
     principle: 'Accountability',
-    regulation: 'GDPR Art.5(2) / POPIA s.8',
+    regulation: 'POPIA s.8',
     description: 'Operator as Responsible Party with appointed Information Officer.',
-    implementation: 'Immutable audit logs, DPO assignment records, ROPA maintained per Art.30.',
+    implementation: 'Immutable audit logs, Information Officer assignment records, ROPA maintained.',
     status: 'implemented',
   },
   {
     principle: 'Lawfulness of Processing',
-    regulation: 'GDPR Art.6 / POPIA s.11',
+    regulation: 'POPIA s.11',
     description: 'All processing backed by documented legal basis per data category.',
     implementation: 'Legal basis documented in data_retention_rules and ROPA tables.',
     status: 'implemented',
   },
   {
     principle: 'Data Subject Rights',
-    regulation: 'GDPR Art.15-22 / POPIA Ch.2',
+    regulation: 'POPIA Ch.2',
     description: 'Right to access, erasure, rectification, portability, and objection.',
     implementation: 'DSR management system with 30-day deadline tracking and workflow.',
     status: 'implemented',
   },
   {
     principle: 'Pseudonymisation',
-    regulation: 'GDPR Art.4(5) / POPIA s.1',
+    regulation: 'POPIA s.1',
     description: 'Player identities replaced with random tokens. Re-identification not possible without separate key store.',
     implementation: 'PTOKEN format: `PTOKEN-XXXXXXX-XXXXXXXX`. SHA-256 hashed IPs. Masked emails.',
     status: 'implemented',
@@ -117,25 +115,8 @@ const JURISDICTION_RULES = [
     status: 'compliant',
   },
   {
-    jurisdiction: 'EU',
-    regulation: 'GDPR (General Data Protection Regulation)',
-    key_requirements: [
-      'Lawful basis for all processing',
-      'Privacy by Design and Default',
-      'DPO appointment where required',
-      'DPIA for high-risk processing',
-      'Data subject rights (full suite Art.15-22)',
-      '72-hour breach notification to SA',
-      'Records of Processing Activities (ROPA)',
-    ],
-    regulator: 'Supervisory Authority (per member state)',
-    breach_notification: '72 hours',
-    dpo_required: true,
-    status: 'compliant',
-  },
-  {
     jurisdiction: 'GLOBAL',
-    regulation: 'ISO 27001 / SOC 2 Type II',
+    regulation: 'ISO 27001 Information Security Management',
     key_requirements: [
       'Information Security Management System',
       'Continuous monitoring and improvement',
@@ -144,7 +125,7 @@ const JURISDICTION_RULES = [
       'Business continuity planning',
       'Annual penetration testing',
     ],
-    regulator: 'Certification Body (BSI / Schellman)',
+    regulator: 'Certification Body (BSI)',
     breach_notification: 'Per SLA',
     dpo_required: false,
     status: 'compliant',
@@ -184,7 +165,7 @@ export default function DataGovernancePage() {
               Data Governance & Privacy Engine
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Automated retention, jurisdiction-aware privacy rules, and Privacy by Design — GDPR / POPIA
+              Automated retention, jurisdiction-aware privacy rules, and Privacy by Design — POPIA
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
@@ -197,7 +178,7 @@ export default function DataGovernancePage() {
           {[
             { label: 'Retention Rules', value: retentionRules.length, icon: Clock, color: 'text-slate-700' },
             { label: 'Auto-Execute', value: retentionRules.filter(r => r.auto_execute).length, icon: Trash2, color: 'text-amber-700' },
-            { label: 'Jurisdictions', value: 4, icon: Globe, color: 'text-blue-700' },
+            { label: 'Jurisdictions', value: 2, icon: Globe, color: 'text-blue-700' },
             { label: 'Privacy Principles', value: PRIVACY_PRINCIPLES.filter(p => p.status === 'implemented').length, icon: Shield, color: 'text-emerald-700' },
           ].map(card => (
             <Card key={card.label}>
@@ -235,7 +216,6 @@ export default function DataGovernancePage() {
                     <SelectContent>
                       <SelectItem value="all">All Jurisdictions</SelectItem>
                       <SelectItem value="ZA">South Africa</SelectItem>
-                      <SelectItem value="EU">European Union</SelectItem>
                       <SelectItem value="GLOBAL">Global</SelectItem>
                     </SelectContent>
                   </Select>

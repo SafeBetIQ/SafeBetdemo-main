@@ -178,7 +178,7 @@ export default function PrivacyCentrePage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Privacy Centre</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Data subject rights · Consent · Retention · ROPA — GDPR &amp; POPIA compliance</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Data subject rights · Consent · Retention · ROPA — POPIA compliance</p>
           </div>
         </div>
 
@@ -353,7 +353,7 @@ export default function PrivacyCentrePage() {
                   Data Retention Schedule
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Retention periods set in accordance with FICA, POPIA, NGA, ISO 27001, and GDPR requirements.
+                  Retention periods set in accordance with FICA, POPIA, NGA, and ISO 27001 requirements.
                   Anonymisation replaces deletion where legally permissible.
                 </CardDescription>
               </CardHeader>
@@ -434,7 +434,7 @@ export default function PrivacyCentrePage() {
                   Record of Processing Activities
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  GDPR Article 30 — Register of all data processing activities. Maintained per operator.
+                  POPIA s.17 — Register of all data processing activities. Maintained per operator.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -545,7 +545,7 @@ export default function PrivacyCentrePage() {
               <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
                 <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
                   <Calendar className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  30-day response deadline will be set automatically (GDPR Art. 12 / POPIA s.23)
+                  30-day response deadline will be set automatically (POPIA s.23)
                 </p>
               </div>
               <div className="flex justify-end gap-2">

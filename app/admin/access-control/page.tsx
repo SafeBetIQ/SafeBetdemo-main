@@ -180,7 +180,7 @@ export default function AccessControlPage() {
               Access Control Management
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              RBAC + ABAC policy management — Zero Trust architecture per ISO 27001 A.9 / SOC 2 CC6
+              RBAC + ABAC policy management — Zero Trust architecture per ISO 27001 A.9 / POPIA s.14
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => loadData()} className="gap-2">

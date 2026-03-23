@@ -38,8 +38,6 @@ interface Casino {
 
 const FRAMEWORK_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   ISO27001: { label: 'ISO 27001', color: 'text-slate-800', bg: 'bg-slate-50', border: 'border-slate-200' },
-  SOC2: { label: 'SOC 2 Type II', color: 'text-blue-800', bg: 'bg-blue-50', border: 'border-blue-200' },
-  GDPR: { label: 'GDPR', color: 'text-emerald-800', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   POPIA: { label: 'POPIA', color: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200' },
 };
 
@@ -94,7 +92,7 @@ export default function ComplianceOverviewPage() {
     return true;
   });
 
-  const platformScores = (['ISO27001', 'SOC2', 'GDPR', 'POPIA'] as const).map(fw => {
+  const platformScores = (['ISO27001', 'POPIA'] as const).map(fw => {
     const fwSnaps = latestPerCasinoFramework.filter(s => s.framework === fw);
     const avg = fwSnaps.length > 0 ? fwSnaps.reduce((sum, s) => sum + s.compliance_score, 0) / fwSnaps.length : 0;
     return { framework: fw, score: Math.round(avg * 10) / 10 };
@@ -108,7 +106,7 @@ export default function ComplianceOverviewPage() {
     const dates = Array.from(new Set(snapshots.map(s => s.snapshot_date))).sort().slice(-12);
     return dates.map(date => {
       const row: Record<string, unknown> = { date: new Date(date).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' }) };
-      for (const fw of ['ISO27001', 'SOC2', 'GDPR', 'POPIA']) {
+      for (const fw of ['ISO27001', 'POPIA']) {
         const fwSnaps = snapshots.filter(s => s.snapshot_date === date && s.framework === fw);
         if (fwSnaps.length > 0) {
           row[fw] = Math.round(fwSnaps.reduce((sum, s) => sum + s.compliance_score, 0) / fwSnaps.length);
@@ -134,7 +132,7 @@ export default function ComplianceOverviewPage() {
               Global Compliance Overview
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Platform-wide compliance posture across ISO 27001, SOC 2 Type II, GDPR, and POPIA
+              Platform-wide compliance posture across ISO 27001 and POPIA
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
@@ -154,7 +152,7 @@ export default function ComplianceOverviewPage() {
             <ShieldCheck className={cn('h-16 w-16', overallScore >= 85 ? 'text-emerald-400' : 'text-amber-400')} />
           </div>
           <Progress value={overallScore} className="h-2 bg-slate-700" />
-          <div className="grid grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-2 gap-4 mt-4">
             {platformScores.map(ps => {
               const fw = FRAMEWORK_CONFIG[ps.framework];
               return (
@@ -169,7 +167,7 @@ export default function ComplianceOverviewPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {platformScores.map(ps => {
             const fw = FRAMEWORK_CONFIG[ps.framework];
             return (
@@ -201,8 +199,6 @@ export default function ComplianceOverviewPage() {
                   <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => `${v}%`} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Line type="monotone" dataKey="ISO27001" stroke="#1e293b" dot={false} name="ISO 27001" />
-                  <Line type="monotone" dataKey="SOC2" stroke="#3b82f6" dot={false} name="SOC 2" />
-                  <Line type="monotone" dataKey="GDPR" stroke="#10b981" dot={false} name="GDPR" />
                   <Line type="monotone" dataKey="POPIA" stroke="#f59e0b" dot={false} name="POPIA" />
                 </LineChart>
               </ResponsiveContainer>
@@ -251,8 +247,6 @@ export default function ComplianceOverviewPage() {
                   <SelectContent>
                     <SelectItem value="all">All Frameworks</SelectItem>
                     <SelectItem value="ISO27001">ISO 27001</SelectItem>
-                    <SelectItem value="SOC2">SOC 2</SelectItem>
-                    <SelectItem value="GDPR">GDPR</SelectItem>
                     <SelectItem value="POPIA">POPIA</SelectItem>
                   </SelectContent>
                 </Select>

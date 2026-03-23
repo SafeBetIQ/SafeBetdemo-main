@@ -75,15 +75,11 @@ const RISK_CONFIG = {
 
 const FRAMEWORK_ICONS: Record<string, React.ElementType> = {
   ISO27001: Lock,
-  SOC2: ShieldCheck,
-  GDPR: Globe,
   POPIA: Shield,
 };
 
 const FRAMEWORK_COLORS: Record<string, string> = {
   ISO27001: 'from-blue-600 to-blue-700',
-  SOC2:     'from-slate-600 to-slate-700',
-  GDPR:     'from-sky-600 to-sky-700',
   POPIA:    'from-teal-600 to-teal-700',
 };
 
@@ -179,7 +175,7 @@ export default function ComplianceDashboardPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Compliance Dashboard</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">ISO 27001 · SOC 2 · GDPR · POPIA control status</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">ISO 27001 · POPIA control status</p>
             </div>
           </div>
         </div>

@@ -98,7 +98,7 @@ const METRICS = [
 const REPORTING_STANDARDS = [
   'National Gambling Board (NGB) format compliance',
   'Provincial licensing authority reporting',
-  'GDPR / POPIA data protection compliance',
+  'POPIA data protection compliance',
   'NRGP programme tracking and KPIs',
   'POPIA data governance audit logs',
   'International gambling harm benchmarks',

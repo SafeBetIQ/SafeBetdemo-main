@@ -116,7 +116,7 @@ export default function InfrastructurePage() {
               Cloud Security & Infrastructure
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              AWS security architecture, disaster recovery, and DevSecOps pipeline — ISO 27001 A.17 / SOC 2 A1
+              AWS security architecture, disaster recovery, and DevSecOps pipeline — ISO 27001 A.17 / POPIA s.15
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={refreshing} className="gap-2">

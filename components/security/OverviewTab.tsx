@@ -151,12 +151,12 @@ export function OverviewTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div className="text-xs text-slate-400 uppercase tracking-wide mb-3">Compliance Readiness</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {complianceSnaps.map(c => (
               <CompliancePill key={c.framework} framework={c.framework}
                 score={c.compliance_score} controls={c.total_controls} compliant={c.compliant} />
             ))}
-            {complianceSnaps.length === 0 && ['ISO27001', 'SOC2', 'GDPR', 'POPIA'].map(fw => (
+            {complianceSnaps.length === 0 && ['ISO27001', 'POPIA'].map(fw => (
               <CompliancePill key={fw} framework={fw} score={78 + Math.random() * 15} controls={20} compliant={15} />
             ))}
           </div>

@@ -181,7 +181,7 @@ export default function ThreatMonitoringPage() {
               Threat Monitoring Engine
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Real-time threat detection and security anomaly management — ISO 27001 A.16 / SOC 2 CC7
+              Real-time threat detection and security anomaly management — ISO 27001 A.16 / POPIA s.14
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={refreshing} className="gap-2">

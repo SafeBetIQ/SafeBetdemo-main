@@ -188,7 +188,7 @@ export function IncidentsTab({ incidents, casinos, onUpdateIncident }: Props) {
                     {selected.escalation_reason && <div className="text-xs text-red-200/70 mt-1">{selected.escalation_reason}</div>}
                     {selected.regulatory_notification_required && (
                       <div className="text-xs text-amber-300 mt-1 font-medium">
-                        POPIA / GDPR breach notification required within 72 hours.
+                        POPIA breach notification required within 72 hours.
                       </div>
                     )}
                   </div>

@@ -68,7 +68,7 @@ const complianceFeatures = [
   'National Gambling Act (NGA) aligned risk thresholds',
   'NRGP contribution tracking and reporting',
   'Automated regulatory audit trail generation',
-  'POPIA / GDPR compliant data handling',
+  'POPIA compliant data handling',
   'Provincial licensing board compliance dashboards',
   'Self-exclusion registry cross-referencing',
 ];
