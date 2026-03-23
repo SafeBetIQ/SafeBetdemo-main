@@ -29,24 +29,24 @@ const SUPER_ADMIN: Credential[] = [
 ];
 
 const CASINO_ADMINS: Credential[] = [
-  { label: 'Apex Gaming Resort', email: 'admin@royalpalace.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
-  { label: 'Crown & Sceptre Casino', email: 'admin@emperorspalace.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
-  { label: 'Highveld Entertainment Complex', email: 'admin@montecasino.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
-  { label: 'Sandstone Casino & Resort', email: 'admin@goldendragon.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
-  { label: 'Atlantic Crest Casino', email: 'admin@capewin.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
-  { label: 'Peninsula Gaming Club', email: 'admin@sunintcpt.safebetiq.com', password: 'Casino@Admin1', sub: 'Western Cape' },
-  { label: 'Silverbrook Casino', email: 'admin@silverstar.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
-  { label: 'Coastline Casino & Entertainment', email: 'admin@sibaya.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
-  { label: 'Harbour Lights Casino', email: 'admin@casinodurban.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
-  { label: 'Valley Ridge Casino', email: 'admin@graceland.safebetiq.com', password: 'Casino@Admin1', sub: 'Mpumalanga' },
-  { label: 'Bushveld Casino', email: 'admin@meropa.safebetiq.com', password: 'Casino@Admin1', sub: 'Limpopo' },
-  { label: 'Savanna Casino & Entertainment', email: 'admin@windmill.safebetiq.com', password: 'Casino@Admin1', sub: 'Free State' },
-  { label: 'Eastern Sands Casino', email: 'admin@easternlcasino.safebetiq.com', password: 'Casino@Admin1', sub: 'Eastern Cape' },
-  { label: 'Kalahari Palms Casino', email: 'admin@mmabatho.safebetiq.com', password: 'Casino@Admin1', sub: 'North West' },
-  { label: 'Thornfield Casino', email: 'admin@flamingo.safebetiq.com', password: 'Casino@Admin1', sub: 'Northern Cape' },
-  { label: 'Goldfields Gaming', email: 'admin@goldreef.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
-  { label: 'Sterling Bets', email: 'admin@platinumbets.safebetiq.com', password: 'Casino@Admin1', sub: 'Gauteng' },
-  { label: 'Sunrise Gaming SA', email: 'admin@sunbet.safebetiq.com', password: 'Casino@Admin1', sub: 'KwaZulu-Natal' },
+  { label: 'Casino A', email: 'admin@capewin.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino B', email: 'admin@casinodurban.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino C', email: 'admin@easternlcasino.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino D', email: 'admin@emperorspalace.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino E', email: 'admin@flamingo.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino F', email: 'admin@goldreef.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino G', email: 'admin@goldendragon.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino H', email: 'admin@graceland.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino I', email: 'admin@meropa.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino J', email: 'admin@mmabatho.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino K', email: 'admin@montecasino.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino L', email: 'admin@platinumbets.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino M', email: 'admin@royalpalace.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino N', email: 'admin@sibaya.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino O', email: 'admin@silverstar.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino P', email: 'admin@sunintcpt.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino Q', email: 'admin@sunbet.safebetiq.com', password: 'Casino@Admin1' },
+  { label: 'Casino R', email: 'admin@windmill.safebetiq.com', password: 'Casino@Admin1' },
 ];
 
 const NATIONAL_REGULATOR: Credential[] = [
@@ -343,7 +343,7 @@ export default function LoginPage() {
                     <div className="flex items-center gap-1.5 mb-2">
                       <Building2 className="h-3 w-3 text-gray-500" />
                       <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        18 Licensed operators — all use Casino@Admin1
+                        Casino A–R — all use Casino@Admin1
                       </span>
                     </div>
                     <div className="space-y-1 max-h-64 overflow-y-auto pr-0.5 custom-scrollbar">
