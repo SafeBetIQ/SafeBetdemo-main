@@ -1,245 +1,231 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
-import { Shield, Brain, Activity, Zap, Network, ShieldOff, Building2, Globe, Lock, ChartBar as BarChart3, Users, ArrowRight, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, TrendingUp, FileText, Server, Layers, Database, Bell } from 'lucide-react';
-import TypewriterText from '@/components/TypewriterText';
+import { Shield, Brain, Bell, FileText, Network, ShieldOff, ChartBar as BarChart3, ArrowRight, CircleCheck as CheckCircle, Activity, Lock, Users, Database, TriangleAlert as AlertTriangle, TrendingUp, Layers } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from 'recharts';
 
+const riskTrendData = [
+  { month: 'Aug', low: 3200, moderate: 980, high: 340, critical: 82 },
+  { month: 'Sep', low: 3450, moderate: 1020, high: 390, critical: 94 },
+  { month: 'Oct', low: 3180, moderate: 1100, high: 420, critical: 110 },
+  { month: 'Nov', low: 3600, moderate: 1050, high: 370, critical: 98 },
+  { month: 'Dec', low: 3800, moderate: 1200, high: 450, critical: 120 },
+  { month: 'Jan', low: 4100, moderate: 1350, high: 480, critical: 130 },
+];
 
-const CORE_MODULES = [
+const interventionData = [
+  { month: 'Aug', sent: 310, resolved: 260 },
+  { month: 'Sep', sent: 370, resolved: 310 },
+  { month: 'Oct', sent: 420, resolved: 358 },
+  { month: 'Nov', sent: 390, resolved: 342 },
+  { month: 'Dec', sent: 460, resolved: 401 },
+  { month: 'Jan', sent: 510, resolved: 448 },
+];
+
+const CAPABILITIES = [
   {
     icon: Brain,
-    title: 'Behavioural Risk Intelligence',
-    description: 'Rule-based analysis of session duration, deposit frequency, loss escalation, and bet intensity. Risk levels: Low · Moderate · High · Critical.',
-    tags: ['Default Module'],
+    title: 'Real-Time Player Risk Monitoring',
+    description:
+      'Continuous behavioural scoring across every active session. Risk levels — Low, Moderate, High, Critical — updated in real time as play patterns evolve.',
   },
   {
     icon: Bell,
-    title: 'Responsible Gambling Interventions',
-    description: 'Threshold-triggered interventions delivered via WhatsApp, Twilio, and email. All interventions logged with outcome tracking.',
-    tags: ['Default Module'],
+    title: 'Behavioural Intelligence',
+    description:
+      'Rule-based analysis of session duration, deposit frequency, loss escalation, and bet intensity. Detects harmful patterns before they escalate.',
   },
   {
     icon: FileText,
-    title: 'Compliance Reporting',
-    description: 'National Gambling Act compliance scores, downloadable reports, audit trails, and NRGP contribution tracking.',
-    tags: ['Default Module'],
+    title: 'Compliance Automation',
+    description:
+      'National Gambling Act compliance scores, downloadable audit-ready reports, and NRGP contribution tracking — generated automatically.',
   },
   {
-    icon: Network,
-    title: 'Cross-Operator Intelligence',
-    description: 'Pseudonymised detection of operator hopping, multi-platform gambling, and loss-chasing across the national network.',
-    tags: ['Optional Module'],
+    icon: Activity,
+    title: 'Intervention Tracking',
+    description:
+      'Threshold-triggered interventions via WhatsApp, Twilio, and email. Every action is logged with full outcome tracking and response timelines.',
+  },
+];
+
+const MODULES = [
+  { icon: Brain, label: 'Risk Engine', desc: 'Behavioural scoring & thresholds' },
+  { icon: Activity, label: 'Live Monitoring', desc: 'Real-time session analytics' },
+  { icon: Bell, label: 'Intervention System', desc: 'Multi-channel alert delivery' },
+  { icon: FileText, label: 'Compliance Reporting', desc: 'NGA-aligned audit reports' },
+  { icon: Database, label: 'Audit Logs', desc: 'Full timestamped event trail' },
+  { icon: Network, label: 'Cross-Operator Intel', desc: 'Network-wide risk signals' },
+  { icon: ShieldOff, label: 'Self-Exclusion Network', desc: 'Cross-operator protection' },
+  { icon: BarChart3, label: 'Regulator Dashboards', desc: 'National & provincial views' },
+];
+
+const COMPLIANCE_ITEMS = [
+  {
+    label: 'ISO 27001',
+    description: 'Information security management system covering data protection and risk controls.',
+    status: 'In Progress',
   },
   {
-    icon: ShieldOff,
-    title: 'Self-Exclusion Network',
-    description: 'Operators submit self-exclusion events. SafeBet IQ distributes protection intelligence across the entire operator network.',
-    tags: ['Optional Module'],
+    label: 'ISO 9001',
+    description: 'Quality management system ensuring consistent, auditable service delivery.',
+    status: 'In Progress',
   },
   {
-    icon: BarChart3,
-    title: 'Regulator Intelligence',
-    description: 'National and provincial regulator dashboards with high-risk player analytics, intervention statistics, and behavioural insights.',
-    tags: ['Optional Module'],
+    label: 'POPIA',
+    description: 'Protection of Personal Information Act — South African data privacy compliance.',
+    status: 'Active',
   },
 ];
 
 const INTEGRATIONS = [
-  'SOFTSWISS', 'Altenar', 'Bet Software', 'Playtech', 'Evolution Gaming',
-  'Twilio', 'WhatsApp Business API',
+  'SOFTSWISS', 'Altenar', 'Bet Software', 'Playtech', 'Evolution Gaming', 'Twilio', 'WhatsApp Business API',
 ];
 
-const COMPLIANCE = [
-  'ISO 27001', 'POPIA', 'National Gambling Act (SA)',
+const STATS = [
+  { value: '50,000+', label: 'Players monitored' },
+  { value: '< 200ms', label: 'Risk score latency' },
+  { value: '9', label: 'Provincial regulators' },
+  { value: '87%', label: 'Intervention resolution rate' },
 ];
-
-const USER_ROLES = [
-  { role: 'Super Admin', desc: 'Full platform access — all operators, all data', href: '/login' },
-  { role: 'National Regulator', desc: 'All casinos · National behaviour insights', href: '/login' },
-  { role: 'Provincial Regulator', desc: 'Casinos in assigned province', href: '/login' },
-  { role: 'Casino Operator Admin', desc: 'Own casino data only — strict isolation', href: '/login' },
-  { role: 'Casino Compliance Officer', desc: 'Intervention queue and reporting', href: '/login' },
-];
-
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-white text-gray-900">
       <MainNavigation />
 
       {/* HERO */}
-      <section className="relative pt-28 pb-24 px-6 overflow-hidden" style={{ minHeight: '680px' }}>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
-
-        <div className="relative max-w-5xl mx-auto text-center">
-          <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-sm px-5 py-2 rounded-full font-mono tracking-wide">
-            <TypewriterText
-              text="Global Responsible Gambling Intelligence Platform"
-              delay={45}
-              startDelay={600}
-              cursorClassName="text-brand-400 bg-brand-400"
-            />
-          </Badge>
-
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
-            The Intelligence Layer
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
-              Above Casino Platforms
+      <section className="pt-20 pb-24 px-6 bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-3xl">
+            <span className="inline-block mb-6 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+              Responsible Gambling Intelligence
             </span>
-          </h1>
-
-          <p className="text-lg text-gray-400 mb-10 max-w-3xl mx-auto leading-relaxed">
-            SafeBet IQ sits above casino software as a behavioural intelligence layer.
-            It analyses player behaviour, detects harmful patterns, triggers interventions,
-            and delivers compliance intelligence to operators and regulators — in real time.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8">
-              <Link href="/login">Access Platform</Link>
-            </Button>
-            <Button asChild size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8">
-              <Link href="/safeplay-connect">API Documentation</Link>
-            </Button>
-          </div>
-
-        </div>
-      </section>
-
-
-      {/* BEFORE / AFTER */}
-      <section className="py-20 px-6 border-t border-gray-900">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
-              The Transformation
-            </Badge>
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">What changes when you use SafeBet IQ</h2>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              A clear picture of the operational difference — before and after deploying the platform.
+            <h1 className="text-4xl md:text-5xl lg:text-[56px] font-bold tracking-tight text-gray-900 leading-[1.1] mb-6">
+              Global Responsible Gambling
+              <br />
+              Intelligence Platform
+            </h1>
+            <p className="text-lg text-gray-500 leading-relaxed mb-10 max-w-2xl">
+              SafeBet IQ sits above casino software as a behavioural intelligence layer.
+              Real-time risk scoring, automated interventions, and compliance reporting —
+              built for operators and regulators.
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* BEFORE */}
-            <div className="rounded-2xl border border-red-900/40 bg-red-950/10 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-7 h-7 rounded-full bg-red-900/40 flex items-center justify-center">
-                  <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-                </div>
-                <span className="text-sm font-semibold text-red-400 uppercase tracking-wider">Before SafeBet IQ</span>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { label: 'Player risk visibility', value: 'None — no behavioural data collected' },
-                  { label: 'Harm detection', value: 'Manual, reactive, or non-existent' },
-                  { label: 'Interventions', value: 'Ad-hoc phone calls, if any' },
-                  { label: 'Self-exclusion', value: 'Siloed per operator — no cross-network check' },
-                  { label: 'Compliance reporting', value: 'Spreadsheets, manual consolidation' },
-                  { label: 'Regulator oversight', value: 'Delayed, incomplete, paper-based' },
-                  { label: 'Multi-casino visibility', value: 'Zero — no operator-level aggregation' },
-                  { label: 'Audit trail', value: 'Fragmented or absent' },
-                ].map((row, i) => (
-                  <div key={i} className="flex flex-col gap-0.5 pb-4 border-b border-red-900/20 last:border-0 last:pb-0">
-                    <span className="text-xs font-medium text-gray-400">{row.label}</span>
-                    <span className="text-sm text-red-300/80">{row.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* AFTER */}
-            <div className="rounded-2xl border border-brand-800/40 bg-brand-950/10 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-7 h-7 rounded-full bg-brand-900/40 flex items-center justify-center">
-                  <CheckCircle className="h-3.5 w-3.5 text-brand-400" />
-                </div>
-                <span className="text-sm font-semibold text-brand-400 uppercase tracking-wider">After SafeBet IQ</span>
-              </div>
-              <div className="space-y-4">
-                {[
-                  { label: 'Player risk visibility', value: 'Real-time scoring: Low · Moderate · High · Critical' },
-                  { label: 'Harm detection', value: 'AI-driven pattern detection across every session' },
-                  { label: 'Interventions', value: 'Automated via WhatsApp, Twilio & email with outcome tracking' },
-                  { label: 'Self-exclusion', value: 'Network-wide distribution across all connected operators' },
-                  { label: 'Compliance reporting', value: 'One-click NGA reports, live audit trail, NRGP tracking' },
-                  { label: 'Regulator oversight', value: 'Live dashboards — national & 9 provincial regulators' },
-                  { label: 'Multi-casino visibility', value: 'Cross-operator intelligence with full data isolation' },
-                  { label: 'Audit trail', value: 'Every action logged, timestamped, and exportable' },
-                ].map((row, i) => (
-                  <div key={i} className="flex flex-col gap-0.5 pb-4 border-b border-brand-800/20 last:border-0 last:pb-0">
-                    <span className="text-xs font-medium text-gray-400">{row.label}</span>
-                    <span className="text-sm text-brand-300/90">{row.value}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link href="/contact">
+                <Button size="lg" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-8 h-12">
+                  Request Demo
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold px-8 h-12">
+                  View Platform
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
 
-          {/* Bottom summary strip */}
-          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { before: 'Blind', after: 'Full Visibility', label: 'Player Behaviour' },
-              { before: 'Days', after: 'Real-Time', label: 'Intervention Speed' },
-              { before: 'Per Casino', after: 'Cross-Network', label: 'Self-Exclusion Reach' },
-              { before: 'Manual', after: 'Automated', label: 'Compliance Reporting' },
-            ].map((item, i) => (
-              <div key={i} className="rounded-xl border border-gray-800 bg-gray-950 p-4 text-center">
-                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{item.label}</p>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-red-400 font-medium line-through">{item.before}</span>
-                  <ArrowRight className="h-3 w-3 text-gray-600 flex-shrink-0" />
-                  <span className="text-xs text-brand-400 font-semibold">{item.after}</span>
-                </div>
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-100 rounded-xl overflow-hidden border border-gray-100">
+            {STATS.map((stat, i) => (
+              <div key={i} className="bg-white px-8 py-7">
+                <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                <p className="text-sm text-gray-400">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CORE MODULES */}
-      <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">Feature Module System</h2>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              Super Admin can enable or disable modules per casino operator.
-              Default modules are active for all operators.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {CORE_MODULES.map((module, i) => {
-              const Icon = module.icon;
-              return (
-                <div key={i} className="p-5 rounded-xl border border-gray-800 bg-gray-950 hover:border-gray-700 transition-colors">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center">
-                      <Icon className="h-5 w-5 text-brand-400" />
-                    </div>
-                    <div className="flex gap-1">
-                      {module.tags.map((tag, j) => (
-                        <span
-                          key={j}
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            tag === 'Default Module'
-                              ? 'bg-brand-900/40 text-brand-400 border border-brand-800'
-                              : 'bg-gray-800 text-gray-400 border border-gray-700'
-                          }`}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+      {/* TRUST & POSITIONING */}
+      <section className="py-20 px-6 bg-gray-50 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <span className="inline-block mb-4 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+                Built for the Industry
+              </span>
+              <h2 className="text-3xl font-bold text-gray-900 mb-5 leading-tight">
+                Designed for operators and regulators — not built for both by accident
+              </h2>
+              <p className="text-gray-500 leading-relaxed mb-6">
+                Casino operators need real-time visibility into player risk and automated intervention workflows.
+                Regulators need national oversight, audit trails, and provincial-level intelligence.
+                SafeBet IQ serves both with strict data isolation and role-based access.
+              </p>
+              <div className="space-y-3">
+                {[
+                  'Multi-tenant architecture — no operator can see another\'s data',
+                  'National and 9 provincial regulator dashboards',
+                  'Every action logged, timestamped, and exportable',
+                  'Role-based access enforced at the database level',
+                ].map((point, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <CheckCircle className="h-4 w-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-600">{point}</span>
                   </div>
-                  <h3 className="font-semibold text-sm text-white mb-2">{module.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{module.description}</p>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Users, title: 'Casino Operators', desc: 'Full session monitoring, risk scoring, and intervention workflows for your player base.' },
+                { icon: Shield, title: 'National Regulators', desc: 'Aggregate insights across all licensed operators with full audit capability.' },
+                { icon: BarChart3, title: 'Provincial Regulators', desc: 'Casino-level data for casinos operating within your jurisdiction.' },
+                { icon: Lock, title: 'Compliance Officers', desc: 'Intervention queues, compliance scores, and downloadable NGA reports.' },
+              ].map((card, i) => {
+                const Icon = card.icon;
+                return (
+                  <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                    <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center mb-3">
+                      <Icon className="h-4 w-4 text-brand-600" />
+                    </div>
+                    <h4 className="font-semibold text-sm text-gray-900 mb-1">{card.title}</h4>
+                    <p className="text-xs text-gray-500 leading-relaxed">{card.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CAPABILITIES */}
+      <section className="py-20 px-6 bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
+            <span className="inline-block mb-4 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+              Core Capabilities
+            </span>
+            <h2 className="text-3xl font-bold text-gray-900 leading-tight max-w-xl">
+              What SafeBet IQ does
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {CAPABILITIES.map((cap, i) => {
+              const Icon = cap.icon;
+              return (
+                <div key={i} className="flex gap-5 p-6 rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-5 w-5 text-brand-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">{cap.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{cap.description}</p>
+                  </div>
                 </div>
               );
             })}
@@ -247,105 +233,230 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* USER ROLES */}
-      <section className="py-20 px-6 border-t border-gray-900">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">Role-Based Access Control</h2>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              Strict multi-tenant isolation enforced at database level via Supabase Row Level Security.
-              No operator can ever see another operator&apos;s data.
-            </p>
+      {/* PLATFORM MODULES */}
+      <section className="py-20 px-6 bg-gray-50 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
+            <span className="inline-block mb-4 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+              Platform Modules
+            </span>
+            <h2 className="text-3xl font-bold text-gray-900 leading-tight">
+              One platform. Every capability.
+            </h2>
           </div>
-
-          <div className="space-y-3">
-            {USER_ROLES.map((r, i) => (
-              <Link
-                key={i}
-                href={r.href}
-                className="flex items-center justify-between p-4 rounded-xl border border-gray-800 bg-gray-950 hover:border-gray-600 hover:bg-gray-900 transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-gray-400" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {MODULES.map((mod, i) => {
+              const Icon = mod.icon;
+              return (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:border-brand-200 transition-colors">
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center mb-4">
+                    <Icon className="h-4 w-4 text-brand-600" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-sm text-white">{r.role}</p>
-                    <p className="text-xs text-gray-500">{r.desc}</p>
-                  </div>
+                  <h4 className="font-semibold text-sm text-gray-900 mb-1">{mod.label}</h4>
+                  <p className="text-xs text-gray-400">{mod.desc}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-gray-600 group-hover:text-gray-400 transition-colors" />
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* INTEGRATIONS + COMPLIANCE */}
-      <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12">
-          <div>
-            <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-              <Layers className="h-5 w-5 text-brand-400" />
-              Casino Platform Integrations
-            </h3>
-            <p className="text-gray-400 text-sm mb-5">
-              Each casino operator configures their own credentials. Integrations are never global or hardcoded.
+      {/* LIVE INTELLIGENCE */}
+      <section className="py-20 px-6 bg-white border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-12">
+            <span className="inline-block mb-4 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+              Live Intelligence
+            </span>
+            <h2 className="text-3xl font-bold text-gray-900 leading-tight">
+              Risk and intervention data — in real time
+            </h2>
+            <p className="mt-3 text-gray-500 text-sm max-w-xl">
+              Illustrative data showing the volume and trend of player risk activity and intervention outcomes across a monitored operator network.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {INTEGRATIONS.map((name, i) => (
-                <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
-                  {name}
-                </span>
-              ))}
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="mb-5">
+                <h3 className="font-semibold text-gray-900 text-sm">Player Risk Distribution</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Monthly volume by risk level</p>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={riskTrendData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+                  />
+                  <Area type="monotone" dataKey="low" stackId="1" stroke="#89d848" fill="#d1f4a8" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="moderate" stackId="1" stroke="#f59e0b" fill="#fef3c7" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="high" stackId="1" stroke="#f97316" fill="#ffedd5" strokeWidth={1.5} />
+                  <Area type="monotone" dataKey="critical" stackId="1" stroke="#ef4444" fill="#fee2e2" strokeWidth={1.5} />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div className="flex items-center gap-4 mt-4">
+                {[
+                  { color: 'bg-brand-400', label: 'Low' },
+                  { color: 'bg-amber-400', label: 'Moderate' },
+                  { color: 'bg-orange-400', label: 'High' },
+                  { color: 'bg-red-400', label: 'Critical' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
+                    <span className="text-xs text-gray-500">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <div className="mb-5">
+                <h3 className="font-semibold text-gray-900 text-sm">Intervention Outcomes</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Sent vs. resolved per month</p>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={interventionData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+                  />
+                  <Bar dataKey="sent" fill="#d1f4a8" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="resolved" fill="#6bc235" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex items-center gap-4 mt-4">
+                {[
+                  { color: 'bg-brand-200', label: 'Interventions sent' },
+                  { color: 'bg-brand-500', label: 'Resolved' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
+                    <span className="text-xs text-gray-500">{item.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div>
-            <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-brand-400" />
-              Security & Compliance
-            </h3>
-            <p className="text-gray-400 text-sm mb-5">
-              Privacy-by-design architecture. No personal identity data stored. Pseudonymised player tokens throughout.
-            </p>
-            <div className="flex flex-wrap gap-2 mb-5">
-              {COMPLIANCE.map((name, i) => (
-                <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
-                  {name}
-                </span>
-              ))}
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { icon: TrendingUp, value: '12.4%', label: 'Risk reduction (90 days)', trend: 'down' },
+              { icon: Bell, value: '87%', label: 'Intervention resolution rate', trend: 'up' },
+              { icon: AlertTriangle, value: '2.1%', label: 'Critical risk prevalence', trend: 'neutral' },
+              { icon: Activity, value: '< 200ms', label: 'Real-time scoring latency', trend: 'neutral' },
+            ].map((stat, i) => {
+              const Icon = stat.icon;
+              return (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <Icon className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-400 mt-1">{stat.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* SECURITY & COMPLIANCE */}
+      <section className="py-20 px-6 bg-gray-50 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-start">
+            <div>
+              <span className="inline-block mb-4 text-xs font-semibold tracking-widest text-brand-600 uppercase">
+                Security & Compliance
+              </span>
+              <h2 className="text-3xl font-bold text-gray-900 mb-5 leading-tight">
+                Built on a secure, privacy-first architecture
+              </h2>
+              <p className="text-gray-500 leading-relaxed mb-8">
+                No personal identity data is stored on the platform. Player tokens are pseudonymised throughout.
+                Data isolation is enforced at the database level — no shared schemas, no cross-tenant leakage.
+              </p>
+              <div className="space-y-3">
+                {[
+                  'Data encryption at rest and in transit (AES-256, TLS 1.3)',
+                  'Row-level security — enforced per casino and per role',
+                  'Comprehensive audit logging with exportable records',
+                  'API rate limiting and circuit breaker protection',
+                  'Pseudonymised player tokens — no PII stored',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <CheckCircle className="h-4 w-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-600">{item}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-2">
-              {[
-                'Data encryption at rest and in transit',
-                'Role-based access control via Supabase RLS',
-                'Comprehensive audit logging',
-                'API rate limiting and circuit breakers',
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
-                  <CheckCircle className="h-3.5 w-3.5 text-brand-500 flex-shrink-0" />
-                  {item}
+
+            <div className="space-y-4">
+              {COMPLIANCE_ITEMS.map((item, i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center">
+                        <Shield className="h-4 w-4 text-brand-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-900 text-sm">{item.label}</h4>
+                    </div>
+                    <span
+                      className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${
+                        item.status === 'Active'
+                          ? 'bg-brand-50 text-brand-700 border border-brand-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed pl-11">{item.description}</p>
                 </div>
               ))}
+
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <h4 className="font-semibold text-gray-900 text-sm mb-3">Platform Integrations</h4>
+                <div className="flex flex-wrap gap-2">
+                  {INTEGRATIONS.map((name, i) => (
+                    <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-gray-500 font-medium">
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-6 border-t border-gray-900">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to access the platform?</h2>
-          <p className="text-gray-400 text-sm mb-8">
-            Use the demo credentials to explore any role — Super Admin, Casino Operator, National Regulator, or Provincial Regulator.
+      {/* FINAL CTA */}
+      <section className="py-24 px-6 bg-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-5">
+            Ready to see the platform in action?
+          </h2>
+          <p className="text-gray-500 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+            Book a demo with our team or speak directly to our enterprise sales team about your requirements.
           </p>
-          <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10">
-            <Link href="/login">
-              Sign In to Dashboard
-              <ArrowRight className="ml-2 h-4 w-4" />
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link href="/contact">
+              <Button size="lg" className="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-10 h-12">
+                Request a Demo
+              </Button>
             </Link>
-          </Button>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold px-10 h-12">
+                Speak to Our Team
+              </Button>
+            </Link>
+          </div>
+          <p className="mt-8 text-xs text-gray-400">
+            No commitment required. We&apos;ll walk you through the platform with your own use case.
+          </p>
         </div>
       </section>
 
