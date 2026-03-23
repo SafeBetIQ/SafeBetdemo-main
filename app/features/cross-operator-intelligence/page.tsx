@@ -206,11 +206,11 @@ export default function CrossOperatorIntelligencePage() {
                 <span className="text-cyan-400 text-sm font-semibold">Live Network Alerts</span>
               </div>
               {[
-                { casino: 'Tsogo Sun CPT', alert: 'Risk Score 87 — Player seen at 2 other operators', type: 'HIGH RISK', color: 'text-red-400' },
-                { casino: 'Sun International', alert: 'Self-exclusion breach — same player at Goldrush', type: 'BREACH', color: 'text-orange-400' },
-                { casino: 'Peermont Gauteng', alert: 'Shared intervention: loss velocity confirmed cross-site', type: 'SHARED', color: 'text-cyan-400' },
-                { casino: 'Goldrush Eastern Cape', alert: 'Network alert: player active at 3 venues simultaneously', type: 'MULTI-SITE', color: 'text-yellow-400' },
-                { casino: 'Sibaya Casino', alert: 'Pattern match: identical bet sequences across 2 operators', type: 'PATTERN', color: 'text-brand-400' },
+                { casino: 'Atlantic Crest Casino', alert: 'Risk Score 87 — Player seen at 2 other operators', type: 'HIGH RISK', color: 'text-red-400' },
+                { casino: 'Apex Gaming Resort', alert: 'Self-exclusion breach — same player at Goldfields Gaming', type: 'BREACH', color: 'text-orange-400' },
+                { casino: 'Crown & Sceptre Casino', alert: 'Shared intervention: loss velocity confirmed cross-site', type: 'SHARED', color: 'text-cyan-400' },
+                { casino: 'Eastern Sands Casino', alert: 'Network alert: player active at 3 venues simultaneously', type: 'MULTI-SITE', color: 'text-yellow-400' },
+                { casino: 'Coastline Casino & Entertainment', alert: 'Pattern match: identical bet sequences across 2 operators', type: 'PATTERN', color: 'text-brand-400' },
               ].map((row, i) => (
                 <div key={i} className="py-3 border-b border-gray-800 last:border-0">
                   <div className="flex items-center justify-between mb-1">

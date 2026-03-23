@@ -289,10 +289,10 @@ export default function ComplianceReportingPage() {
                 <span className="text-teal-400 text-sm font-semibold">Report Generation Log</span>
               </div>
               {[
-                { time: '09:00:00', type: 'Monthly Compliance', casino: 'Tsogo Sun', pages: '28pg', hash: 'a3f92e...' },
-                { time: '08:45:12', type: 'Intervention Audit', casino: 'Sun International', pages: '14pg', hash: 'b7d41c...' },
-                { time: '08:30:01', type: 'Risk Summary', casino: 'Peermont', pages: '9pg', hash: 'e2c815...' },
-                { time: '08:15:44', type: 'Session Behaviour', casino: 'Goldrush', pages: '22pg', hash: 'd9f307...' },
+                { time: '09:00:00', type: 'Monthly Compliance', casino: 'Apex Gaming Group', pages: '28pg', hash: 'a3f92e...' },
+                { time: '08:45:12', type: 'Intervention Audit', casino: 'Highveld Gaming Group', pages: '14pg', hash: 'b7d41c...' },
+                { time: '08:30:01', type: 'Risk Summary', casino: 'Crown & Sceptre Group', pages: '9pg', hash: 'e2c815...' },
+                { time: '08:15:44', type: 'Session Behaviour', casino: 'Goldfields Gaming Group', pages: '22pg', hash: 'd9f307...' },
                 { time: '08:00:00', type: 'Self-Exclusion Register', casino: 'NGB Portal', pages: '6pg', hash: 'f1a948...' },
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-800 last:border-0">

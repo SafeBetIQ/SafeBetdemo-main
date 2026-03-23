@@ -225,11 +225,11 @@ export default function RegulatorIntelligencePage() {
                 <span className="text-brand-400 text-sm font-semibold">National Compliance Overview</span>
               </div>
               {[
-                { operator: 'Tsogo Sun Group', score: 94, interventions: '2,841', exclusions: 312, status: 'Compliant', color: 'text-green-400' },
-                { operator: 'Sun International', score: 91, interventions: '1,654', exclusions: 198, status: 'Compliant', color: 'text-green-400' },
-                { operator: 'Peermont Global', score: 88, interventions: '987', exclusions: 134, status: 'Compliant', color: 'text-green-400' },
-                { operator: 'Goldrush Group', score: 76, interventions: '445', exclusions: 87, status: 'Review', color: 'text-yellow-400' },
-                { operator: 'Sibaya Casino', score: 62, interventions: '198', exclusions: 41, status: 'Alert', color: 'text-orange-400' },
+                { operator: 'Apex Gaming Group', score: 94, interventions: '2,841', exclusions: 312, status: 'Compliant', color: 'text-green-400' },
+                { operator: 'Highveld Gaming Group', score: 91, interventions: '1,654', exclusions: 198, status: 'Compliant', color: 'text-green-400' },
+                { operator: 'Crown & Sceptre Group', score: 88, interventions: '987', exclusions: 134, status: 'Compliant', color: 'text-green-400' },
+                { operator: 'Goldfields Gaming Group', score: 76, interventions: '445', exclusions: 87, status: 'Review', color: 'text-yellow-400' },
+                { operator: 'Coastline Casino & Entertainment', score: 62, interventions: '198', exclusions: 41, status: 'Alert', color: 'text-orange-400' },
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-800 last:border-0">
                   <div className="flex-1">
