@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Users, MessageSquare, Activity, CircleCheck as CheckCircle, ArrowRight, TrendingUp, TriangleAlert as AlertTriangle, Clock, ChartBar as BarChart3, Bell, Zap, Lock, Eye, FileText, Heart, Brain, Globe, Database, Layers, ChevronRight, Star, Building2, Award, Target, Cpu, ChartLine as LineChart, PlugZap, ShieldCheck, BookOpen, UserCheck, Gauge } from 'lucide-react';
+import { Shield, Users, MessageSquare, Activity, CircleCheck as CheckCircle, ArrowRight, TrendingUp, TriangleAlert as AlertTriangle, Clock, ChartBar as BarChart3, Bell, Zap, Lock, Eye, FileText, Heart, Brain, Globe, Database, Layers, ChevronRight, Star, Building2, Award, Target, Cpu, ChartLine as LineChart, PlugZap, ShieldCheck, UserCheck, Gauge } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
@@ -102,26 +102,41 @@ const MODULES = [
     icon: Globe,
     title: 'SafePlay Connect',
     description: 'REST API + webhooks for direct integration with your platform — Playtech, BetSoftware, Evolution, and more.',
-  },
-  {
-    icon: BookOpen,
-    title: 'Training Academy',
-    description: 'Accredited responsible gambling courses for your staff, with progress tracking and completion certificates.',
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/20',
+    hoverBorder: 'hover:border-teal-500/40',
+    features: ['REST API & webhooks', 'Native platform plugins', 'Real-time data sync', 'Sandbox test environment'],
   },
   {
     icon: UserCheck,
     title: 'Staff Management',
     description: 'Role-based access control, staff assignment workflows, and training mandate management for all employees.',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
+    border: 'border-brand-400/20',
+    hoverBorder: 'hover:border-brand-400/40',
+    features: ['Role-based access control', 'Staff assignment workflows', 'Training mandate tracking', 'Audit-ready activity logs'],
   },
   {
     icon: ShieldCheck,
     title: 'Self-Exclusion Network',
     description: 'Cross-operator self-exclusion sharing network, ensuring players excluded at one venue cannot access others.',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10',
+    border: 'border-cyan-500/20',
+    hoverBorder: 'hover:border-cyan-500/40',
+    features: ['Cross-operator exclusion sync', 'Instant ban propagation', 'Regulator-linked registry', 'Re-entry attempt alerts'],
   },
   {
     icon: Cpu,
     title: 'GuardianLayer',
     description: 'Minor protection module detecting under-age gambling patterns and triggering immediate escalation protocols.',
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/20',
+    hoverBorder: 'hover:border-orange-500/40',
+    features: ['Age pattern detection', 'Behavioural anomaly flags', 'Instant escalation workflows', 'Supervisor alert system'],
   },
 ];
 
@@ -634,22 +649,36 @@ export default function CasinosPage() {
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {MODULES.map((mod, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.45, delay: i * 0.07 }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+                whileHover={{ y: -4 }}
               >
-                <Card className="bg-gray-900/30 border-gray-800 hover:border-teal-500/30 hover:bg-gray-900/50 transition-all group h-full">
-                  <CardContent className="p-6">
-                    <div className="w-10 h-10 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-teal-500/20 transition-colors">
-                      <mod.icon className="h-5 w-5 text-teal-400" />
+                <Card className={`bg-gray-900/40 border-gray-800 ${mod.hoverBorder} hover:bg-gray-900/60 transition-all group h-full`}>
+                  <CardContent className="p-7">
+                    <div className="flex items-start justify-between mb-5">
+                      <div className={`w-12 h-12 ${mod.bg} border ${mod.border} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <mod.icon className={`h-6 w-6 ${mod.color}`} />
+                      </div>
+                      <Badge className={`${mod.bg} ${mod.color} border-0 text-xs font-semibold`}>
+                        Add-On
+                      </Badge>
                     </div>
-                    <h3 className="text-base font-bold text-white mb-2">{mod.title}</h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">{mod.description}</p>
+                    <h3 className="text-xl font-bold text-white mb-3">{mod.title}</h3>
+                    <p className="text-sm text-gray-400 leading-relaxed mb-5">{mod.description}</p>
+                    <div className="space-y-2 pt-4 border-t border-gray-800">
+                      {mod.features.map((feat, fi) => (
+                        <div key={fi} className="flex items-center gap-2 text-sm">
+                          <CheckCircle className={`h-3.5 w-3.5 ${mod.color} flex-shrink-0`} />
+                          <span className="text-gray-300">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
