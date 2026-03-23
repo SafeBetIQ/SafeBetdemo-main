@@ -6,160 +6,183 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Menu, X, ChevronDown } from 'lucide-react';
 
-const NAV_ITEMS = [
-  {
-    label: 'Platform',
-    children: [
-      { label: 'For Casino Operators', href: '/features/casinos' },
-      { label: 'Behavioural Risk Intelligence', href: '/features/behavioral-risk-intelligence' },
-      { label: 'Responsible Gambling Interventions', href: '/features/responsible-gambling-interventions' },
-      { label: 'Compliance Reporting', href: '/features/compliance-reporting' },
-      { label: 'Cross-Operator Intelligence', href: '/features/cross-operator-intelligence' },
-      { label: 'Self-Exclusion Network', href: '/features/self-exclusion-network' },
-    ],
-  },
-  {
-    label: 'Solutions',
-    children: [
-      { label: 'For Regulators', href: '/features/regulators' },
-      { label: 'Regulator Intelligence', href: '/features/regulator-intelligence' },
-    ],
-  },
-  {
-    label: 'Compliance',
-    href: '/technology',
-  },
-  {
-    label: 'Contact',
-    href: '/contact',
-  },
-];
-
 export default function MainNavigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   return (
-    <nav className="border-b border-white/10 bg-[#0a0a0a] sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex-shrink-0">
+    <nav className="border-b border-gray-800 bg-black sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-2 md:space-x-3">
             <Image
               src="/safebet-logo-transparent.png"
-              alt="SafeBet IQ"
+              alt="SafeBet IQ Logo"
               width={354}
               height={95}
-              className="h-9 w-auto"
+              className="h-10 md:h-14 w-auto"
               priority
             />
           </Link>
 
-          <div className="hidden lg:flex items-center space-x-1">
-            {NAV_ITEMS.map((item) =>
-              item.children ? (
-                <div
-                  key={item.label}
-                  className="relative"
-                  onMouseEnter={() => setOpenDropdown(item.label)}
-                  onMouseLeave={() => setOpenDropdown(null)}
-                >
-                  <button className="flex items-center gap-1 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-md hover:bg-white/5">
-                    {item.label}
-                    <ChevronDown className="h-3.5 w-3.5 text-gray-600" />
-                  </button>
-                  {openDropdown === item.label && (
-                    <div className="absolute left-0 top-full pt-1 z-50">
-                      <div className="bg-[#111111] border border-white/10 rounded-lg shadow-xl overflow-hidden min-w-[240px] py-1">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className="block px-4 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+          <div className="hidden lg:flex items-center space-x-8">
+            <Link href="/" className="text-gray-300 hover:text-brand-400 transition-colors">
+              Home
+            </Link>
+            <div className="relative group">
+              <button className="text-gray-300 hover:text-brand-400 transition-colors flex items-center space-x-1 py-2">
+                <span>For Casinos</span>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="w-72 bg-black border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+                  <Link
+                    href="/features/casinos"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors"
+                  >
+                    Casino Features
+                  </Link>
+                  <Link
+                    href="/features/behavioral-risk-intelligence"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Behavioral Risk Intelligence
+                  </Link>
+                  <Link
+                    href="/features/responsible-gambling-interventions"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Responsible Gambling Interventions
+                  </Link>
+                  <Link
+                    href="/features/compliance-reporting"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Compliance Reporting
+                  </Link>
+                  <Link
+                    href="/features/cross-operator-intelligence"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Cross-Operator Intelligence
+                  </Link>
+                  <Link
+                    href="/features/self-exclusion-network"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Self-Exclusion Network
+                  </Link>
                 </div>
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href!}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-md hover:bg-white/5"
-                >
-                  {item.label}
-                </Link>
-              )
-            )}
+              </div>
+            </div>
+            <div className="relative group">
+              <button className="text-gray-300 hover:text-brand-400 transition-colors flex items-center space-x-1 py-2">
+                <span>For Regulators</span>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="w-64 bg-black border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+                  <Link
+                    href="/features/regulators"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors"
+                  >
+                    Regulator Features
+                  </Link>
+                  <Link
+                    href="/features/regulator-intelligence"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Regulator Intelligence
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <div className="relative group">
+              <button className="text-gray-300 hover:text-brand-400 transition-colors flex items-center space-x-1 py-2">
+                <span>Technology</span>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="w-56 bg-black border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+                  <Link
+                    href="/technology"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors"
+                  >
+                    AI Technology
+                  </Link>
+                  <Link
+                    href="/safeplay-connect"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    SafeBet IQ Connect
+                  </Link>
+                  <Link
+                    href="/nova-iq"
+                    className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors border-t border-gray-800"
+                  >
+                    Nova IQ
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <Link href="/contact" className="text-gray-300 hover:text-brand-400 transition-colors">
+              Contact
+            </Link>
           </div>
 
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden lg:flex items-center space-x-4">
             <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/5 font-medium">
+              <Button variant="ghost" className="text-gray-300 hover:text-white hover:bg-gray-800">
                 Sign In
               </Button>
             </Link>
             <Link href="/contact">
-              <Button size="sm" className="bg-brand-500 hover:bg-brand-400 text-white font-medium px-5">
-                Request Demo
+              <Button className="bg-brand-400 hover:bg-brand-500 text-black font-semibold">
+                Get Started
               </Button>
             </Link>
           </div>
 
           <button
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="lg:hidden text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
-      </div>
 
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-white/10 bg-[#0a0a0a]">
-          <div className="px-6 py-4 space-y-1">
-            {NAV_ITEMS.map((item) =>
-              item.children ? (
-                <div key={item.label} className="space-y-1">
-                  <p className="px-3 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    {item.label}
-                  </p>
-                  {item.children.map((child) => (
-                    <Link
-                      key={child.href}
-                      href={child.href}
-                      className="block px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href!}
-                  className="block px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              )
-            )}
-            <div className="pt-4 border-t border-white/10 space-y-2">
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" size="sm" className="w-full border-white/20 text-gray-300 bg-transparent hover:bg-white/5">Sign In</Button>
-              </Link>
-              <Link href="/contact" onClick={() => setMobileMenuOpen(false)}>
-                <Button size="sm" className="w-full bg-brand-500 hover:bg-brand-400 text-white">Request Demo</Button>
-              </Link>
+        {mobileMenuOpen && (
+          <div className="lg:hidden mt-4 pb-4 space-y-4">
+            <Link href="/" className="block text-white hover:text-brand-400">Home</Link>
+            <div className="space-y-2">
+              <div className="text-brand-400 text-sm font-semibold">For Casinos</div>
+              <Link href="/features/casinos" className="block text-gray-300 hover:text-brand-400 pl-4">Casino Features</Link>
+              <Link href="/features/behavioral-risk-intelligence" className="block text-gray-300 hover:text-brand-400 pl-4">Behavioral Risk Intelligence</Link>
+              <Link href="/features/responsible-gambling-interventions" className="block text-gray-300 hover:text-brand-400 pl-4">Responsible Gambling Interventions</Link>
+              <Link href="/features/compliance-reporting" className="block text-gray-300 hover:text-brand-400 pl-4">Compliance Reporting</Link>
+              <Link href="/features/cross-operator-intelligence" className="block text-gray-300 hover:text-brand-400 pl-4">Cross-Operator Intelligence</Link>
+              <Link href="/features/self-exclusion-network" className="block text-gray-300 hover:text-brand-400 pl-4">Self-Exclusion Network</Link>
             </div>
+            <div className="space-y-2">
+              <div className="text-brand-400 text-sm font-semibold">For Regulators</div>
+              <Link href="/features/regulators" className="block text-gray-300 hover:text-brand-400 pl-4">Regulator Features</Link>
+              <Link href="/features/regulator-intelligence" className="block text-gray-300 hover:text-brand-400 pl-4">Regulator Intelligence</Link>
+            </div>
+            <div className="space-y-2">
+              <div className="text-brand-400 text-sm font-semibold">Technology</div>
+              <Link href="/technology" className="block text-gray-300 hover:text-brand-400 pl-4">AI Technology</Link>
+              <Link href="/safeplay-connect" className="block text-gray-300 hover:text-brand-400 pl-4">SafeBet IQ Connect</Link>
+              <Link href="/nova-iq" className="block text-gray-300 hover:text-brand-400 pl-4">Nova IQ</Link>
+            </div>
+            <Link href="/contact" className="block text-gray-300 hover:text-brand-400">Contact</Link>
+            <Link href="/login">
+              <Button variant="ghost" className="w-full text-gray-300">Sign In</Button>
+            </Link>
+            <Link href="/contact">
+              <Button className="w-full bg-brand-400 hover:bg-brand-500 text-black">Get Started</Button>
+            </Link>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </nav>
   );
 }
