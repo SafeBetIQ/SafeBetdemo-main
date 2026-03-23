@@ -140,7 +140,7 @@ export default function RegulatorsPage() {
               {
                 icon: FileText,
                 title: 'Comprehensive Audit Reports',
-                description: 'Generate detailed compliance reports with complete intervention records, ESG data, and audit trails for each operator.',
+                description: 'Generate detailed compliance reports with complete intervention records and audit trails for each operator.',
                 features: ['PDF report generation', 'Complete audit trails', 'Exportable data formats']
               },
               {
@@ -216,10 +216,10 @@ export default function RegulatorsPage() {
                   Industry-Wide Performance Metrics
                 </h3>
                 <p className="text-gray-400 mb-8 leading-relaxed">
-                  Access comprehensive statistics across all licensed operators including player risk profiles, intervention outcomes, ESG scores, and compliance metrics.
+                  Access comprehensive statistics across all licensed operators including player risk profiles, intervention outcomes, and compliance metrics.
                 </p>
                 <div className="space-y-4">
-                  {['Total Active Players', 'Interventions Tracked', 'Avg ESG Score'].map((label, i) => (
+                  {['Total Active Players', 'Interventions Tracked', 'Compliance Score'].map((label, i) => (
                     <motion.div
                       key={i}
                       className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800"
@@ -328,7 +328,7 @@ export default function RegulatorsPage() {
               {
                 icon: Database,
                 title: 'Complete Data Transparency',
-                description: 'Access detailed operator records, player intervention data, and ESG performance information with full audit trail documentation.'
+                description: 'Access detailed operator records, player intervention data, and compliance information with full audit trail documentation.'
               },
               {
                 icon: Bell,

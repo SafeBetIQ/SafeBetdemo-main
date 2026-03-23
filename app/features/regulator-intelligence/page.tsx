@@ -98,7 +98,7 @@ const METRICS = [
 const REPORTING_STANDARDS = [
   'National Gambling Board (NGB) format compliance',
   'Provincial licensing authority reporting',
-  'King IV ESG governance metrics',
+  'GDPR / POPIA data protection compliance',
   'NRGP programme tracking and KPIs',
   'POPIA data governance audit logs',
   'International gambling harm benchmarks',
@@ -367,7 +367,7 @@ export default function RegulatorIntelligencePage() {
               <p className="text-gray-400 mb-8">
                 SafeBet IQ's regulator intelligence module is structured around the exact
                 reporting requirements of South Africa's gambling regulatory framework —
-                from the NGB to provincial authorities to ESG governance mandates.
+                from the NGB to provincial authorities and responsible gambling mandates.
               </p>
               <ul className="space-y-4">
                 {REPORTING_STANDARDS.map((item, i) => (

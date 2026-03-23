@@ -42,14 +42,6 @@ const REPORT_TYPES = [
     bg: 'bg-orange-400/10',
   },
   {
-    icon: TrendingUp,
-    title: 'ESG & Social Impact Report',
-    description: 'Environmental, Social, and Governance metrics aligned to King IV principles for board-level and regulator reporting.',
-    tags: ['King IV Aligned', 'ESG Grade'],
-    color: 'text-green-400',
-    bg: 'bg-green-400/10',
-  },
-  {
     icon: Database,
     title: 'Data Integrity Audit Report',
     description: 'System health, data completeness, integration status, and any anomalies detected in player data feeds.',
@@ -62,7 +54,7 @@ const REPORT_TYPES = [
 const COMPLIANCE_STANDARDS = [
   { name: 'NRGP', label: 'National Responsible Gambling Programme', color: 'text-brand-400', bg: 'bg-brand-400/10' },
   { name: 'POPIA', label: 'Protection of Personal Information Act', color: 'text-teal-400', bg: 'bg-teal-400/10' },
-  { name: 'King IV', label: 'King IV ESG Governance Framework', color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
+  { name: 'GDPR', label: 'General Data Protection Regulation', color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
   { name: 'NGB', label: 'National Gambling Board Standards', color: 'text-orange-400', bg: 'bg-orange-400/10' },
   { name: 'ISO 27001', label: 'Information Security Management', color: 'text-blue-400', bg: 'bg-blue-400/10' },
   { name: 'SOC 2', label: 'Service Organization Controls', color: 'text-green-400', bg: 'bg-green-400/10' },
@@ -169,7 +161,7 @@ export default function ComplianceReportingPage() {
               Six Report Types, Every Compliance Need Covered
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              From player risk summaries to full ESG governance reports — all formatted for regulatory submission.
+              From player risk summaries to full compliance reports — all formatted for regulatory submission.
             </p>
           </div>
 
@@ -301,7 +293,7 @@ export default function ComplianceReportingPage() {
                 { time: '09:00:00', type: 'Monthly Compliance', casino: 'Tsogo Sun', pages: '28pg', hash: 'a3f92e...' },
                 { time: '08:45:12', type: 'Intervention Audit', casino: 'Sun International', pages: '14pg', hash: 'b7d41c...' },
                 { time: '08:30:01', type: 'Risk Summary', casino: 'Peermont', pages: '9pg', hash: 'e2c815...' },
-                { time: '08:15:44', type: 'ESG Report', casino: 'Goldrush', pages: '22pg', hash: 'd9f307...' },
+                { time: '08:15:44', type: 'Session Behaviour', casino: 'Goldrush', pages: '22pg', hash: 'd9f307...' },
                 { time: '08:00:00', type: 'Self-Exclusion Register', casino: 'NGB Portal', pages: '6pg', hash: 'f1a948...' },
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-800 last:border-0">

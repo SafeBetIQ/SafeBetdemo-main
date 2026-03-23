@@ -75,7 +75,7 @@ export function NRGPContributionTracker({
             </div>
           </div>
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 p-4 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">ESG Alignment</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">NRGP Alignment</p>
             <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
               {progressPercentage >= 100 ? 'Exceeded' : 'Compliant'}
             </p>

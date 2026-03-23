@@ -77,38 +77,6 @@ export function exportBRIData(data: ExportableBRIData[], casinoName: string) {
   exportToCSV(anonymizedData, `BRI_Report_${casinoName.replace(/\s+/g, '_')}`);
 }
 
-export interface ExportableESGData {
-  casino_name: string;
-  esg_score: number;
-  esg_grade: string;
-  wellbeing_index: number;
-  humanity_score: number;
-  recovery_rate: number;
-  responsible_marketing: number;
-  carbon_score: number;
-  total_players: number;
-  at_risk_players: number;
-  period: string;
-}
-
-export function exportESGData(data: ExportableESGData[]) {
-  const formattedData = data.map(record => ({
-    'Casino': record.casino_name,
-    'ESG Grade': record.esg_grade,
-    'Total ESG Score': record.esg_score,
-    'Player Wellbeing Index': record.wellbeing_index,
-    'Casino Humanity Score': record.humanity_score,
-    'Recovery Rate (%)': record.recovery_rate,
-    'Responsible Marketing Score': record.responsible_marketing,
-    'Carbon Server Impact Score': record.carbon_score,
-    'Total Players': record.total_players,
-    'At-Risk Players': record.at_risk_players,
-    'At-Risk Percentage': ((record.at_risk_players / record.total_players) * 100).toFixed(2) + '%',
-    'Reporting Period': record.period,
-  }));
-
-  exportToCSV(formattedData, 'ESG_Sustainability_Report');
-}
 
 export interface ExportableInterventionData {
   player_id: string;
@@ -140,30 +108,17 @@ export function exportInterventionHistory(data: ExportableInterventionData[], ca
 export function exportComplianceAuditReport(
   casinoData: any,
   interventions: ExportableInterventionData[],
-  briData: ExportableBRIData[],
-  esgData: ExportableESGData
+  briData: ExportableBRIData[]
 ) {
   const summaryData = [{
     'Report Type': 'Compliance Audit Report',
     'Casino': casinoData.name,
     'License Number': casinoData.license_number,
     'Generated Date': new Date().toLocaleString(),
-    'Reporting Period': esgData.period,
     '': '',
-    'ESG Grade': esgData.esg_grade,
-    'ESG Score': esgData.esg_score,
-    'Wellbeing Index': esgData.wellbeing_index,
-    'Humanity Score': esgData.humanity_score,
-    'Recovery Rate': esgData.recovery_rate + '%',
-    ' ': '',
-    'Total Players': esgData.total_players,
-    'At-Risk Players': esgData.at_risk_players,
     'High-Risk Players (BRI > 75)': briData.filter(p => p.bri_score > 75).length,
     'Interventions Completed': interventions.filter(i => i.status === 'completed').length,
     'Interventions Pending': interventions.filter(i => i.status === 'pending').length,
-    '  ': '',
-    'Compliance Status': esgData.esg_score >= 70 ? 'COMPLIANT' : 'REQUIRES IMPROVEMENT',
-    'Recommendation': esgData.esg_score >= 70 ? 'Maintain current standards' : 'Implement improvement plan',
   }];
 
   exportToCSV(summaryData, `Compliance_Audit_${casinoData.name.replace(/\s+/g, '_')}`);

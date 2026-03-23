@@ -257,7 +257,7 @@ export default function PerformancePage() {
   ] as const;
 
   const MATVIEWS = [
-    { name: 'mv_casino_daily_stats', description: 'Daily session & revenue stats per casino (90 days)', refresh: 'Every 15 min', rows: 'casino × day', impact: 'ESG reporting, dashboards' },
+    { name: 'mv_casino_daily_stats', description: 'Daily session & revenue stats per casino (90 days)', refresh: 'Every 15 min', rows: 'casino × day', impact: 'Compliance reporting, dashboards' },
     { name: 'mv_player_risk_summary', description: 'Per-player risk snapshot with 30-day aggregates', refresh: 'On demand', rows: '1 per player', impact: 'Risk dashboards, BRI engine' },
     { name: 'mv_casino_risk_distribution', description: 'Risk tier distribution (critical/high/medium/low) per casino', refresh: 'Every 5 min', rows: '1 per casino', impact: 'Dashboard widgets, charts' },
     { name: 'mv_intervention_effectiveness', description: 'Intervention outcome rates per casino and type', refresh: 'Daily', rows: 'casino × type', impact: 'Compliance reporting' },
@@ -650,7 +650,7 @@ export default function PerformancePage() {
                 <div>
                   <p className="text-sm font-semibold text-amber-900">Materialized View Strategy</p>
                   <p className="text-sm text-amber-700 mt-1">
-                    Pre-computed aggregations eliminate full table scans on the largest query patterns: ESG reporting, risk dashboards,
+                    Pre-computed aggregations eliminate full table scans on the largest query patterns: compliance reporting, risk dashboards,
                     API traffic analytics, and intervention effectiveness. All views use CONCURRENTLY refresh to avoid blocking reads.
                     Unique indexes are required on each view to enable concurrent refresh.
                   </p>

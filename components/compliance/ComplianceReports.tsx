@@ -68,8 +68,8 @@ const REPORTS = [
   {
     id: 'nrgp_contribution',
     title: 'NRGP Contribution Statement',
-    description: 'National Responsible Gambling Programme financial contributions and ESG alignment',
-    category: 'ESG',
+    description: 'National Responsible Gambling Programme financial contributions and compliance tracking',
+    category: 'Regulatory',
     frequency: 'Quarterly',
     lastGenerated: '2026-01-01',
     status: 'ready',
@@ -82,15 +82,6 @@ const REPORTS = [
     frequency: 'Quarterly',
     lastGenerated: '2026-01-01',
     status: 'ready',
-  },
-  {
-    id: 'esg_performance',
-    title: 'ESG Performance Report',
-    description: 'Environmental, social and governance metrics aligned to King IV principles',
-    category: 'ESG',
-    frequency: 'Quarterly',
-    lastGenerated: '2026-01-01',
-    status: 'generating',
   },
   {
     id: 'audit_trail',
@@ -107,7 +98,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Regulatory: 'bg-blue-100 text-blue-700',
   Operational: 'bg-slate-100 text-slate-700',
   Risk:        'bg-orange-100 text-orange-700',
-  ESG:         'bg-emerald-100 text-emerald-700',
   HR:          'bg-yellow-100 text-yellow-700',
 };
 

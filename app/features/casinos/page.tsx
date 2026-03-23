@@ -109,11 +109,6 @@ const MODULES = [
     description: 'Accredited responsible gambling courses for your staff, with progress tracking and completion certificates.',
   },
   {
-    icon: Award,
-    title: 'ESG & King IV',
-    description: 'Full ESG score tracking, NRGP contribution reporting, and King IV governance compliance dashboards.',
-  },
-  {
     icon: UserCheck,
     title: 'Staff Management',
     description: 'Role-based access control, staff assignment workflows, and training mandate management for all employees.',
@@ -166,7 +161,7 @@ const BENEFITS = [
 ];
 
 const INTEGRATIONS = [
-  'Playtech', 'BetSoftware', 'Evolution Gaming', 'SoftSwiss', 'Altenar', 'WhatsApp Business', 'Twilio SMS', 'NRGP', 'King IV'
+  'Playtech', 'BetSoftware', 'Evolution Gaming', 'SoftSwiss', 'Altenar', 'WhatsApp Business', 'Twilio SMS', 'NRGP', 'SafePlay Connect'
 ];
 
 const RISK_FACTORS = [

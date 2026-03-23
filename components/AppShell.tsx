@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Database, Server, GraduationCap, CircleCheck as CheckCircle, TrendingUp, Eye, Layers, MapPin, Award, Key, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, GraduationCap, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
@@ -61,13 +61,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Compliance & ESG',
+    title: 'Compliance',
     items: [
       { title: 'Compliance Reports',         href: '/admin/compliance-overview',      icon: FileText,         roles: ['super_admin', 'regulator', 'national_regulator'] },
       { title: 'Compliance Controls',        href: '/admin/compliance',               icon: CheckCircle,      roles: ['super_admin', 'casino_admin'] },
-      { title: 'ESG Performance',            href: '/esg-performance',                icon: TrendingUp,       roles: ['casino_admin', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'King IV ESG',                href: '/esg-king-iv',                    icon: Award,            roles: ['casino_admin', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'ESG Data Entry',             href: '/casino/esg-data-entry',          icon: Database,         roles: ['casino_admin'] },
     ],
   },
   {
@@ -91,7 +88,6 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Infrastructure',             href: '/admin/infrastructure',           icon: Server,           roles: ['super_admin'] },
       { title: 'Performance',                href: '/admin/performance',              icon: BarChart3,        roles: ['super_admin'] },
       { title: 'Threat Monitoring',          href: '/admin/threat-monitoring',        icon: AlertTriangle,    roles: ['super_admin'] },
-      { title: 'ESG Management',             href: '/admin/esg-management',           icon: Globe,            roles: ['super_admin'] },
       { title: 'Wellbeing Games Admin',      href: '/admin/wellbeing-games',          icon: Shield,           roles: ['super_admin'] },
       { title: 'Integrations Admin',         href: '/admin/integrations',             icon: Plug,             roles: ['super_admin'] },
     ],

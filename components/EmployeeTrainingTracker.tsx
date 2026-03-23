@@ -120,7 +120,7 @@ export function EmployeeTrainingTracker({ stats, className }: EmployeeTrainingTr
             </span>
           </div>
           <div className="flex items-center justify-between text-xs mt-2">
-            <span className="text-gray-500">ESG Alignment:</span>
+            <span className="text-gray-500">Compliance Standard:</span>
             <span className="font-medium text-green-600">
               Industry Best Practice
             </span>
