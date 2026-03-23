@@ -48,10 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.removeItem('user_cache_time');
         }
         router.push('/login');
-      } else if (event === 'SIGNED_IN') {
-        if (!fetchingUserRef.current) {
-          fetchUser();
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('user_cache');
+          sessionStorage.removeItem('user_cache_time');
         }
+        fetchingUserRef.current = false;
+        fetchUser();
       }
     });
 
