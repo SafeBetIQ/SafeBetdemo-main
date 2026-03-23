@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, GraduationCap, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
@@ -71,8 +71,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Platform Management',
     items: [
       { title: 'Nova IQ (Wellbeing)',        href: '/casino/wellbeing-games',         icon: Shield,           roles: ['casino_admin', 'super_admin'] },
-      { title: 'Staff Training',             href: '/casino/training',                icon: GraduationCap,    roles: ['casino_admin'] },
-      { title: 'Training Academy',           href: '/staff/academy',                  icon: BookOpen,         roles: ['staff'] },
       { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,             roles: ['casino_admin'] },
       { title: 'SafePlay Connect (API)',     href: '/safeplay-connect',               icon: Globe,            roles: ['casino_admin', 'super_admin'] },
     ],
