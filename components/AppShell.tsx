@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, GraduationCap, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, GraduationCap, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key, BookOpen, Radio } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'Player Risk Monitor',        href: '/casino/players',                 icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Intervention Engine',        href: '/casino/interventions',           icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Live Casino Feed',            href: '/casino/live-feed',               icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Session Analytics',          href: '/behavioral-risk-intelligence',   icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
       { title: 'AI Intelligence',            href: '/casino/ai-intelligence',         icon: Brain,            roles: ['casino_admin', 'super_admin'] },
       { title: 'Nova IQ XAI',                href: '/nova-iq-xai',                    icon: Eye,              roles: ['casino_admin', 'super_admin'] },

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Shield, Users, TriangleAlert as AlertTriangle, Activity, Download, RefreshCw, ShieldOff, Bell, FileText, ChartBar as BarChart3, Building2, TrendingUp, Clock, CircleCheck as CheckCircle2, Zap, Network } from 'lucide-react';
+import { Shield, Users, TriangleAlert as AlertTriangle, Activity, Download, RefreshCw, ShieldOff, Bell, FileText, ChartBar as BarChart3, Building2, TrendingUp, Clock, CircleCheck as CheckCircle2, Zap, Network, Radio } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { PlayerRiskMonitor } from '@/components/compliance/PlayerRiskMonitor';
@@ -16,6 +16,11 @@ import { ComplianceReports } from '@/components/compliance/ComplianceReports';
 import { SessionBehaviourAnalytics } from '@/components/compliance/SessionBehaviourAnalytics';
 import { SelfExclusionCompliance } from '@/components/compliance/SelfExclusionCompliance';
 import { ModuleGuard } from '@/components/ModuleGuard';
+import { CasinoDataProvider } from '@/contexts/CasinoDataContext';
+import { LiveBettingFeed } from '@/components/live/LiveBettingFeed';
+import { LiveKPIStrip } from '@/components/live/LiveKPIStrip';
+import { LiveRiskOverlay } from '@/components/live/LiveRiskOverlay';
+import { MachineMonitor } from '@/components/live/MachineMonitor';
 
 interface PlatformSummary {
   totalPlayers: number;
@@ -133,6 +138,14 @@ export default function CasinoDashboardPage() {
       badge: summary.activeExclusions > 0 ? summary.activeExclusions : undefined,
       badgeClass: 'bg-orange-500',
       description: 'Monitoring & network',
+    },
+    {
+      id: 'live-feed',
+      label: 'Live Feed',
+      icon: Radio,
+      badge: undefined,
+      badgeClass: '',
+      description: 'Real-time betting stream',
     },
   ];
 
@@ -302,6 +315,37 @@ export default function CasinoDashboardPage() {
                     </p>
                   </div>
                   {casinoId && <SelfExclusionCompliance casinoId={casinoId} />}
+                </TabsContent>
+
+                {/* ── Live Feed ── */}
+                <TabsContent value="live-feed" className="mt-0">
+                  <div className="mb-4">
+                    <h2 className="text-base font-semibold flex items-center gap-2">
+                      <Radio className="h-5 w-5 text-primary" />
+                      Live Casino Feed
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Real-time event stream powered by Supabase Realtime. Machine activity, live bets, and risk alerts update sub-second.
+                    </p>
+                  </div>
+                  <CasinoDataProvider>
+                    <div className="space-y-5">
+                      <LiveKPIStrip />
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        <div className="lg:col-span-2 h-[560px]">
+                          <LiveBettingFeed />
+                        </div>
+                        <div className="flex flex-col gap-5">
+                          <div className="h-[280px]">
+                            <LiveRiskOverlay />
+                          </div>
+                          <div className="h-[260px]">
+                            <MachineMonitor />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CasinoDataProvider>
                 </TabsContent>
 
               </div>
