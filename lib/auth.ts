@@ -43,15 +43,21 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
       return { success: false, error: 'Failed to load profile' };
     }
 
-    if (userData.source === 'users') {
+    const profile = Array.isArray(userData) ? userData[0] : userData;
+
+    if (!profile) {
+      return { success: false, error: 'Failed to load profile' };
+    }
+
+    if (profile.source === 'users') {
       supabase
         .from('users')
         .update({ last_login: new Date().toISOString() })
-        .eq('id', userData.id)
+        .eq('id', profile.id)
         .then(() => {});
     }
 
-    return { success: true, user: userData as AuthUser };
+    return { success: true, user: profile as AuthUser };
   } catch (error) {
     return { success: false, error: 'An unexpected error occurred' };
   }
@@ -95,14 +101,20 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
+    const profile = Array.isArray(data) ? data[0] : data;
+
+    if (!profile) {
+      return null;
+    }
+
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('user_cache', JSON.stringify(data));
+      sessionStorage.setItem('user_cache', JSON.stringify(profile));
       sessionStorage.setItem('user_cache_time', Date.now().toString());
     }
 
     const totalTime = (performance.now() - startTime).toFixed(0);
     console.log(`✅ getCurrentUser completed in ${totalTime}ms`);
-    return data as AuthUser;
+    return profile as AuthUser;
   } catch (error) {
     console.error('❌ getCurrentUser exception:', error);
     return null;
