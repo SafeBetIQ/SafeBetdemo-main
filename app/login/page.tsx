@@ -149,13 +149,22 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        setError(authError.message);
+        const msg = authError.message || authError.status?.toString() || 'Invalid credentials';
+        if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('password')) {
+          setError('Invalid email or password. Please check your credentials and try again.');
+        } else if (msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many')) {
+          setError('Too many login attempts. Please wait a few minutes and try again.');
+        } else if (msg.toLowerCase().includes('confirm') || msg.toLowerCase().includes('verified')) {
+          setError('Email not verified. Please contact your administrator.');
+        } else {
+          setError(msg || 'Login failed. Please try again.');
+        }
         setLoading(false);
         return;
       }
 
       if (!authData.user) {
-        setError('Login failed');
+        setError('Login failed. Please try again.');
         setLoading(false);
         return;
       }
@@ -164,13 +173,19 @@ export default function LoginPage() {
         p_email: email,
       });
 
-      if (userError || !userData) {
-        setError('Failed to load user profile');
+      if (userError) {
+        setError('Unable to load your profile. Please try again.');
         setLoading(false);
         return;
       }
 
       const profile = Array.isArray(userData) ? userData[0] : userData;
+
+      if (!profile) {
+        setError('Account not found in the system. Please contact your administrator.');
+        setLoading(false);
+        return;
+      }
 
       sessionStorage.setItem('user_cache', JSON.stringify(profile));
       sessionStorage.setItem('user_cache_time', Date.now().toString());
@@ -195,8 +210,9 @@ export default function LoginPage() {
       }
 
       router.replace(redirectPath);
-    } catch (err: any) {
-      setError(err?.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
+      setError(msg);
       setLoading(false);
     }
   };
