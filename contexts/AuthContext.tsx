@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.removeItem('user_cache_time');
         }
         router.push('/login');
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      } else if (event === 'SIGNED_IN') {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('user_cache');
           sessionStorage.removeItem('user_cache_time');
@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchingUserRef.current = false;
         fetchUser();
       }
+      // TOKEN_REFRESHED intentionally ignored — session storage cache handles
+      // subsequent profile lookups without triggering a full re-render cycle
     });
 
     return () => {

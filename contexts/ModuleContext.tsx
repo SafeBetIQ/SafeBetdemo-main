@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -25,32 +25,36 @@ const ModuleContext = createContext<ModuleContextType | undefined>(undefined);
 
 export function ModuleProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const userRole = (user as any)?.role;
+  const userRole = (user as any)?.role as string | undefined;
+  const userId = (user as any)?.id as string | undefined;
+  const userCasinoId = (user as any)?.casino_id as string | undefined;
+
   const [modules, setModules] = useState<CasinoModule[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
 
-  const loadModules = async () => {
-    if (!user) {
-      console.log('[ModuleContext] No user, clearing modules');
+  const loadModules = useCallback(async () => {
+    if (loadingRef.current) return;
+
+    if (!userId || !userRole) {
       setModules([]);
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
-      console.log('[ModuleContext] Loading modules for user:', user.email, 'role:', userRole);
+      loadingRef.current = true;
 
       let casinoId: string | null = null;
 
       if (userRole === 'casino_admin' || userRole === 'compliance_officer') {
-        casinoId = (user as any).casino_id;
+        casinoId = userCasinoId ?? null;
 
         if (!casinoId) {
           const { data: userData } = await supabase
             .from('users')
             .select('casino_id')
-            .eq('id', user.id)
+            .eq('id', userId)
             .maybeSingle();
           casinoId = userData?.casino_id ?? null;
         }
@@ -58,14 +62,11 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         const { data: staffData } = await supabase
           .from('staff')
           .select('casino_id')
-          .eq('auth_user_id', user.id)
+          .eq('auth_user_id', userId)
           .single();
+        casinoId = staffData?.casino_id ?? null;
 
-        if (staffData?.casino_id) {
-          casinoId = staffData.casino_id;
-          console.log('[ModuleContext] Staff user, casino_id:', casinoId);
-        } else {
-          console.log('[ModuleContext] Staff user but no casino found');
+        if (!casinoId) {
           setModules([]);
           setLoading(false);
           return;
@@ -74,17 +75,11 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
       if (userRole === 'casino_admin' || userRole === 'compliance_officer' || userRole === 'staff') {
         if (casinoId) {
-          console.log('[ModuleContext] Calling get_casino_modules for casino:', casinoId);
           const { data, error } = await supabase.rpc('get_casino_modules', {
             p_casino_id: casinoId,
           });
 
-          if (error) {
-            console.error('[ModuleContext] Error loading modules:', error);
-            setModules([]);
-          } else {
-            setModules(data || []);
-          }
+          setModules(error ? [] : (data || []));
         } else {
           setModules([]);
         }
@@ -94,122 +89,111 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         userRole === 'provincial_regulator' ||
         userRole === 'national_regulator'
       ) {
-        console.log('[ModuleContext] Loading all active modules for admin/regulator');
         const { data } = await supabase
           .from('software_modules')
           .select('id, name, slug, description, category')
           .eq('is_active', true);
 
-        const mappedModules = (data || []).map((m: any) => ({
-          module_id: m.id,
-          name: m.name,
-          slug: m.slug,
-          description: m.description,
-          category: m.category,
-          enabled_at: new Date().toISOString(),
-        }));
-        console.log('[ModuleContext] Loaded modules:', mappedModules.length, 'modules');
-        setModules(mappedModules);
+        setModules(
+          (data || []).map((m: any) => ({
+            module_id: m.id,
+            name: m.name,
+            slug: m.slug,
+            description: m.description,
+            category: m.category,
+            enabled_at: new Date().toISOString(),
+          }))
+        );
       } else {
-        console.log('[ModuleContext] Unknown role, clearing modules');
         setModules([]);
       }
-    } catch (error) {
-      console.error('[ModuleContext] Error in loadModules:', error);
+    } catch {
       setModules([]);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  };
+  }, [userId, userRole, userCasinoId]);
 
   useEffect(() => {
     loadModules();
+  }, [loadModules]);
 
-    // Set up realtime subscription for casino_modules changes
-    if (user && (userRole === 'casino_admin' || userRole === 'compliance_officer' || userRole === 'staff')) {
-      const setupSubscription = async () => {
-        let casinoId: string | null = null;
-
-        if (userRole === 'casino_admin' || userRole === 'compliance_officer') {
-          casinoId = (user as any).casino_id;
-          if (!casinoId) {
-            const { data: ud } = await supabase
-              .from('users')
-              .select('casino_id')
-              .eq('id', user.id)
-              .maybeSingle();
-            casinoId = ud?.casino_id ?? null;
-          }
-        } else if (userRole === 'staff') {
-          const { data: staffData } = await supabase
-            .from('staff')
-            .select('casino_id')
-            .eq('auth_user_id', user.id)
-            .single();
-
-          if (staffData?.casino_id) {
-            casinoId = staffData.casino_id;
-          }
-        }
-
-        if (!casinoId) {
-          console.log('[ModuleContext] No casino_id for subscription');
-          return null;
-        }
-
-        // Subscribe to changes for this specific casino
-        const channel = supabase
-          .channel(`casino-modules-${casinoId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'casino_modules',
-              filter: `casino_id=eq.${casinoId}`,
-            },
-            (payload) => {
-              console.log('[ModuleContext] Casino modules changed for casino:', casinoId, payload);
-              // Small delay to ensure database is consistent
-              setTimeout(() => {
-                loadModules();
-              }, 100);
-            }
-          )
-          .subscribe((status) => {
-            console.log('[ModuleContext] Subscription status:', status);
-          });
-
-        return channel;
-      };
-
-      let channelPromise = setupSubscription();
-
-      return () => {
-        channelPromise.then((channel) => {
-          if (channel) {
-            supabase.removeChannel(channel);
-          }
-        });
-      };
+  useEffect(() => {
+    if (!userId || !(userRole === 'casino_admin' || userRole === 'compliance_officer' || userRole === 'staff')) {
+      return;
     }
-  }, [user, userRole]);
 
-  const hasModule = (slug: string): boolean => {
-    if (
-      userRole === 'super_admin' ||
-      userRole === 'regulator' ||
-      userRole === 'provincial_regulator' ||
-      userRole === 'national_regulator'
-    ) {
-      return true;
-    }
-    return modules.some((m) => m.slug === slug);
-  };
+    let cancelled = false;
 
-  const refreshModules = async () => {
+    const setupSubscription = async () => {
+      let casinoId: string | null = userCasinoId ?? null;
+
+      if (!casinoId && (userRole === 'casino_admin' || userRole === 'compliance_officer')) {
+        const { data: ud } = await supabase
+          .from('users')
+          .select('casino_id')
+          .eq('id', userId)
+          .maybeSingle();
+        casinoId = ud?.casino_id ?? null;
+      } else if (!casinoId && userRole === 'staff') {
+        const { data: staffData } = await supabase
+          .from('staff')
+          .select('casino_id')
+          .eq('auth_user_id', userId)
+          .single();
+        casinoId = staffData?.casino_id ?? null;
+      }
+
+      if (!casinoId || cancelled) return null;
+
+      const channel = supabase
+        .channel(`casino-modules-${casinoId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'casino_modules',
+            filter: `casino_id=eq.${casinoId}`,
+          },
+          () => {
+            setTimeout(() => loadModules(), 100);
+          }
+        )
+        .subscribe();
+
+      return channel;
+    };
+
+    const channelPromise = setupSubscription();
+
+    return () => {
+      cancelled = true;
+      channelPromise.then((channel) => {
+        if (channel) supabase.removeChannel(channel);
+      });
+    };
+  }, [userId, userRole, userCasinoId, loadModules]);
+
+  const hasModule = useCallback(
+    (slug: string): boolean => {
+      if (
+        userRole === 'super_admin' ||
+        userRole === 'regulator' ||
+        userRole === 'provincial_regulator' ||
+        userRole === 'national_regulator'
+      ) {
+        return true;
+      }
+      return modules.some((m) => m.slug === slug);
+    },
+    [userRole, modules]
+  );
+
+  const refreshModules = useCallback(async () => {
     await loadModules();
-  };
+  }, [loadModules]);
 
   return (
     <ModuleContext.Provider value={{ modules, hasModule, loading, refreshModules }}>
