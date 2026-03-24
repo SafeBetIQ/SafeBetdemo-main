@@ -79,8 +79,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
         const age = Date.now() - parseInt(cacheTime);
         if (age < 300000) {
           const parsed = JSON.parse(cachedUser);
-          console.log(`💾 Using cached user (age: ${age}ms)`);
-          return parsed as AuthUser;
+          const profile = Array.isArray(parsed) ? parsed[0] : parsed;
+          if (profile && profile.role) {
+            console.log(`💾 Using cached user (age: ${age}ms)`);
+            return profile as AuthUser;
+          }
+          sessionStorage.removeItem('user_cache');
+          sessionStorage.removeItem('user_cache_time');
         }
       }
     }
