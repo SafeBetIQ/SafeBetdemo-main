@@ -12,7 +12,10 @@ import { Users, TriangleAlert as AlertTriangle, TrendingUp, TrendingDown, Search
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
+import { InterventionModal, type InterventionData } from '@/components/InterventionModal';
+import { toast } from 'sonner';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -59,6 +62,7 @@ function getRiskLevel(score: number): string {
 
 export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [riskCounts, setRiskCounts] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
@@ -70,6 +74,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [signalHistory, setSignalHistory] = useState<any[]>([]);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
 
   async function handleViewPlayer(p: Player) {
     setSelectedPlayer(p);
@@ -81,6 +86,37 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
       .order('recorded_at', { ascending: false })
       .limit(14);
     setSignalHistory(data ? [...data].reverse() : []);
+  }
+
+  async function handleSendIntervention(data: InterventionData) {
+    if (!selectedPlayer || !user?.casino_id) return;
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const response = await fetch(`${supabaseUrl}/functions/v1/intervention-engine?action=send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          player_id: selectedPlayer.id,
+          casino_id: user.casino_id,
+          intervention_type: data.interventionType,
+          delivery_methods: data.deliveryMethods,
+          message: data.message,
+          risk_score: selectedPlayer.risk_score || 0,
+          trigger_reason: `Manual intervention — Risk Score: ${selectedPlayer.risk_score || 'N/A'}`,
+          triggered_by: user.id,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to send intervention');
+      toast.success('Intervention dispatched successfully');
+      setInterventionModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send intervention');
+    }
   }
 
   useEffect(() => {
@@ -408,12 +444,26 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
       onOpenChange={setSheetOpen}
       player={selectedPlayer}
       signalHistory={signalHistory}
-      onIntervene={() => setSheetOpen(false)}
+      onIntervene={() => {
+        setSheetOpen(false);
+        setInterventionModalOpen(true);
+      }}
       onViewHistory={() => {
         setSheetOpen(false);
         router.push('/casino/players');
       }}
     />
+
+    {selectedPlayer && (
+      <InterventionModal
+        open={interventionModalOpen}
+        onOpenChange={setInterventionModalOpen}
+        playerName={`${selectedPlayer.first_name} ${selectedPlayer.last_name}`}
+        riskScore={selectedPlayer.risk_score || 0}
+        triggerReason={`Manual intervention — Risk Score: ${selectedPlayer.risk_score || 'N/A'}`}
+        onSubmit={handleSendIntervention}
+      />
+    )}
     </TooltipProvider>
   );
 }
