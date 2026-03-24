@@ -12,6 +12,7 @@ import { Users, TriangleAlert as AlertTriangle, TrendingUp, TrendingDown, Search
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
@@ -66,6 +67,21 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [signalHistory, setSignalHistory] = useState<any[]>([]);
+
+  async function handleViewPlayer(p: Player) {
+    setSelectedPlayer(p);
+    setSheetOpen(true);
+    const { data } = await supabase
+      .from('bri_signal_history')
+      .select('*')
+      .eq('player_id', p.id)
+      .order('recorded_at', { ascending: false })
+      .limit(14);
+    setSignalHistory(data ? [...data].reverse() : []);
+  }
 
   useEffect(() => {
     loadPlayers();
@@ -340,7 +356,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
                 ) : filtered.slice(0, 50).map(p => {
                   const level = getRiskLevel(p.risk_score);
                   return (
-                    <TableRow key={p.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => router.push('/behavioral-risk-intelligence')}>
+                    <TableRow key={p.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => handleViewPlayer(p)}>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full shrink-0 ${level === 'critical' ? 'bg-red-500 animate-pulse' : level === 'high' ? 'bg-orange-500' : level === 'medium' ? 'bg-yellow-500' : 'bg-emerald-500'}`} />
@@ -386,6 +402,18 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
         </CardContent>
       </Card>
     </div>
+
+    <PlayerRiskProfileSheet
+      open={sheetOpen}
+      onOpenChange={setSheetOpen}
+      player={selectedPlayer}
+      signalHistory={signalHistory}
+      onIntervene={() => setSheetOpen(false)}
+      onViewHistory={() => {
+        setSheetOpen(false);
+        router.push('/casino/players');
+      }}
+    />
     </TooltipProvider>
   );
 }
