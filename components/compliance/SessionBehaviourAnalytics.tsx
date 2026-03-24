@@ -54,7 +54,7 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameFilter, setGameFilter] = useState('all');
-  const [periodFilter, setPeriodFilter] = useState('7d');
+  const [periodFilter, setPeriodFilter] = useState('90d');
 
   useEffect(() => {
     loadSessions();
@@ -62,18 +62,22 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
 
   async function loadSessions() {
     setLoading(true);
-    const days = periodFilter === '24h' ? 1 : periodFilter === '7d' ? 7 : periodFilter === '30d' ? 30 : 90;
-    const since = new Date();
-    since.setDate(since.getDate() - days);
 
-    const { data } = await supabase
+    let query = supabase
       .from('gaming_sessions')
       .select('*, players(first_name, last_name, player_id, risk_score, risk_level)')
       .eq('casino_id', casinoId)
-      .gte('start_time', since.toISOString())
       .order('start_time', { ascending: false })
-      .limit(300);
+      .limit(500);
 
+    if (periodFilter !== 'all') {
+      const days = periodFilter === '24h' ? 1 : periodFilter === '7d' ? 7 : periodFilter === '30d' ? 30 : 90;
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      query = query.gte('start_time', since.toISOString());
+    }
+
+    const { data } = await query;
     setSessions(data || []);
     setLoading(false);
   }
@@ -153,6 +157,7 @@ export function SessionBehaviourAnalytics({ casinoId }: SessionBehaviourAnalytic
               <SelectItem value="7d">Last 7 days</SelectItem>
               <SelectItem value="30d">Last 30 days</SelectItem>
               <SelectItem value="90d">Last 90 days</SelectItem>
+              <SelectItem value="all">All time</SelectItem>
             </SelectContent>
           </Select>
           <Select value={gameFilter} onValueChange={setGameFilter}>
