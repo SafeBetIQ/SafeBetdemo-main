@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,9 +11,9 @@ import { Progress } from '@/components/ui/progress';
 import { Users, TriangleAlert as AlertTriangle, TrendingUp, TrendingDown, Search, Eye, RefreshCw, Activity, ArrowUpRight, Minus, ChevronRight, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
+import { PlayerHistorySheet } from '@/components/PlayerHistorySheet';
 import { InterventionModal, type InterventionData } from '@/components/InterventionModal';
 import { toast } from 'sonner';
 import {
@@ -73,6 +73,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
   const [signalHistory, setSignalHistory] = useState<any[]>([]);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
 
@@ -450,19 +451,26 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
       }}
       onViewHistory={() => {
         setSheetOpen(false);
-        router.push('/casino/players');
+        setHistorySheetOpen(true);
       }}
     />
 
     {selectedPlayer && (
-      <InterventionModal
-        open={interventionModalOpen}
-        onOpenChange={setInterventionModalOpen}
-        playerName={`${selectedPlayer.first_name} ${selectedPlayer.last_name}`}
-        riskScore={selectedPlayer.risk_score || 0}
-        triggerReason={`Manual intervention — Risk Score: ${selectedPlayer.risk_score || 'N/A'}`}
-        onSubmit={handleSendIntervention}
-      />
+      <>
+        <PlayerHistorySheet
+          open={historySheetOpen}
+          onOpenChange={setHistorySheetOpen}
+          player={selectedPlayer}
+        />
+        <InterventionModal
+          open={interventionModalOpen}
+          onOpenChange={setInterventionModalOpen}
+          playerName={`${selectedPlayer.first_name} ${selectedPlayer.last_name}`}
+          riskScore={selectedPlayer.risk_score || 0}
+          triggerReason={`Manual intervention — Risk Score: ${selectedPlayer.risk_score || 'N/A'}`}
+          onSubmit={handleSendIntervention}
+        />
+      </>
     )}
     </TooltipProvider>
   );

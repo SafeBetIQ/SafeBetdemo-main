@@ -33,6 +33,7 @@ import { PersonaShiftChart } from '@/components/PersonaShiftChart';
 import { ImpulseVsIntentionTable } from '@/components/ImpulseVsIntentionTable';
 import { RiskSignalBreakdown } from '@/components/RiskSignalBreakdown';
 import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
+import { PlayerHistorySheet } from '@/components/PlayerHistorySheet';
 import { InterventionModal } from '@/components/InterventionModal';
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
 import { SelfExclusionNetwork } from '@/components/SelfExclusionNetwork';
@@ -87,6 +88,7 @@ export default function BehavioralRiskIntelligencePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerSheetOpen, setPlayerSheetOpen] = useState(false);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
   const [playerSignalHistory, setPlayerSignalHistory] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -883,25 +885,32 @@ export default function BehavioralRiskIntelligencePage() {
           }}
           onViewHistory={() => {
             setPlayerSheetOpen(false);
-            router.push('/casino/players');
+            setHistorySheetOpen(true);
           }}
         />
 
         {/* Intervention Modal */}
         {selectedPlayer && (
-          <InterventionModal
-            open={interventionModalOpen}
-            onOpenChange={setInterventionModalOpen}
-            playerName={`${selectedPlayer.first_name || ''} ${selectedPlayer.last_name || ''}`.trim()}
-            riskScore={selectedPlayer.risk_score || 0}
-            triggerReason={`Risk score of ${selectedPlayer.risk_score || 0} — ${
-              getRiskConfig(selectedPlayer.risk_score || 0).label
-            } level detected during active session`}
-            onSubmit={() => {
-              setInterventionModalOpen(false);
-              loadInterventions();
-            }}
-          />
+          <>
+            <PlayerHistorySheet
+              open={historySheetOpen}
+              onOpenChange={setHistorySheetOpen}
+              player={selectedPlayer}
+            />
+            <InterventionModal
+              open={interventionModalOpen}
+              onOpenChange={setInterventionModalOpen}
+              playerName={`${selectedPlayer.first_name || ''} ${selectedPlayer.last_name || ''}`.trim()}
+              riskScore={selectedPlayer.risk_score || 0}
+              triggerReason={`Risk score of ${selectedPlayer.risk_score || 0} — ${
+                getRiskConfig(selectedPlayer.risk_score || 0).label
+              } level detected during active session`}
+              onSubmit={() => {
+                setInterventionModalOpen(false);
+                loadInterventions();
+              }}
+            />
+          </>
         )}
       </TooltipProvider>
     </DashboardLayout>
