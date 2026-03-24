@@ -17,7 +17,6 @@ import {
 interface ComplianceMetrics {
   interventionRate: number;
   exclusionCounselingRate: number;
-  staffTrainingRate: number;
   nrgpReportingRate: number;
   riskMonitoringCoverage: number;
   breachResponseTime: number;
@@ -75,15 +74,6 @@ const REPORTS = [
     status: 'ready',
   },
   {
-    id: 'staff_training',
-    title: 'Staff Training Compliance',
-    description: 'Responsible gambling training completion rates per staff member and module',
-    category: 'HR',
-    frequency: 'Quarterly',
-    lastGenerated: '2026-01-01',
-    status: 'ready',
-  },
-  {
     id: 'audit_trail',
     title: 'System Audit Trail',
     description: 'Complete audit log of all system actions, interventions, and policy changes',
@@ -98,14 +88,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   Regulatory: 'bg-blue-100 text-blue-700',
   Operational: 'bg-slate-100 text-slate-700',
   Risk:        'bg-orange-100 text-orange-700',
-  HR:          'bg-yellow-100 text-yellow-700',
 };
 
 const COMPLIANCE_ITEMS = [
-  { label: 'Player Risk Monitoring', requirement: 'All active players must have current risk scores', weight: 20 },
-  { label: 'Intervention Response Rate', requirement: 'All critical risk (80+) players must receive intervention within 24hrs', weight: 25 },
-  { label: 'Self-Exclusion Management', requirement: 'Active exclusions must be enforced with counselling tracking', weight: 20 },
-  { label: 'Staff Training Compliance', requirement: 'All customer-facing staff must complete annual responsible gambling training', weight: 15 },
+  { label: 'Player Risk Monitoring', requirement: 'All active players must have current risk scores', weight: 25 },
+  { label: 'Intervention Response Rate', requirement: 'All critical risk (80+) players must receive intervention within 24hrs', weight: 30 },
+  { label: 'Self-Exclusion Management', requirement: 'Active exclusions must be enforced with counselling tracking', weight: 25 },
   { label: 'NRGP Reporting', requirement: 'Monthly reports submitted to National Responsible Gambling Programme', weight: 10 },
   { label: 'Session Monitoring', requirement: 'Unusual session patterns must be flagged and reviewed', weight: 10 },
 ];
@@ -114,7 +102,6 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
   const [metrics, setMetrics] = useState<ComplianceMetrics>({
     interventionRate: 0,
     exclusionCounselingRate: 0,
-    staffTrainingRate: 0,
     nrgpReportingRate: 0,
     riskMonitoringCoverage: 0,
     breachResponseTime: 0,
@@ -128,19 +115,17 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
 
   async function loadMetrics() {
     setLoading(true);
-    const [playersRes, intRes, exclusionsRes, trainingRes] = await Promise.all([
+    const [playersRes, intRes, exclusionsRes] = await Promise.all([
       supabase.from('players').select('risk_score', { count: 'exact', head: false }).eq('casino_id', casinoId),
       supabase.from('player_protection_interventions').select('dispatch_status, risk_score_at_trigger').eq('casino_id', casinoId),
       supabase.from('self_exclusion_registry')
         .select('counseling_sessions_completed, counseling_sessions_required, status')
         .eq('casino_id', casinoId),
-      supabase.from('training_enrollments').select('status', { count: 'exact', head: false }).eq('casino_id', casinoId),
     ]);
 
     const players = playersRes.data || [];
     const interventions = intRes.data || [];
     const exclusions = exclusionsRes.data || [];
-    const enrollments = trainingRes.data || [];
 
     const criticalPlayers = players.filter(p => p.risk_score >= 80).length;
     const criticalInterventions = interventions.filter(i => i.risk_score_at_trigger >= 80).length;
@@ -154,18 +139,12 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
       ? Math.round((withCounselling / activeExclusions.length) * 100)
       : 100;
 
-    const completed = enrollments.filter(e => e.status === 'completed').length;
-    const staffTrainingRate = enrollments.length > 0
-      ? Math.round((completed / enrollments.length) * 100)
-      : 0;
-
     const scoredPlayers = players.filter(p => p.risk_score !== null && p.risk_score !== undefined).length;
     const riskMonitoringCoverage = players.length > 0 ? Math.round((scoredPlayers / players.length) * 100) : 0;
 
     setMetrics({
       interventionRate,
       exclusionCounselingRate,
-      staffTrainingRate,
       nrgpReportingRate: 95,
       riskMonitoringCoverage,
       breachResponseTime: 3.2,
@@ -173,22 +152,22 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
     setLoading(false);
   }
 
+  const responseTimeScore = Math.min(100, Math.round((10 - Math.min(10, metrics.breachResponseTime)) * 10));
+
   const overallScore = Math.round(
-    (metrics.interventionRate * 0.25 +
-     metrics.exclusionCounselingRate * 0.20 +
-     metrics.staffTrainingRate * 0.15 +
-     metrics.nrgpReportingRate * 0.10 +
-     metrics.riskMonitoringCoverage * 0.20 +
-     Math.min(100, Math.round((10 - Math.min(10, metrics.breachResponseTime)) * 10)) * 0.10)
+    metrics.riskMonitoringCoverage * 0.25 +
+    metrics.interventionRate * 0.30 +
+    metrics.exclusionCounselingRate * 0.25 +
+    metrics.nrgpReportingRate * 0.10 +
+    responseTimeScore * 0.10
   );
 
   const radarData = [
     { axis: 'Risk Monitoring', score: metrics.riskMonitoringCoverage },
     { axis: 'Interventions',   score: metrics.interventionRate },
     { axis: 'Self-Exclusion',  score: metrics.exclusionCounselingRate },
-    { axis: 'Staff Training',  score: metrics.staffTrainingRate },
     { axis: 'NRGP Reporting',  score: metrics.nrgpReportingRate },
-    { axis: 'Response Time',   score: Math.min(100, Math.round((10 - Math.min(10, metrics.breachResponseTime)) * 10)) },
+    { axis: 'Response Time',   score: responseTimeScore },
   ];
 
   function handleDownload(reportId: string, title: string) {
@@ -222,7 +201,7 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
           <TooltipTrigger asChild>
             <Info className="absolute top-4 right-4 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
           </TooltipTrigger>
-          <TooltipContent className="max-w-xs"><p>Weighted compliance score across six regulatory obligations under the National Gambling Act and SARGF guidelines. A score below 70% requires immediate remediation action.</p></TooltipContent>
+          <TooltipContent className="max-w-xs"><p>Weighted compliance score across five regulatory obligations under the National Gambling Act and SARGF guidelines. A score below 70% requires immediate remediation action.</p></TooltipContent>
         </Tooltip>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
@@ -253,11 +232,11 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
             <TooltipTrigger asChild>
               <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>Visual representation of compliance performance across six dimensions. A balanced, outward shape indicates strong all-round compliance.</p></TooltipContent>
+            <TooltipContent className="max-w-xs"><p>Visual representation of compliance performance across five dimensions. A balanced, outward shape indicates strong all-round compliance.</p></TooltipContent>
           </Tooltip>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Compliance Radar</CardTitle>
-            <CardDescription className="text-xs">Six-dimension compliance assessment</CardDescription>
+            <CardDescription className="text-xs">Five-dimension compliance assessment</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -286,7 +265,6 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
               { label: 'Risk Monitoring Coverage', value: metrics.riskMonitoringCoverage, suffix: '%' },
               { label: 'Intervention Coverage (Critical Players)', value: metrics.interventionRate, suffix: '%' },
               { label: 'Counselling Compliance (Self-Excluded)', value: metrics.exclusionCounselingRate, suffix: '%' },
-              { label: 'Staff Training Completion', value: metrics.staffTrainingRate, suffix: '%' },
               { label: 'NRGP Reporting Rate', value: metrics.nrgpReportingRate, suffix: '%' },
               { label: 'Avg Breach Response Time', value: metrics.breachResponseTime, suffix: ' hrs', isTime: true },
             ].map(m => (
@@ -326,9 +304,8 @@ export function ComplianceReports({ casinoId, casinoName }: ComplianceReportsPro
                 metrics.riskMonitoringCoverage,
                 metrics.interventionRate,
                 metrics.exclusionCounselingRate,
-                metrics.staffTrainingRate,
                 metrics.nrgpReportingRate,
-                Math.min(100, Math.round((10 - Math.min(10, metrics.breachResponseTime)) * 10)),
+                responseTimeScore,
               ];
               const v = metricValues[idx];
               const status = v >= 85 ? 'compliant' : v >= 70 ? 'partial' : 'action_required';
