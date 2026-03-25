@@ -58,7 +58,7 @@ export default function WellbeingGamesPage() {
         .eq('casino_id', casinoId)
         .order('started_at', { ascending: false })
         .limit(10),
-      supabase.from('wellbeing_game_invitations').select('status').eq('player_id', casinoId),
+      supabase.from('wellbeing_game_invitations').select('status').eq('casino_id', casinoId),
       supabase
         .from('wellbeing_game_insights')
         .select('*')
