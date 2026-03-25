@@ -36,18 +36,12 @@ export default function WellbeingGamesPage() {
   async function loadDashboardData() {
     setLoading(true);
 
-    const { data: staffData } = await supabase
-      .from('staff')
-      .select('casino_id')
-      .eq('auth_user_id', user?.id)
-      .maybeSingle();
+    const casinoId = (user as any)?.casino_id;
 
-    if (!staffData) {
+    if (!casinoId) {
       setLoading(false);
       return;
     }
-
-    const casinoId = staffData.casino_id;
 
     const [conceptsRes, campaignsRes, sessionsRes, invitationsRes, insightsRes] = await Promise.all([
       supabase.from('wellbeing_game_concepts').select('*').eq('active', true),
@@ -94,15 +88,10 @@ export default function WellbeingGamesPage() {
   }
 
   async function exportReport() {
-    const { data: staffData } = await supabase
-      .from('staff')
-      .select('casino_id, casino:casinos(name)')
-      .eq('auth_user_id', user?.id)
-      .maybeSingle();
+    const casinoId = (user as any)?.casino_id;
+    if (!casinoId) return;
 
-    if (!staffData) return;
-
-    const report = await generateWellbeingReport(staffData.casino_id, 'casino');
+    const report = await generateWellbeingReport(casinoId, 'casino');
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -113,18 +102,13 @@ export default function WellbeingGamesPage() {
   }
 
   async function sendTestInvitation(gameConceptId: string) {
-    const { data: staffData } = await supabase
-      .from('staff')
-      .select('casino_id')
-      .eq('auth_user_id', user?.id)
-      .maybeSingle();
-
-    if (!staffData) return;
+    const casinoId = (user as any)?.casino_id;
+    if (!casinoId) return;
 
     const { data: players } = await supabase
       .from('players')
       .select('id')
-      .eq('casino_id', staffData.casino_id)
+      .eq('casino_id', casinoId)
       .limit(1)
       .maybeSingle();
 
