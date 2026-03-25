@@ -71,7 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'Nova IQ (Wellbeing)',        href: '/casino/wellbeing-games',         icon: Shield,           roles: ['casino_admin', 'super_admin'] },
       { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,             roles: ['casino_admin'] },
-      { title: 'SafePlay Connect (API)',     href: '/safeplay-connect',               icon: Globe,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'SafePlay Connect (API)',     href: '/casino/safeplay-connect',        icon: Globe,            roles: ['casino_admin', 'super_admin'] },
     ],
   },
   {
