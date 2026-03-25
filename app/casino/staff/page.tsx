@@ -329,7 +329,7 @@ export default function StaffListPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="Staff Directory"
           subtitle="View and manage all staff members"
@@ -344,7 +344,7 @@ export default function StaffListPage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6 space-y-6">
+        <div className="flex-1 p-6 min-w-0 space-y-6">
 
           <Card>
             <CardContent className="p-6">

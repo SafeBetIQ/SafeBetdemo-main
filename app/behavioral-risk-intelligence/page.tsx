@@ -315,7 +315,7 @@ export default function BehavioralRiskIntelligencePage() {
     <ModuleGuard slug="behavioural-risk-intelligence" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
-        <div className="flex h-full flex-col">
+        <div className="flex min-h-full flex-col">
           <PageHeader
             title="Behavioral Risk Intelligence Engine"
             subtitle="Multi-signal player risk analysis — session, deposit, loss escalation, bet intensity & cross-operator"
@@ -334,7 +334,7 @@ export default function BehavioralRiskIntelligencePage() {
             }
           />
 
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 p-6 min-w-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <TabsList className="grid w-full grid-cols-5 max-w-3xl">
                 <TabsTrigger value="live-monitor">
@@ -506,7 +506,7 @@ export default function BehavioralRiskIntelligencePage() {
                 </div>
 
                 {/* Players Table */}
-                <div className="rounded-lg border bg-card overflow-hidden">
+                <div className="rounded-lg border bg-card overflow-x-auto">
                   <div className="px-4 py-3 border-b flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-sm">Active Players — Risk Monitor</h3>

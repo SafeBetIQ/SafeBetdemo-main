@@ -157,7 +157,7 @@ export default function PlayersPage() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="Players"
           subtitle="View and manage all casino players"
@@ -169,7 +169,7 @@ export default function PlayersPage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6 min-w-0">
           <div className="space-y-6">
             {/* Statistics Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

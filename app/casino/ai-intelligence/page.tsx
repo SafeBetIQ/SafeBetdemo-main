@@ -160,7 +160,7 @@ export default function AIIntelligencePage() {
     <ModuleGuard slug="ai-risk-forecasting" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="AI Intelligence System"
           subtitle="Explainable AI combining live casino data with Nova IQ behavioral assessments"
@@ -178,7 +178,7 @@ export default function AIIntelligencePage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6 min-w-0">
           {error && (
             <Card className="border-red-200 bg-red-50 mb-6">
               <CardContent className="pt-6">

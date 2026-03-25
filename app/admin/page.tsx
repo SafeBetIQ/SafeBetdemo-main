@@ -182,7 +182,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col min-h-full">
 
         {/* Header */}
         <div className="border-b bg-card px-6 py-4">
@@ -239,7 +239,7 @@ export default function SuperAdminDashboard() {
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 p-6 min-w-0">
 
               {/* OVERVIEW TAB */}
               <TabsContent value="overview" className="mt-0 space-y-6">
@@ -393,7 +393,7 @@ export default function SuperAdminDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-lg border overflow-hidden">
+                    <div className="rounded-lg border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/30">
@@ -449,7 +449,7 @@ export default function SuperAdminDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-lg border overflow-hidden">
+                    <div className="rounded-lg border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/30">

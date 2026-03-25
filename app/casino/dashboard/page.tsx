@@ -140,7 +140,7 @@ export default function CasinoDashboardPage() {
     <ModuleGuard slug="behavioural-risk-intelligence" fallbackHref="/casino/dashboard">
     <CasinoAdminGuard>
       <DashboardLayout>
-        <div className="flex h-full flex-col">
+        <div className="flex min-h-full flex-col">
 
           {/* ── Header ── */}
           <div className="border-b bg-card px-6 py-4">
@@ -232,7 +232,7 @@ export default function CasinoDashboardPage() {
               </div>
 
               {/* Tab content */}
-              <div className="flex-1 overflow-auto p-6">
+              <div className="flex-1 p-6 min-w-0">
 
                 {/* ── Player Risk Monitoring ── */}
                 <TabsContent value="risk-monitoring" className="mt-0 space-y-0">

@@ -151,7 +151,7 @@ export default function ProvincialRegulatorDashboard() {
   return (
     <ModuleGuard slug="regulator-intelligence" fallbackHref="/regulator/provincial-dashboard">
     <DashboardLayout>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
 
         {/* Header */}
         <div className="border-b bg-card px-6 py-4">
@@ -237,7 +237,7 @@ export default function ProvincialRegulatorDashboard() {
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 p-6 min-w-0">
 
               {/* Overview */}
               <TabsContent value="overview" className="mt-0 space-y-6">

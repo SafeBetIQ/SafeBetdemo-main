@@ -139,7 +139,7 @@ export default function NationalRegulatorDashboard() {
   return (
     <ModuleGuard slug="regulator-intelligence" fallbackHref="/regulator/dashboard">
     <DashboardLayout>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
 
         {/* Header */}
         <div className="border-b bg-card px-6 py-4">
@@ -220,7 +220,7 @@ export default function NationalRegulatorDashboard() {
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-auto p-6">
+            <div className="flex-1 p-6 min-w-0">
 
               {/* Overview */}
               <TabsContent value="overview" className="mt-0 space-y-6">
@@ -289,7 +289,7 @@ export default function NationalRegulatorDashboard() {
                         Full View
                       </Button>
                     </div>
-                    <div className="rounded-lg border overflow-hidden">
+                    <div className="rounded-lg border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/30">
