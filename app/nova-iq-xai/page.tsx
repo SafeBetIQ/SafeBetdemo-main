@@ -143,7 +143,7 @@ export default function NovaIQXAIPage() {
                 <Brain className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">Nova IQ XAI Intelligence System</h1>
+                <h1 className="text-4xl font-bold text-gray-900">Nova IQ Intelligence Intelligence System</h1>
                 <p className="text-lg text-gray-600 mt-1">
                   Explainable AI combining live casino data with behavioral assessments
                 </p>
@@ -381,7 +381,7 @@ export default function NovaIQXAIPage() {
                 <Brain className="h-5 w-5 text-purple-600" />
                 System Architecture
               </CardTitle>
-              <CardDescription>How Nova IQ XAI works with SafeBet IQ intervention engine</CardDescription>
+              <CardDescription>How Nova IQ Intelligence works with SafeBet IQ intervention engine</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
