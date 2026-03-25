@@ -15,7 +15,6 @@ import { PageHeader } from '@/components/saas/PageHeader';
 import { KPICard } from '@/components/saas/KPICard';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
 
 export default function WellbeingGamesPage() {
   const { user } = useAuth();
@@ -169,19 +168,15 @@ export default function WellbeingGamesPage() {
     return 'High Risk';
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-muted-foreground text-sm">Loading Nova IQ dashboard...</div>
-      </div>
-    );
-  }
-
   return (
-    <CasinoAdminGuard>
-      <DashboardLayout>
-    <TooltipProvider>
+    <DashboardLayout>
+      <TooltipProvider>
       <div className="flex flex-col min-h-full">
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="text-muted-foreground text-sm">Loading Nova IQ dashboard...</div>
+          </div>
+        ) : (<>
         <PageHeader
           title="Nova IQ (Wellbeing)"
           subtitle="Off-platform behavioral check-ins for proactive responsible gambling"
@@ -514,9 +509,9 @@ export default function WellbeingGamesPage() {
           open={showSessionViewer}
           onClose={() => setShowSessionViewer(false)}
         />
+        </>)}
       </div>
-    </TooltipProvider>
-      </DashboardLayout>
-    </CasinoAdminGuard>
+      </TooltipProvider>
+    </DashboardLayout>
   );
 }
