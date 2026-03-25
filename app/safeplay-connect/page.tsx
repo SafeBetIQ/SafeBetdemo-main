@@ -135,6 +135,14 @@ export default function SafeBetIQConnectPublicPage() {
     };
   }, []);
 
+  if (loading || user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-400 border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black">
       <MainNavigation />
