@@ -14,6 +14,8 @@ import { SendNovaIQInvitation } from '@/components/SendNovaIQInvitation';
 import { PageHeader } from '@/components/saas/PageHeader';
 import { KPICard } from '@/components/saas/KPICard';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
 
 export default function WellbeingGamesPage() {
   const { user } = useAuth();
@@ -176,6 +178,8 @@ export default function WellbeingGamesPage() {
   }
 
   return (
+    <CasinoAdminGuard>
+      <DashboardLayout>
     <TooltipProvider>
       <div className="flex flex-col min-h-full">
         <PageHeader
@@ -512,5 +516,7 @@ export default function WellbeingGamesPage() {
         />
       </div>
     </TooltipProvider>
+      </DashboardLayout>
+    </CasinoAdminGuard>
   );
 }
