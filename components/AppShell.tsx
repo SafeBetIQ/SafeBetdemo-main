@@ -48,7 +48,6 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Player Risk Monitor',        href: '/casino/players',                 icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Intervention Engine',        href: '/casino/interventions',           icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Session Analytics',          href: '/behavioral-risk-intelligence',   icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'AI Intelligence',            href: '/casino/ai-intelligence',         icon: Brain,            roles: ['casino_admin', 'super_admin'] },
       { title: 'Nova IQ XAI',                href: '/casino/nova-iq-xai',             icon: Eye,              roles: ['casino_admin', 'super_admin'] },
     ],
   },
