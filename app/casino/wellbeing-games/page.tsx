@@ -7,25 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import {
-  Mail,
-  MessageSquare,
-  TrendingUp,
-  Users,
-  Clock,
-  Target,
-  AlertCircle,
-  CheckCircle2,
-  Send,
-  BarChart3,
-  Eye,
-  FileDown,
-  Lightbulb,
-} from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Mail, MessageSquare, TrendingUp, Users, Clock, Target, CircleCheck as CheckCircle2, Send, ChartBar as BarChart3, Eye, FileDown, Lightbulb, Brain, Sparkles, Activity } from 'lucide-react';
 import DetailedSessionViewer from '@/components/wellbeing-games/DetailedSessionViewer';
 import { generateWellbeingReport } from '@/lib/wellbeingGameAnalytics';
 import { SendNovaIQInvitation } from '@/components/SendNovaIQInvitation';
+import { PageHeader } from '@/components/saas/PageHeader';
+import { KPICard } from '@/components/saas/KPICard';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function WellbeingGamesPage() {
   const { user } = useAuth();
@@ -51,7 +39,7 @@ export default function WellbeingGamesPage() {
       .from('staff')
       .select('casino_id')
       .eq('auth_user_id', user?.id)
-      .single();
+      .maybeSingle();
 
     if (!staffData) {
       setLoading(false);
@@ -65,11 +53,7 @@ export default function WellbeingGamesPage() {
       supabase.from('wellbeing_game_campaigns').select('*').eq('casino_id', casinoId),
       supabase
         .from('wellbeing_game_sessions')
-        .select(`
-          *,
-          player:players(first_name, last_name),
-          game_concept:wellbeing_game_concepts(name)
-        `)
+        .select(`*, player:players(first_name, last_name), game_concept:wellbeing_game_concepts(name)`)
         .eq('casino_id', casinoId)
         .order('started_at', { ascending: false })
         .limit(10),
@@ -79,7 +63,7 @@ export default function WellbeingGamesPage() {
         .select('*')
         .eq('casino_id', casinoId)
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(5),
     ]);
 
     setGameConcepts(conceptsRes.data || []);
@@ -90,13 +74,12 @@ export default function WellbeingGamesPage() {
     const invitations = invitationsRes.data || [];
     const totalInvitations = invitations.length;
     const completedInvitations = invitations.filter(i => i.status === 'completed').length;
-    const openedInvitations = invitations.filter(i => i.status === 'opened').length;
     const engagementRate = totalInvitations > 0 ? (completedInvitations / totalInvitations) * 100 : 0;
 
     setStats({
       totalInvitations,
       completedInvitations,
-      openedInvitations,
+      openedInvitations: invitations.filter(i => i.status === 'opened').length,
       engagementRate: Math.round(engagementRate),
       activeCampaigns: campaignsRes.data?.filter(c => c.active).length || 0,
     });
@@ -114,12 +97,11 @@ export default function WellbeingGamesPage() {
       .from('staff')
       .select('casino_id, casino:casinos(name)')
       .eq('auth_user_id', user?.id)
-      .single();
+      .maybeSingle();
 
     if (!staffData) return;
 
     const report = await generateWellbeingReport(staffData.casino_id, 'casino');
-
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -134,7 +116,7 @@ export default function WellbeingGamesPage() {
       .from('staff')
       .select('casino_id')
       .eq('auth_user_id', user?.id)
-      .single();
+      .maybeSingle();
 
     if (!staffData) return;
 
@@ -143,7 +125,7 @@ export default function WellbeingGamesPage() {
       .select('id')
       .eq('casino_id', staffData.casino_id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (!players) return;
 
@@ -173,350 +155,362 @@ export default function WellbeingGamesPage() {
     }
   }
 
+  function getRiskBadgeVariant(bri: number) {
+    if (bri < 40) return 'success';
+    if (bri < 70) return 'warning';
+    return 'destructive';
+  }
+
+  function getRiskLabel(bri: number) {
+    if (bri < 40) return 'Low Risk';
+    if (bri < 70) return 'Moderate';
+    return 'High Risk';
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-6">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-gray-400">Loading wellbeing games dashboard...</p>
-        </div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-muted-foreground text-sm">Loading Nova IQ dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Nova IQ</h1>
-            <p className="text-gray-400">
-              Off-platform behavioral check-ins for proactive responsible gambling
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <SendNovaIQInvitation
-              casinoId={user?.casino_id}
-              onSuccess={loadDashboardData}
+    <TooltipProvider>
+      <div className="flex flex-col min-h-full">
+        <PageHeader
+          title="Nova IQ (Wellbeing)"
+          subtitle="Off-platform behavioral check-ins for proactive responsible gambling"
+          actions={
+            <div className="flex gap-2">
+              <SendNovaIQInvitation
+                casinoId={user?.casino_id}
+                onSuccess={loadDashboardData}
+              />
+              <Button
+                onClick={exportReport}
+                variant="outline"
+                size="sm"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Export Report
+              </Button>
+            </div>
+          }
+        />
+
+        <div className="flex-1 p-6 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Total Invitations"
+              value={stats?.totalInvitations ?? 0}
+              icon={Send}
+              tooltip="Total Nova IQ check-in invitations sent to players"
             />
-            <Button
-              onClick={exportReport}
-              variant="outline"
-              className="border-slate-700 hover:bg-slate-800 text-white"
-            >
-              <FileDown className="w-4 h-4 mr-2" />
-              Export Report
-            </Button>
+            <KPICard
+              title="Engagement Rate"
+              value={stats?.engagementRate ?? 0}
+              valueSuffix="%"
+              icon={Target}
+              tooltip="Percentage of invited players who completed a session"
+            />
+            <KPICard
+              title="Completed Sessions"
+              value={stats?.completedInvitations ?? 0}
+              icon={CheckCircle2}
+              tooltip="Number of fully completed wellbeing game sessions"
+            />
+            <KPICard
+              title="Active Campaigns"
+              value={stats?.activeCampaigns ?? 0}
+              icon={BarChart3}
+              tooltip="Currently running automated invitation campaigns"
+            />
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Total Invitations</CardTitle>
-              <Send className="w-4 h-4 text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{stats?.totalInvitations || 0}</div>
-              <p className="text-xs text-gray-500 mt-1">Sent to players</p>
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="games" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="games">Available Tools</TabsTrigger>
+              <TabsTrigger value="sessions">Recent Sessions</TabsTrigger>
+              <TabsTrigger value="insights">AI Insights</TabsTrigger>
+              <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            </TabsList>
 
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Engagement Rate</CardTitle>
-              <Target className="w-4 h-4 text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{stats?.engagementRate || 0}%</div>
-              <p className="text-xs text-gray-500 mt-1">Completion rate</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Completed Games</CardTitle>
-              <CheckCircle2 className="w-4 h-4 text-purple-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{stats?.completedInvitations || 0}</div>
-              <p className="text-xs text-gray-500 mt-1">Successfully finished</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Active Campaigns</CardTitle>
-              <BarChart3 className="w-4 h-4 text-orange-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{stats?.activeCampaigns || 0}</div>
-              <p className="text-xs text-gray-500 mt-1">Running now</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="games" className="space-y-4">
-          <TabsList className="bg-slate-900 border border-slate-800">
-            <TabsTrigger value="games" className="data-[state=active]:bg-slate-800">
-              Available Tools
-            </TabsTrigger>
-            <TabsTrigger value="sessions" className="data-[state=active]:bg-slate-800">
-              Recent Sessions
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="data-[state=active]:bg-slate-800">
-              AI Insights
-            </TabsTrigger>
-            <TabsTrigger value="campaigns" className="data-[state=active]:bg-slate-800">
-              Campaigns
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="games" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {gameConcepts.map((game) => (
-                <Card key={game.id} className="bg-slate-900 border-slate-800">
-                  <CardHeader>
-                    <CardTitle className="text-white">{game.name}</CardTitle>
-                    <CardDescription className="text-gray-400">
-                      {game.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-300">{game.duration_minutes} minutes</span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {game.mechanics_type.replace('_', ' ')}
-                      </Badge>
-                      <Button
-                        onClick={() => sendTestInvitation(game.id)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                        size="sm"
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Send Test Invitation
-                      </Button>
-                    </div>
+            <TabsContent value="games" className="space-y-4">
+              {gameConcepts.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                    <Brain className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-heading-3 mb-2">No game tools available</h3>
+                    <p className="text-body text-muted-foreground max-w-sm">
+                      Wellbeing game concepts will appear here once they are configured.
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="sessions" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-white">Recent Game Sessions</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Latest player wellbeing check-ins
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentSessions.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No sessions yet</p>
-                  ) : (
-                    recentSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className="flex items-center justify-between p-3 bg-slate-800 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="text-white font-medium">
-                            {session.player?.first_name} {session.player?.last_name}
-                          </p>
-                          <p className="text-sm text-gray-400">{session.game_concept?.name}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            {session.behaviour_risk_index !== null ? (
-                              <Badge
-                                variant={
-                                  session.behaviour_risk_index < 40
-                                    ? 'default'
-                                    : session.behaviour_risk_index < 70
-                                    ? 'secondary'
-                                    : 'destructive'
-                                }
-                              >
-                                Risk: {Math.round(session.behaviour_risk_index)}
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">Processing</Badge>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">
-                              {new Date(session.started_at).toLocaleDateString()}
-                            </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {gameConcepts.map((game) => (
+                    <Card key={game.id} className="card-elevation flex flex-col">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                            <Sparkles className="h-5 w-5" />
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => viewSessionDetails(session.id)}
-                            className="border-slate-700 hover:bg-slate-700"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="insights" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-yellow-400" />
-                  Recent AI Insights
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  AI-generated behavioral insights from player sessions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {insights.length === 0 ? (
-                    <p className="text-gray-500 text-sm">No insights generated yet</p>
-                  ) : (
-                    insights.map((insight) => (
-                      <div
-                        key={insight.id}
-                        className="p-4 bg-slate-800 rounded-lg border border-slate-700"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="text-white font-semibold mb-1">{insight.title}</h4>
-                            <p className="text-sm text-gray-400">{insight.description}</p>
-                          </div>
-                          <Badge
-                            variant={
-                              insight.severity === 'info'
-                                ? 'default'
-                                : insight.severity === 'warning'
-                                ? 'secondary'
-                                : 'destructive'
-                            }
-                            className="ml-3"
-                          >
-                            {insight.severity}
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {game.mechanics_type?.replace(/_/g, ' ')}
                           </Badge>
                         </div>
-                        {insight.recommendation && (
-                          <div className="mt-3 p-3 bg-blue-900/20 border border-blue-500/30 rounded">
-                            <p className="text-sm text-blue-300">
-                              <strong>Recommendation:</strong> {insight.recommendation}
-                            </p>
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-500 mt-2">
-                          {new Date(insight.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    ))
-                  )}
+                        <CardTitle className="text-heading-3 mt-3">{game.name}</CardTitle>
+                        <CardDescription className="text-body">
+                          {game.description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="mt-auto space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4" />
+                          <span>{game.duration_minutes} minutes</span>
+                        </div>
+                        <Button
+                          onClick={() => sendTestInvitation(game.id)}
+                          className="w-full"
+                          size="sm"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          Send Test Invitation
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
+            </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-4">
-            <Card className="bg-slate-900 border-slate-800">
-              <CardHeader>
-                <CardTitle className="text-white">Active Campaigns</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Manage your wellbeing game campaigns
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {campaigns.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 mb-4">No campaigns configured yet</p>
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Create Campaign
-                      </Button>
+            <TabsContent value="sessions" className="space-y-4">
+              <Card className="card-elevation">
+                <CardHeader>
+                  <CardTitle className="text-heading-3 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-primary" />
+                    Recent Game Sessions
+                  </CardTitle>
+                  <CardDescription>Latest player wellbeing check-ins and behavioral scores</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recentSessions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Activity className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="text-body text-muted-foreground">No sessions recorded yet</p>
                     </div>
                   ) : (
-                    campaigns.map((campaign) => (
-                      <div
-                        key={campaign.id}
-                        className="flex items-center justify-between p-3 bg-slate-800 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="text-white font-medium">{campaign.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {campaign.trigger_type.replace('_', ' ')}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {campaign.channel === 'email' ? <Mail className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
-                              {campaign.channel}
-                            </Badge>
+                    <div className="space-y-2">
+                      {recentSessions.map((session) => (
+                        <div
+                          key={session.id}
+                          className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {session.player?.first_name} {session.player?.last_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{session.game_concept?.name}</p>
+                          </div>
+                          <div className="flex items-center gap-3 ml-4 shrink-0">
+                            <div className="text-right">
+                              {session.behaviour_risk_index !== null ? (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  session.behaviour_risk_index < 40
+                                    ? 'bg-success/10 text-success'
+                                    : session.behaviour_risk_index < 70
+                                    ? 'bg-warning/10 text-warning'
+                                    : 'bg-destructive/10 text-destructive'
+                                }`}>
+                                  {getRiskLabel(session.behaviour_risk_index)} · {Math.round(session.behaviour_risk_index)}
+                                </span>
+                              ) : (
+                                <Badge variant="secondary">Processing</Badge>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(session.started_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => viewSessionDetails(session.id)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div>
-                          {campaign.active ? (
-                            <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
-                              Active
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Paused</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="insights" className="space-y-4">
+              <Card className="card-elevation">
+                <CardHeader>
+                  <CardTitle className="text-heading-3 flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-primary" />
+                    AI Behavioral Insights
+                  </CardTitle>
+                  <CardDescription>AI-generated insights from player wellbeing sessions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {insights.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Lightbulb className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="text-body text-muted-foreground">No insights generated yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {insights.map((insight) => (
+                        <div
+                          key={insight.id}
+                          className="rounded-lg border border-border bg-muted/20 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <h4 className="text-sm font-semibold text-foreground">{insight.title}</h4>
+                            <Badge
+                              variant={
+                                insight.severity === 'info'
+                                  ? 'secondary'
+                                  : insight.severity === 'warning'
+                                  ? 'outline'
+                                  : 'destructive'
+                              }
+                              className="shrink-0 capitalize"
+                            >
+                              {insight.severity}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{insight.description}</p>
+                          {insight.recommendation && (
+                            <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+                              <p className="text-xs text-foreground">
+                                <span className="font-semibold text-primary">Recommendation: </span>
+                                {insight.recommendation}
+                              </p>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {new Date(insight.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="campaigns" className="space-y-4">
+              <Card className="card-elevation">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-heading-3">Campaigns</CardTitle>
+                      <CardDescription>Automated wellbeing invitation campaigns</CardDescription>
+                    </div>
+                    {campaigns.length > 0 && (
+                      <Button size="sm">Create Campaign</Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {campaigns.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <BarChart3 className="h-10 w-10 text-muted-foreground mb-3" />
+                      <h3 className="text-sm font-semibold mb-1">No campaigns configured</h3>
+                      <p className="text-xs text-muted-foreground mb-4 max-w-sm">
+                        Set up automated campaigns to send Nova IQ invitations based on player behavior triggers.
+                      </p>
+                      <Button size="sm">Create Campaign</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {campaigns.map((campaign) => (
+                        <div
+                          key={campaign.id}
+                          className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{campaign.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {campaign.trigger_type?.replace(/_/g, ' ')}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                {campaign.channel === 'email'
+                                  ? <Mail className="w-3 h-3" />
+                                  : <MessageSquare className="w-3 h-3" />
+                                }
+                                {campaign.channel}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="ml-4 shrink-0">
+                            {campaign.active ? (
+                              <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+                                Active
+                              </span>
+                            ) : (
+                              <Badge variant="secondary">Paused</Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="card-elevation">
+              <CardContent className="p-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
+                  <TrendingUp className="h-5 w-5" />
                 </div>
+                <h3 className="text-sm font-semibold mb-1">Early Detection</h3>
+                <p className="text-xs text-muted-foreground">
+                  Identify behavioral risk patterns before they escalate within the casino environment.
+                </p>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+            <Card className="card-elevation">
+              <CardContent className="p-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success mb-4">
+                  <Users className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1">Proactive Engagement</h3>
+                <p className="text-xs text-muted-foreground">
+                  Reach players in a non-intrusive way outside of the active gambling environment.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="card-elevation">
+              <CardContent className="p-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-info/10 text-info mb-4">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1">Regulator Evidence</h3>
+                <p className="text-xs text-muted-foreground">
+                  Demonstrate proactive responsible gambling compliance to regulatory bodies.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-white">Compliance Benefits</CardTitle>
-            <CardDescription className="text-gray-400">
-              How wellbeing games strengthen your responsible gambling program
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-800 rounded-lg">
-                <TrendingUp className="w-8 h-8 text-blue-400 mb-3" />
-                <h3 className="text-white font-semibold mb-2">Early Detection</h3>
-                <p className="text-sm text-gray-400">
-                  Identify behavioral risk patterns before they escalate
-                </p>
-              </div>
-              <div className="p-4 bg-slate-800 rounded-lg">
-                <Users className="w-8 h-8 text-green-400 mb-3" />
-                <h3 className="text-white font-semibold mb-2">Proactive Engagement</h3>
-                <p className="text-sm text-gray-400">
-                  Reach players outside the casino environment
-                </p>
-              </div>
-              <div className="p-4 bg-slate-800 rounded-lg">
-                <CheckCircle2 className="w-8 h-8 text-purple-400 mb-3" />
-                <h3 className="text-white font-semibold mb-2">Regulator Evidence</h3>
-                <p className="text-sm text-gray-400">
-                  Demonstrate proactive compliance efforts
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <DetailedSessionViewer
+          sessionId={selectedSessionId}
+          open={showSessionViewer}
+          onClose={() => setShowSessionViewer(false)}
+        />
       </div>
-
-      <DetailedSessionViewer
-        sessionId={selectedSessionId}
-        open={showSessionViewer}
-        onClose={() => setShowSessionViewer(false)}
-      />
-    </div>
+    </TooltipProvider>
   );
 }
