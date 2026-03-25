@@ -178,7 +178,7 @@ export default function WellbeingGamesPage() {
           </div>
         ) : (<>
         <PageHeader
-          title="Nova IQ (Wellbeing)"
+          title="Nova IQ"
           subtitle="Off-platform behavioral check-ins for proactive responsible gambling"
           actions={
             <div className="flex gap-2">
