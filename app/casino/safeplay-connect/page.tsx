@@ -291,7 +291,7 @@ export default function CasinoSafePlayConnectPage() {
     <DashboardLayout>
       <div className="flex flex-col min-h-full">
         <PageHeader
-          title="SafeBet IQ CONNECT"
+          title="SafeBet IQ Connect"
           subtitle="API integration hub — manage keys, webhooks and data ingestion for your casino platform"
         />
 
@@ -347,7 +347,7 @@ export default function CasinoSafePlayConnectPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-semibold text-foreground">API Keys</h3>
-                  <p className="text-sm text-muted-foreground">Keys authenticate your casino platform when sending data to SafeBet IQ CONNECT</p>
+                  <p className="text-sm text-muted-foreground">Keys authenticate your casino platform when sending data to SafeBet IQ Connect</p>
                 </div>
                 <Button size="sm" onClick={() => { setShowNewTokenDialog(true); setCreatedToken(null); setNewTokenForm({ label: '', scopes: [], expires_days: '365' }); }}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -364,7 +364,7 @@ export default function CasinoSafePlayConnectPage() {
                   <CardContent className="p-12 text-center">
                     <Key className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                     <h4 className="text-sm font-semibold text-foreground mb-1">No API keys yet</h4>
-                    <p className="text-xs text-muted-foreground mb-4">Create your first key to start sending player data to SafeBet IQ CONNECT</p>
+                    <p className="text-xs text-muted-foreground mb-4">Create your first key to start sending player data to SafeBet IQ Connect</p>
                     <Button size="sm" onClick={() => setShowNewTokenDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create First Key

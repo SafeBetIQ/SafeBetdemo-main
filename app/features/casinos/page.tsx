@@ -100,7 +100,7 @@ const FEATURES = [
 const MODULES = [
   {
     icon: Globe,
-    title: 'SafeBet IQ CONNECT',
+    title: 'SafeBet IQ Connect',
     description: 'REST API + webhooks for direct integration with your platform — Playtech, BetSoftware, Evolution, and more.',
     color: 'text-teal-400',
     bg: 'bg-teal-500/10',
@@ -176,7 +176,7 @@ const BENEFITS = [
 ];
 
 const INTEGRATIONS = [
-  'Playtech', 'BetSoftware', 'Evolution Gaming', 'SoftSwiss', 'Altenar', 'WhatsApp Business', 'Twilio SMS', 'NRGP', 'SafeBet IQ CONNECT'
+  'Playtech', 'BetSoftware', 'Evolution Gaming', 'SoftSwiss', 'Altenar', 'WhatsApp Business', 'Twilio SMS', 'NRGP', 'SafeBet IQ Connect'
 ];
 
 const RISK_FACTORS = [
@@ -787,7 +787,7 @@ export default function CasinosPage() {
               {[
                 {
                   step: '01',
-                  title: 'Connect via SafeBet IQ CONNECT API',
+                  title: 'Connect via SafeBet IQ Connect API',
                   description: 'Integrate your gaming platform in as little as 3 days using our REST API, webhooks, or native plugins for leading platforms.',
                   icon: PlugZap,
                   side: 'left',
