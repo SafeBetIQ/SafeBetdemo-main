@@ -137,7 +137,7 @@ export default function NovaIQXAIPage() {
               <Brain className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Nova IQ Intelligence Intelligence System</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Nova IQ Intelligence</h1>
               <p className="text-base text-gray-500 mt-0.5">
                 Explainable AI combining live casino data with behavioral assessments
               </p>
