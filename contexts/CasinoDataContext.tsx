@@ -477,8 +477,8 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
     triggerBurst(30);
 
     burstTimerRef.current = setInterval(() => {
-      triggerBurst(Math.floor(Math.random() * 15) + 8);
-    }, 4500);
+      triggerBurst(Math.floor(Math.random() * 8) + 3);
+    }, 30000);
 
     return () => {
       if (burstTimerRef.current) clearInterval(burstTimerRef.current);

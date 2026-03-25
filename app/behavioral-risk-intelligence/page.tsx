@@ -186,7 +186,8 @@ export default function BehavioralRiskIntelligencePage() {
         .from('bri_signal_history')
         .select('recorded_at, risk_score, session_duration_score, deposit_frequency_score, loss_escalation_score, bet_intensity_score, cross_operator_score')
         .gte('recorded_at', since.toISOString())
-        .order('recorded_at', { ascending: true });
+        .order('recorded_at', { ascending: true })
+        .limit(1000);
 
       if (userRole === 'casino_admin' && casinoId) {
         query = query.eq('casino_id', casinoId);

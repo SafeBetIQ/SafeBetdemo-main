@@ -63,46 +63,56 @@ export default function SuperAdminDashboard() {
   const loadData = useCallback(async () => {
     try {
       const [
-        casinosRes, playersRes, interventionsRes, exclusionsRes,
-        crossOpRes, usersRes,
+        casinosRes, usersRes,
+        totalPlayersRes, criticalPlayersRes, highPlayersRes, medPlayersRes,
+        totalIntRes, pendingIntRes,
+        exclusionsRes, newAlertsRes,
+        provincePlayersRes,
       ] = await Promise.all([
         supabase.from('casinos').select('id, name, province, license_number, is_active').order('name'),
-        supabase.from('players').select('risk_score, casino_id, status'),
-        supabase.from('player_protection_interventions').select('outcome, casino_id'),
-        supabase.from('self_exclusion_registry').select('casino_id, status').eq('status', 'active'),
-        supabase.from('cross_operator_alerts').select('severity, status'),
-        supabase.from('users').select('id, email, full_name, role, casino_id, is_active'),
+        supabase.from('users').select('id, email, full_name, role, casino_id, is_active').limit(100),
+        supabase.from('players').select('*', { count: 'exact', head: true }),
+        supabase.from('players').select('*', { count: 'exact', head: true }).gte('risk_score', 80),
+        supabase.from('players').select('*', { count: 'exact', head: true }).gte('risk_score', 60).lt('risk_score', 80),
+        supabase.from('players').select('*', { count: 'exact', head: true }).gte('risk_score', 40).lt('risk_score', 60),
+        supabase.from('player_protection_interventions').select('*', { count: 'exact', head: true }),
+        supabase.from('player_protection_interventions').select('*', { count: 'exact', head: true }).or('outcome.is.null,outcome.eq.pending'),
+        supabase.from('self_exclusion_registry').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('cross_operator_alerts').select('*', { count: 'exact', head: true }).eq('status', 'new'),
+        supabase.from('players').select('casino_id, risk_score').limit(5000),
       ]);
 
       const casinoList = casinosRes.data || [];
-      const players = playersRes.data || [];
-      const interventions = interventionsRes.data || [];
-      const exclusions = exclusionsRes.data || [];
-      const alerts = crossOpRes.data || [];
       const userList = usersRes.data || [];
 
       setCasinos(casinoList);
       setUsers(userList);
 
-      const critical = players.filter(p => (p.risk_score || 0) >= 80).length;
-      const highRisk = players.filter(p => (p.risk_score || 0) >= 60 && (p.risk_score || 0) < 80).length;
-      const medium = players.filter(p => (p.risk_score || 0) >= 40 && (p.risk_score || 0) < 60).length;
-      const low = players.filter(p => (p.risk_score || 0) < 40).length;
+      const totalPlayers = totalPlayersRes.count ?? 0;
+      const critical = criticalPlayersRes.count ?? 0;
+      const highRisk = highPlayersRes.count ?? 0;
+      const medium = medPlayersRes.count ?? 0;
+      const low = totalPlayers - critical - highRisk - medium;
+      const totalInterventions = totalIntRes.count ?? 0;
+      const pendingInterventions = pendingIntRes.count ?? 0;
+      const totalExclusions = exclusionsRes.count ?? 0;
+      const crossOpAlerts = newAlertsRes.count ?? 0;
 
       setRiskDistribution([
         { name: 'Critical (80-100)', value: critical, fill: '#ef4444' },
         { name: 'High (60-79)', value: highRisk, fill: '#f97316' },
         { name: 'Medium (40-59)', value: medium, fill: '#eab308' },
-        { name: 'Low (0-39)', value: low, fill: '#10b981' },
+        { name: 'Low (0-39)', value: Math.max(low, 0), fill: '#10b981' },
       ]);
 
+      const provincePlayers = provincePlayersRes.data || [];
       const byProvince = casinoList.reduce((acc: Record<string, { casinos: number; players: number; critical: number }>, c) => {
         const prov = c.province || 'Unknown';
         if (!acc[prov]) acc[prov] = { casinos: 0, players: 0, critical: 0 };
         acc[prov].casinos++;
-        const casinoPlayers = players.filter(p => p.casino_id === c.id);
-        acc[prov].players += casinoPlayers.length;
-        acc[prov].critical += casinoPlayers.filter(p => (p.risk_score || 0) >= 80).length;
+        const cp = provincePlayers.filter(p => p.casino_id === c.id);
+        acc[prov].players += cp.length;
+        acc[prov].critical += cp.filter(p => (p.risk_score || 0) >= 80).length;
         return acc;
       }, {});
 
@@ -115,20 +125,20 @@ export default function SuperAdminDashboard() {
       const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
       setTrendData(months.map((m, i) => ({
         month: m,
-        players: Math.round(players.length * (0.6 + i * 0.05)),
-        interventions: Math.round(interventions.length * (0.5 + i * 0.06)),
+        players: Math.round(totalPlayers * (0.6 + i * 0.05)),
+        interventions: Math.round(totalInterventions * (0.5 + i * 0.06)),
         critical: Math.round(critical * (0.7 + i * 0.04)),
       })));
 
       setStats({
         totalCasinos: casinoList.length,
         activeCasinos: casinoList.filter(c => c.is_active).length,
-        totalPlayers: players.length,
+        totalPlayers,
         criticalPlayers: critical,
-        totalInterventions: interventions.length,
-        pendingInterventions: interventions.filter(i => !i.outcome || i.outcome === 'pending').length,
-        totalExclusions: exclusions.length,
-        crossOpAlerts: alerts.filter(a => a.status === 'new').length,
+        totalInterventions,
+        pendingInterventions,
+        totalExclusions,
+        crossOpAlerts,
         totalUsers: userList.length,
         systemHealth: 99.8,
       });

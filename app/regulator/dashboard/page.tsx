@@ -68,18 +68,23 @@ export default function NationalRegulatorDashboard() {
       if (!casinoList || casinoList.length === 0) { setLoading(false); return; }
       const casinoIds = casinoList.map(c => c.id);
 
-      const [playersRes, intRes, exclRes, sessRes, enrollRes] = await Promise.all([
-        supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds),
-        supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds),
-        supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active'),
-        supabase.from('gaming_sessions').select('casino_id').in('casino_id', casinoIds).eq('is_active', true),
-        supabase.from('training_enrollments').select('casino_id, status').in('casino_id', casinoIds),
+      const [
+        playersRes, intRes, exclRes, sessRes, enrollRes,
+        totalPlayersRes, highRiskRes, criticalRes,
+      ] = await Promise.all([
+        supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds).limit(5000),
+        supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds).limit(5000),
+        supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active').limit(2000),
+        supabase.from('gaming_sessions').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).eq('is_active', true),
+        supabase.from('training_enrollments').select('casino_id, status').in('casino_id', casinoIds).limit(5000),
+        supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds),
+        supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).gte('risk_score', 60),
+        supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).gte('risk_score', 80),
       ]);
 
       const players      = playersRes.data || [];
       const interventions= intRes.data || [];
       const exclusions   = exclRes.data || [];
-      const sessions     = sessRes.data || [];
       const enrollments  = enrollRes.data || [];
 
       const casinoRows: CasinoRow[] = casinoList.map(c => {
@@ -104,9 +109,9 @@ export default function NationalRegulatorDashboard() {
       });
       setCasinos(casinoRows);
 
-      const totalPlayers     = players.length;
-      const highRisk         = players.filter(p => p.risk_score >= 60).length;
-      const critical         = players.filter(p => p.risk_score >= 80).length;
+      const totalPlayers  = totalPlayersRes.count ?? players.length;
+      const highRisk      = highRiskRes.count ?? players.filter(p => p.risk_score >= 60).length;
+      const critical      = criticalRes.count ?? players.filter(p => p.risk_score >= 80).length;
       const avgCompliance    = casinoRows.length > 0 ? Math.round(casinoRows.reduce((s, c) => s + c.training_rate, 0) / casinoRows.length) : 0;
       const nonCompliant     = casinoRows.filter(c => c.training_rate < 80).length;
 
@@ -119,7 +124,7 @@ export default function NationalRegulatorDashboard() {
         totalExclusions: exclusions.length,
         avgCompliance,
         nonCompliantOperators: nonCompliant,
-        activeSessions: sessions.length,
+        activeSessions: sessRes.count ?? 0,
       });
     } catch (e) {
       toast.error('Failed to load regulator data');
