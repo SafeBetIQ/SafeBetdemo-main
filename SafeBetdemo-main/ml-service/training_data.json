@@ -1,0 +1,26 @@
+{
+  "description": "SafeBet IQ Risk Engine Training Data - 250 Players",
+  "features": ["visits", "total_bet", "avg_bet_size", "winnings", "withdrawals", "session_minutes", "game_type", "risky_behavior"],
+  "game_types": ["slots", "roulette", "blackjack", "poker", "baccarat"],
+  "model_coefficients": {
+    "visits_weight": 0.15,
+    "avg_bet_weight": 0.25,
+    "session_weight": 0.20,
+    "loss_ratio_weight": 0.25,
+    "risky_behavior_weight": 0.15,
+    "game_type_multipliers": {
+      "slots": 1.2,
+      "roulette": 1.1,
+      "blackjack": 0.9,
+      "poker": 1.0,
+      "baccarat": 1.0
+    }
+  },
+  "thresholds": {
+    "low": 40,
+    "medium": 60,
+    "high": 80,
+    "critical": 80
+  },
+  "note": "This is a demonstration model trained on synthetic gambling data for SafePlay Casino compliance system"
+}

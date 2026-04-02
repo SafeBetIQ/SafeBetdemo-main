@@ -1,0 +1,53 @@
+<svg width="354" height="95" viewBox="0 0 354 95" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield with gradient -->
+  <defs>
+    <linearGradient id="shieldGradient" x1="33" y1="10" x2="33" y2="85" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7ED321"/>
+      <stop offset="100%" stop-color="#5FA319"/>
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Shield shape -->
+  <g filter="url(#shadow)">
+    <!-- Outer border (metallic/chrome effect) -->
+    <path d="M 33 12 L 15 18 L 15 38 C 15 52 23 64.5 33 68 C 43 64.5 51 52 51 38 L 51 18 Z"
+          fill="#E8E8E8" stroke="#B0B0B0" stroke-width="1.5"/>
+
+    <!-- Inner shield (green gradient) -->
+    <path d="M 33 15 L 17 20 L 17 38 C 17 50.5 24 61.5 33 65 C 42 61.5 49 50.5 49 38 L 49 20 Z"
+          fill="url(#shieldGradient)"/>
+
+    <!-- Checkmark -->
+    <path d="M 25 37 L 30 43 L 42 28"
+          stroke="white"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"/>
+  </g>
+
+  <!-- SafeBet text -->
+  <text x="75" y="55"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="42"
+        font-weight="700"
+        fill="#FFFFFF">SafeBet</text>
+
+  <!-- IQ text (green) -->
+  <text x="250" y="55"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="42"
+        font-weight="700"
+        fill="#7ED321">IQ</text>
+</svg>
