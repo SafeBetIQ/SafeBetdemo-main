@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ShieldAlert, Clock, CheckCircle, Users } from 'lucide-react';
+import { ShieldAlert, Clock, CircleCheck as CheckCircle, Users } from 'lucide-react';
 
 interface SelfExclusionStats {
   activeExclusions: number;
@@ -112,7 +112,7 @@ export function SelfExclusionMonitor({ stats, className }: SelfExclusionMonitorP
 
         <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
           <p className="text-xs text-blue-800 dark:text-blue-300 font-medium">
-            ESG Compliance: Industry Best Practice
+            SARGF Compliance: Industry Best Practice
           </p>
           <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
             Minimum 6-month exclusion period with mandatory SARGF counseling before reinstatement consideration

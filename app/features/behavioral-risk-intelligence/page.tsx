@@ -5,25 +5,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Brain,
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  TrendingUp,
-  Eye,
-  Zap,
-  Shield,
-  BarChart3,
-  Clock,
-  Target,
-  Users,
-  Fingerprint,
-  Gauge,
-  ScanLine,
-  Network,
-  CheckCircle,
-} from 'lucide-react';
+import { Brain, Activity, TriangleAlert as AlertTriangle, ArrowRight, TrendingUp, Eye, Zap, Shield, ChartBar as BarChart3, Clock, Target, Users, Fingerprint, Gauge, ScanLine, Network, CircleCheck as CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
@@ -86,7 +68,7 @@ const complianceFeatures = [
   'National Gambling Act (NGA) aligned risk thresholds',
   'NRGP contribution tracking and reporting',
   'Automated regulatory audit trail generation',
-  'King IV ESG governance score integration',
+  'POPIA compliant data handling',
   'Provincial licensing board compliance dashboards',
   'Self-exclusion registry cross-referencing',
 ];

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, TrendingUp, Users, Banknote } from 'lucide-react';
+import { ChartBar as BarChart3, TrendingUp, Users, Banknote } from 'lucide-react';
 import { useCasinoData } from '@/contexts/CasinoDataContext';
 
 interface AnalyticsData {
@@ -38,15 +38,15 @@ export function RealTimeAnalytics() {
   };
 
   const [analytics, setAnalytics] = useState<AnalyticsData>({
-    totalWagered: 1847250,
-    totalWon: 823580,
-    activePlayers: 127,
-    avgBetSize: 385,
+    totalWagered: 0,
+    totalWon: 0,
+    activePlayers: 0,
+    avgBetSize: 0,
     riskDistribution: {
-      low: 45,
-      medium: 38,
-      high: 23,
-      critical: 11,
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
     },
     hourlyData: [],
     gameDistribution: [],

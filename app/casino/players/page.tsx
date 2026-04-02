@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Users, Search, AlertTriangle, TrendingUp, Download, Eye, Info } from 'lucide-react';
+import { Users, Search, TriangleAlert as AlertTriangle, TrendingUp, Download, Eye, Info } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -57,6 +57,8 @@ export default function PlayersPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [statsData, setStatsData] = useState({ active: 0, highRisk: 0, criticalRisk: 0, avgRiskScore: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -73,15 +75,25 @@ export default function PlayersPage() {
       const casinoId = user?.casino_id;
       if (!casinoId) return;
 
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .eq('casino_id', casinoId)
-        .order('risk_score', { ascending: false });
+      const [countRes, scoreRes, tableRes] = await Promise.all([
+        supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
+        supabase.from('players').select('risk_score, status').eq('casino_id', casinoId),
+        supabase.from('players').select('*').eq('casino_id', casinoId).order('risk_score', { ascending: false }).limit(1000),
+      ]);
 
-      if (error) throw error;
+      const total = countRes.count ?? 0;
+      setTotalCount(total);
 
-      setPlayers(data || []);
+      const scores = scoreRes.data || [];
+      const active = scores.filter(p => p.status === 'active').length;
+      const highRisk = scores.filter(p => p.risk_score >= 60).length;
+      const criticalRisk = scores.filter(p => p.risk_score >= 80).length;
+      const avgRiskScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, p) => sum + (p.risk_score || 0), 0) / scores.length)
+        : 0;
+      setStatsData({ active, highRisk, criticalRisk, avgRiskScore });
+
+      setPlayers(tableRes.data || []);
     } catch (error: any) {
       setPlayers([]);
     } finally {
@@ -115,13 +127,11 @@ export default function PlayersPage() {
   });
 
   const stats = {
-    total: players.length,
-    active: players.filter((p) => p.status === 'active').length,
-    highRisk: players.filter((p) => p.risk_score >= 60).length,
-    criticalRisk: players.filter((p) => p.risk_score >= 80).length,
-    avgRiskScore: players.length > 0
-      ? Math.round(players.reduce((sum, p) => sum + p.risk_score, 0) / players.length)
-      : 0,
+    total: totalCount,
+    active: statsData.active,
+    highRisk: statsData.highRisk,
+    criticalRisk: statsData.criticalRisk,
+    avgRiskScore: statsData.avgRiskScore,
   };
 
   const handleExport = () => {
@@ -147,7 +157,7 @@ export default function PlayersPage() {
   return (
     <DashboardLayout>
       <TooltipProvider>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="Players"
           subtitle="View and manage all casino players"
@@ -159,7 +169,7 @@ export default function PlayersPage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6 min-w-0">
           <div className="space-y-6">
             {/* Statistics Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

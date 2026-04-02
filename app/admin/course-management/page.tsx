@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Search, Plus, Edit, Trash2, GraduationCap, Building2, Users, BookOpen, Clock, Award, Target, Save, X, Check, FileText, Video } from 'lucide-react';
+import { Search, Plus, CreditCard as Edit, Trash2, GraduationCap, Building2, Users, BookOpen, Clock, Award, Target, Save, X, Check, FileText, Video } from 'lucide-react';
 
 interface Lesson {
   id: string;
@@ -568,7 +568,7 @@ export default function CourseManagementPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="Course Management"
           subtitle="Create, edit, and assign training courses across all casinos"
@@ -580,7 +580,7 @@ export default function CourseManagementPage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 p-6 min-w-0">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <div className="flex-1 relative">

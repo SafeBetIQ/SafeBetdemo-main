@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Users, Search, Award, Mail, Briefcase, ExternalLink, Plus, Edit, LogIn, BookOpen, Clock } from 'lucide-react';
+import { Users, Search, Award, Mail, Briefcase, ExternalLink, Plus, CreditCard as Edit, LogIn, BookOpen, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -240,7 +240,7 @@ export default function StaffListPage() {
       });
 
       toast.success(`Logged in as ${member.first_name} ${member.last_name}`);
-      router.push('/staff/academy');
+      router.push('/staff/profile');
     } catch (error: any) {
       toast.error('Failed to impersonate user');
     }
@@ -329,7 +329,7 @@ export default function StaffListPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-full flex-col">
         <PageHeader
           title="Staff Directory"
           subtitle="View and manage all staff members"
@@ -344,7 +344,7 @@ export default function StaffListPage() {
           }
         />
 
-        <div className="flex-1 overflow-auto p-6 space-y-6">
+        <div className="flex-1 p-6 min-w-0 space-y-6">
 
           <Card>
             <CardContent className="p-6">

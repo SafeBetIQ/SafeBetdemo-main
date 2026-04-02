@@ -36,22 +36,28 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     }
 
     const { data: userData, error: userError } = await supabase.rpc('get_user_by_email_fast', {
-      user_email: email
+      p_email: email
     });
 
     if (userError || !userData) {
       return { success: false, error: 'Failed to load profile' };
     }
 
-    if (userData.source === 'users') {
+    const profile = Array.isArray(userData) ? userData[0] : userData;
+
+    if (!profile) {
+      return { success: false, error: 'Failed to load profile' };
+    }
+
+    if (profile.source === 'users') {
       supabase
         .from('users')
         .update({ last_login: new Date().toISOString() })
-        .eq('id', userData.id)
+        .eq('id', profile.id)
         .then(() => {});
     }
 
-    return { success: true, user: userData as AuthUser };
+    return { success: true, user: profile as AuthUser };
   } catch (error) {
     return { success: false, error: 'An unexpected error occurred' };
   }
@@ -71,10 +77,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
       if (cachedUser && cacheTime) {
         const age = Date.now() - parseInt(cacheTime);
-        if (age < 30000) {
+        if (age < 300000) {
           const parsed = JSON.parse(cachedUser);
-          console.log(`💾 Using cached user (age: ${age}ms)`);
-          return parsed as AuthUser;
+          const profile = Array.isArray(parsed) ? parsed[0] : parsed;
+          if (profile && profile.role) {
+            console.log(`💾 Using cached user (age: ${age}ms)`);
+            return profile as AuthUser;
+          }
+          sessionStorage.removeItem('user_cache');
+          sessionStorage.removeItem('user_cache_time');
         }
       }
     }
@@ -87,7 +98,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     }
 
     const { data, error } = await supabase.rpc('get_user_by_email_fast', {
-      user_email: user.email
+      p_email: user.email
     });
 
     if (error || !data) {
@@ -95,14 +106,20 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       return null;
     }
 
+    const profile = Array.isArray(data) ? data[0] : data;
+
+    if (!profile) {
+      return null;
+    }
+
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('user_cache', JSON.stringify(data));
+      sessionStorage.setItem('user_cache', JSON.stringify(profile));
       sessionStorage.setItem('user_cache_time', Date.now().toString());
     }
 
     const totalTime = (performance.now() - startTime).toFixed(0);
     console.log(`✅ getCurrentUser completed in ${totalTime}ms`);
-    return data as AuthUser;
+    return profile as AuthUser;
   } catch (error) {
     console.error('❌ getCurrentUser exception:', error);
     return null;
@@ -115,10 +132,15 @@ export function getRedirectPath(role: string): string {
       return '/admin';
     case 'casino_admin':
       return '/casino/dashboard';
+    case 'compliance_officer':
+      return '/casino/interventions';
+    case 'national_regulator':
     case 'regulator':
       return '/regulator/dashboard';
+    case 'provincial_regulator':
+      return '/regulator/provincial-dashboard';
     case 'staff':
-      return '/staff/academy';
+      return '/staff/profile';
     default:
       return '/';
   }

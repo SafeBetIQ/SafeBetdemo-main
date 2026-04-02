@@ -2,9 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { CasinoDataProvider } from '@/contexts/CasinoDataContext';
 import { ModuleProvider } from '@/contexts/ModuleContext';
 import { Toaster } from '@/components/ui/sonner';
+import AIMonitoringIndicator from '@/components/AIMonitoringIndicator';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,10 +30,9 @@ export default function RootLayout({
       <body className={`${inter.className} bg-black`}>
         <AuthProvider>
           <ModuleProvider>
-            <CasinoDataProvider>
-              {children}
-              <Toaster />
-            </CasinoDataProvider>
+            {children}
+            <Toaster />
+            <AIMonitoringIndicator />
           </ModuleProvider>
         </AuthProvider>
       </body>

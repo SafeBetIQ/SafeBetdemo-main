@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, ShieldAlert } from 'lucide-react';
+import { CircleAlert as AlertCircle, ShieldAlert } from 'lucide-react';
 
 export type UserRole = 'SUPPORT' | 'COMPLIANCE' | 'RISK_ANALYST' | 'EXECUTIVE' | 'REGULATOR';
 
@@ -71,7 +71,6 @@ export function ModuleAccess({ module, children, fallback }: ModuleAccessProps) 
     operational_alerts: ['SUPPORT', 'COMPLIANCE', 'RISK_ANALYST'],
     interventions: ['COMPLIANCE', 'RISK_ANALYST'],
     behavioral_risk_intelligence: ['RISK_ANALYST', 'REGULATOR'],
-    esg_dashboard: ['EXECUTIVE', 'RISK_ANALYST', 'REGULATOR'],
     casino_comparison: ['EXECUTIVE', 'REGULATOR'],
     financial_reports: ['EXECUTIVE'],
     demo_mode: ['RISK_ANALYST', 'EXECUTIVE', 'REGULATOR'],
@@ -103,7 +102,6 @@ export function useHasAccess(module: string): boolean {
     operational_alerts: ['SUPPORT', 'COMPLIANCE', 'RISK_ANALYST'],
     interventions: ['COMPLIANCE', 'RISK_ANALYST'],
     behavioral_risk_intelligence: ['RISK_ANALYST', 'REGULATOR'],
-    esg_dashboard: ['EXECUTIVE', 'RISK_ANALYST', 'REGULATOR'],
     casino_comparison: ['EXECUTIVE', 'REGULATOR'],
     financial_reports: ['EXECUTIVE'],
     demo_mode: ['RISK_ANALYST', 'EXECUTIVE', 'REGULATOR'],

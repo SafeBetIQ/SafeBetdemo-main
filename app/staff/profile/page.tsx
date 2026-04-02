@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Mail, Briefcase, Calendar, Award, Lock, Check, AlertCircle, Edit2, Save, X, BookOpen, Clock, TrendingUp, PlayCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, User, Mail, Briefcase, Calendar, Lock, Check, CircleAlert as AlertCircle, CreditCard as Edit2, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -22,9 +22,6 @@ export default function StaffProfilePage() {
   const staffId = searchParams.get('id');
   const [loading, setLoading] = useState(true);
   const [staffData, setStaffData] = useState<any>(null);
-  const [totalCredits, setTotalCredits] = useState(0);
-  const [completedCourses, setCompletedCourses] = useState(0);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [isViewingAsAdmin, setIsViewingAsAdmin] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -135,40 +132,6 @@ export default function StaffProfilePage() {
         email: staff.email || '',
         phone: staff.phone || '',
       });
-
-      const { data: enrollmentsData } = await supabase
-        .from('training_enrollments')
-        .select(`
-          id,
-          status,
-          assigned_at,
-          started_at,
-          completed_at,
-          progress_percentage,
-          training_modules!inner (
-            id,
-            title,
-            description,
-            credits_awarded,
-            estimated_minutes,
-            difficulty,
-            training_categories (
-              id,
-              name,
-              icon
-            )
-          )
-        `)
-        .eq('staff_id', staff.id)
-        .order('assigned_at', { ascending: false });
-
-      if (enrollmentsData) {
-        setEnrollments(enrollmentsData);
-        const completed = enrollmentsData.filter((e: any) => e.status === 'completed');
-        setCompletedCourses(completed.length);
-        const credits = completed.reduce((sum: number, e: any) => sum + e.training_modules.credits_awarded, 0);
-        setTotalCredits(credits);
-      }
 
     } catch (error) {
       toast.error('Failed to load staff profile');
@@ -379,46 +342,9 @@ export default function StaffProfilePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-brand-50 to-teal-50 border-brand-200 shadow-md">
-            <CardContent className="p-6">
-              <Award className="h-8 w-8 text-brand-500 mb-2" />
-              <div className="text-3xl font-bold text-brand-800">{totalCredits}</div>
-              <p className="text-sm text-brand-600">Credits Earned</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200 shadow-md">
-            <CardContent className="p-6">
-              <CheckCircle className="h-8 w-8 text-blue-600 mb-2" />
-              <div className="text-3xl font-bold text-blue-900">{completedCourses}</div>
-              <p className="text-sm text-blue-700">Completed</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200 shadow-md">
-            <CardContent className="p-6">
-              <PlayCircle className="h-8 w-8 text-orange-600 mb-2" />
-              <div className="text-3xl font-bold text-orange-900">
-                {enrollments.filter(e => e.status === 'in_progress').length}
-              </div>
-              <p className="text-sm text-orange-700">In Progress</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-slate-50 to-gray-50 border-slate-200 shadow-md">
-            <CardContent className="p-6">
-              <BookOpen className="h-8 w-8 text-slate-600 mb-2" />
-              <div className="text-3xl font-bold text-slate-900">{enrollments.length}</div>
-              <p className="text-sm text-slate-700">My Courses</p>
-            </CardContent>
-          </Card>
-        </div>
-
         <Tabs defaultValue="personal" className="w-full">
-          <TabsList className={`grid w-full ${isViewingAsAdmin ? 'grid-cols-2' : 'grid-cols-3'} mb-4 md:mb-6`}>
+          <TabsList className={`grid w-full ${isViewingAsAdmin ? 'grid-cols-1' : 'grid-cols-2'} mb-4 md:mb-6`}>
             <TabsTrigger value="personal" className="text-xs md:text-sm">Personal</TabsTrigger>
-            <TabsTrigger value="training" className="text-xs md:text-sm">Training</TabsTrigger>
             {!isViewingAsAdmin && (
               <TabsTrigger value="security" className="text-xs md:text-sm">Security</TabsTrigger>
             )}
@@ -710,145 +636,6 @@ export default function StaffProfilePage() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-
-          <TabsContent value="training">
-            <Card>
-              <CardHeader>
-                <CardTitle>Training Progress</CardTitle>
-                <CardDescription>Your assigned courses and learning progress</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {enrollments.length === 0 ? (
-                  <div className="text-center py-12">
-                    <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Courses Assigned</h3>
-                    <p className="text-gray-600 mb-4">
-                      You don't have any training courses assigned yet.
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Contact your manager to get started with training.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {enrollments.map((enrollment) => {
-                      const module = enrollment.training_modules;
-                      const category = module.training_categories || { icon: '📚', name: 'General' };
-
-                      const getStatusColor = (status: string) => {
-                        switch (status) {
-                          case 'completed':
-                            return 'bg-green-500/20 text-green-400 border-green-500/30';
-                          case 'in_progress':
-                            return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-                          default:
-                            return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-                        }
-                      };
-
-                      const getDifficultyColor = (difficulty: string) => {
-                        switch (difficulty) {
-                          case 'beginner':
-                            return 'bg-green-100 text-green-800 border-green-300';
-                          case 'intermediate':
-                            return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-                          case 'advanced':
-                            return 'bg-red-100 text-red-800 border-red-300';
-                          default:
-                            return 'bg-gray-100 text-gray-800 border-gray-300';
-                        }
-                      };
-
-                      const getStatusLabel = (status: string) => {
-                        switch (status) {
-                          case 'completed':
-                            return 'Completed';
-                          case 'in_progress':
-                            return 'In Progress';
-                          default:
-                            return 'Not Started';
-                        }
-                      };
-
-                      return (
-                        <Card key={enrollment.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-brand-400">
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex items-start space-x-4 flex-1">
-                                <div className="text-4xl">{category.icon}</div>
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h3 className="text-lg font-semibold text-gray-900">
-                                      {module.title}
-                                    </h3>
-                                    <Badge className={getDifficultyColor(module.difficulty)}>
-                                      {module.difficulty}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-gray-600 mb-3">
-                                    {module.description}
-                                  </p>
-                                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                    <div className="flex items-center space-x-1">
-                                      <Clock className="h-4 w-4" />
-                                      <span>{module.estimated_minutes} min</span>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                      <Award className="h-4 w-4 text-brand-400" />
-                                      <span>{module.credits_awarded} credits</span>
-                                    </div>
-                                    <Badge variant="outline">{category.name}</Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              <Badge className={getStatusColor(enrollment.status)}>
-                                {getStatusLabel(enrollment.status)}
-                              </Badge>
-                            </div>
-
-                            <div className="mb-4">
-                              <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-                                <span>Progress</span>
-                                <span className="font-semibold">{formatPercentage(enrollment.progress_percentage)}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div
-                                  className="bg-gradient-to-r from-brand-400 to-teal-500 h-2.5 rounded-full transition-all"
-                                  style={{ width: `${formatPercentage(enrollment.progress_percentage)}` }}
-                                ></div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              {enrollment.completed_at ? (
-                                <span className="text-sm text-green-600 flex items-center font-medium">
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Completed {formatDate(enrollment.completed_at)}
-                                </span>
-                              ) : enrollment.started_at ? (
-                                <span className="text-sm text-gray-500">
-                                  Started {formatDate(enrollment.started_at)}
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-500">
-                                  Assigned {formatDate(enrollment.assigned_at)}
-                                </span>
-                              )}
-                              <Link href={`/staff/academy/course/${module.id}`}>
-                                <Button className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600 text-white">
-                                  {enrollment.status === 'completed' ? 'Review Course' : 'Continue Learning'}
-                                </Button>
-                              </Link>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {!isViewingAsAdmin && (

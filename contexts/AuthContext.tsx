@@ -49,10 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         router.push('/login');
       } else if (event === 'SIGNED_IN') {
-        if (!fetchingUserRef.current) {
-          fetchUser();
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('user_cache');
+          sessionStorage.removeItem('user_cache_time');
         }
+        fetchingUserRef.current = false;
+        fetchUser();
       }
+      // TOKEN_REFRESHED intentionally ignored — session storage cache handles
+      // subsequent profile lookups without triggering a full re-render cycle
     });
 
     return () => {

@@ -7,17 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  FileDown,
-  Shield,
-  TrendingUp,
-  Users,
-  CheckCircle2,
-  BarChart3,
-  AlertTriangle,
-  Clock,
-  Eye,
-} from 'lucide-react';
+import { FileDown, Shield, TrendingUp, Users, CircleCheck as CheckCircle2, ChartBar as BarChart3, TriangleAlert as AlertTriangle, Clock, Eye } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import DetailedSessionViewer from '@/components/wellbeing-games/DetailedSessionViewer';
 import { generateWellbeingReport } from '@/lib/wellbeingGameAnalytics';
@@ -393,7 +383,7 @@ export default function WellbeingCompliancePage() {
                 <Shield className="w-8 h-8 text-blue-400 mb-3" />
                 <h3 className="text-white font-semibold mb-2">Data Privacy</h3>
                 <p className="text-sm text-gray-400">
-                  POPIA/GDPR compliant with anonymized aggregated reporting
+                  POPIA compliant with anonymized aggregated reporting
                 </p>
               </div>
               <div className="p-4 bg-slate-800 rounded-lg">

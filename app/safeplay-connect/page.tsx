@@ -5,27 +5,12 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  ArrowRight,
-  CheckCircle,
-  Code,
-  Clock,
-  Database,
-  Globe,
-  Lock,
-  Zap,
-  Shield,
-  Plug,
-  Server,
-  FileJson,
-  MessageSquare,
-  BarChart3,
-  Layers,
-  RefreshCw,
-} from 'lucide-react';
+import { ArrowRight, CircleCheck as CheckCircle, Code, Clock, Database, Globe, Lock, Zap, Shield, Plug, Server, FileJson, MessageSquare, ChartBar as BarChart3, Layers, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 const platforms = [
   {
@@ -126,6 +111,14 @@ const capabilities = [
 export default function SafeBetIQConnectPublicPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [activeEndpoint, setActiveEndpoint] = useState(0);
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/casino/safeplay-connect');
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     const stepInterval = setInterval(() => {
@@ -141,6 +134,14 @@ export default function SafeBetIQConnectPublicPage() {
       clearInterval(endpointInterval);
     };
   }, []);
+
+  if (loading || user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-400 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">

@@ -1,15 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { ModuleGuard } from '@/components/ModuleGuard';
 import { PageHeader } from '@/components/saas/PageHeader';
 import { KPICard } from '@/components/saas/KPICard';
 import { ChartCard } from '@/components/saas/ChartCard';
-import { TableCard } from '@/components/saas/TableCard';
 import { DateRangePicker, type DateRange } from '@/components/saas/DateRangePicker';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -18,39 +26,54 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { BehaviorTrendGraph } from '@/components/BehaviorTrendGraph';
 import { PersonaShiftChart } from '@/components/PersonaShiftChart';
-import { CognitiveFatigueIndex } from '@/components/CognitiveFatigueIndex';
 import { ImpulseVsIntentionTable } from '@/components/ImpulseVsIntentionTable';
-import {
-  Brain,
-  Activity,
-  AlertTriangle,
-  Users,
-  Download,
-  Eye,
-  Zap,
-  TrendingUp,
-  Clock,
-  DollarSign,
-  Target,
-  ShieldAlert,
-  TrendingDown,
-} from 'lucide-react';
+import { RiskSignalBreakdown } from '@/components/RiskSignalBreakdown';
+import { PlayerRiskProfileSheet } from '@/components/PlayerRiskProfileSheet';
+import { PlayerHistorySheet } from '@/components/PlayerHistorySheet';
 import { InterventionModal } from '@/components/InterventionModal';
+import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
+import { SelfExclusionNetwork } from '@/components/SelfExclusionNetwork';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle, Network, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  BarChart,
+  Bar,
+  Cell,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+} from 'recharts';
+
+const getRiskConfig = (score: number) => {
+  if (score >= 80) return { label: 'Critical', variant: 'destructive' as const, color: 'text-red-600', barColor: '#ef4444', bg: 'bg-red-50' };
+  if (score >= 60) return { label: 'High', variant: 'default' as const, color: 'text-orange-600', barColor: '#f97316', bg: 'bg-orange-50' };
+  if (score >= 40) return { label: 'Moderate', variant: 'secondary' as const, color: 'text-amber-600', barColor: '#f59e0b', bg: 'bg-amber-50' };
+  return { label: 'Low', variant: 'outline' as const, color: 'text-emerald-600', barColor: '#10b981', bg: 'bg-emerald-50' };
+};
+
+const RISK_LEVELS = [
+  { key: 'all', label: 'All Risk Levels' },
+  { key: 'critical', label: 'Critical (80+)' },
+  { key: 'high', label: 'High (60–79)' },
+  { key: 'moderate', label: 'Moderate (40–59)' },
+  { key: 'low', label: 'Low (<40)' },
+];
 
 export default function BehavioralRiskIntelligencePage() {
   const { user } = useAuth();
@@ -59,67 +82,77 @@ export default function BehavioralRiskIntelligencePage() {
   const [activeTab, setActiveTab] = useState('live-monitor');
   const [players, setPlayers] = useState<any[]>([]);
   const [interventions, setInterventions] = useState<any[]>([]);
+  const [signalTrends, setSignalTrends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [interventionsLoading, setInterventionsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerSheetOpen, setPlayerSheetOpen] = useState(false);
+  const [historySheetOpen, setHistorySheetOpen] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
+  const [playerSignalHistory, setPlayerSignalHistory] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [riskFilter, setRiskFilter] = useState('all');
 
-  useEffect(() => {
-    if (user) {
-      loadPlayers();
-      loadInterventions();
-    }
-  }, [user, dateRange]);
+  const casinoId = (user as any)?.casino_id;
+  const userRole = (user as any)?.role || (user as any)?.user_role;
 
-  const loadPlayers = async () => {
+  const loadPlayers = useCallback(async () => {
     try {
       setLoading(true);
-      const userRole = (user as any)?.role || (user as any)?.user_role;
-      const casinoId = user?.casino_id;
-
       let query = supabase
         .from('gaming_sessions')
-        .select(`
-          *,
-          players!inner(*)
-        `)
+        .select('*, players!inner(*)')
         .eq('is_active', true)
-        .eq('players.is_active', true)
         .order('start_time', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (userRole === 'casino_admin' && casinoId) {
         query = query.eq('casino_id', casinoId);
       }
 
-      const { data, error } = await query;
+      const { data: sessionData } = await query;
 
-      if (error) {
-        console.error('Error loading players:', error);
-      }
+      if (sessionData) {
+        const playerIds = sessionData.map((s: any) => s.player_id);
 
-      if (data) {
-        const playersWithSessions = data.map(session => ({
+        let profileQuery = supabase
+          .from('behavioral_risk_profiles')
+          .select('*')
+          .in('player_id', playerIds)
+          .order('analyzed_at', { ascending: false });
+
+        if (userRole === 'casino_admin' && casinoId) {
+          profileQuery = profileQuery.eq('casino_id', casinoId);
+        }
+
+        const { data: profileData } = await profileQuery;
+        const profileMap: Record<string, any> = {};
+        if (profileData) {
+          profileData.forEach((p: any) => {
+            if (!profileMap[p.player_id]) profileMap[p.player_id] = p;
+          });
+        }
+
+        const playersWithData = sessionData.map((session: any) => ({
           ...(session.players as any),
-          currentSession: session
+          currentSession: session,
+          riskProfile: profileMap[session.player_id] || null,
         }));
-        setPlayers(playersWithSessions);
+
+        setPlayers(playersWithData);
       }
-    } catch (error) {
-      console.error('Error loading players:', error);
+    } catch (e) {
+      console.error('Error loading players:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userRole, casinoId]);
 
-  const loadInterventions = async () => {
+  const loadInterventions = useCallback(async () => {
     try {
       setInterventionsLoading(true);
-      const userRole = (user as any)?.role || (user as any)?.user_role;
-      const casinoId = user?.casino_id;
-
-      const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 30;
+      const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
       const since = new Date();
       since.setDate(since.getDate() - daysBack);
 
@@ -128,674 +161,760 @@ export default function BehavioralRiskIntelligencePage() {
         .select('*, players(player_id, first_name, last_name)')
         .gte('triggered_at', since.toISOString())
         .order('triggered_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (userRole === 'casino_admin' && casinoId) {
         query = query.eq('casino_id', casinoId);
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error loading interventions:', error);
-      }
-
+      const { data } = await query;
       if (data) setInterventions(data);
-    } catch (error) {
-      console.error('Error loading interventions:', error);
+    } catch (e) {
+      console.error('Error loading interventions:', e);
     } finally {
       setInterventionsLoading(false);
     }
+  }, [userRole, casinoId, dateRange]);
+
+  const loadSignalTrends = useCallback(async () => {
+    try {
+      const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+      const since = new Date();
+      since.setDate(since.getDate() - daysBack);
+
+      let query = supabase
+        .from('bri_signal_history')
+        .select('recorded_at, risk_score, session_duration_score, deposit_frequency_score, loss_escalation_score, bet_intensity_score, cross_operator_score')
+        .gte('recorded_at', since.toISOString())
+        .order('recorded_at', { ascending: true })
+        .limit(1000);
+
+      if (userRole === 'casino_admin' && casinoId) {
+        query = query.eq('casino_id', casinoId);
+      }
+
+      const { data } = await query;
+      if (data) {
+        const grouped: Record<string, any[]> = {};
+        data.forEach((row: any) => {
+          const day = new Date(row.recorded_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' });
+          if (!grouped[day]) grouped[day] = [];
+          grouped[day].push(row);
+        });
+
+        const trend = Object.entries(grouped).map(([date, rows]) => {
+          const avg = (field: string) =>
+            Math.round(rows.reduce((s, r) => s + (r[field] || 0), 0) / rows.length);
+          return {
+            date,
+            risk: avg('risk_score'),
+            session: avg('session_duration_score'),
+            deposit: avg('deposit_frequency_score'),
+            lossEscalation: avg('loss_escalation_score'),
+            betIntensity: avg('bet_intensity_score'),
+            crossOperator: avg('cross_operator_score'),
+          };
+        }).slice(-30);
+
+        setSignalTrends(trend);
+      }
+    } catch (e) {
+      console.error('Error loading signal trends:', e);
+    }
+  }, [userRole, casinoId, dateRange]);
+
+  useEffect(() => {
+    if (user) {
+      loadPlayers();
+      loadInterventions();
+      loadSignalTrends();
+    }
+  }, [user, loadPlayers, loadInterventions, loadSignalTrends]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadPlayers(), loadInterventions(), loadSignalTrends()]);
+    setRefreshing(false);
   };
 
-  const getResponseBadge = (response: string) => {
-    if (response === 'accepted') return { label: 'Accepted', variant: 'default' as const };
-    if (response === 'declined') return { label: 'Declined', variant: 'destructive' as const };
-    if (response === 'deferred') return { label: 'Deferred', variant: 'secondary' as const };
+  const handleViewPlayer = async (player: any) => {
+    setSelectedPlayer(player);
+    setPlayerSheetOpen(true);
+
+    try {
+      const { data } = await supabase
+        .from('bri_signal_history')
+        .select('*')
+        .eq('player_id', player.id)
+        .order('recorded_at', { ascending: false })
+        .limit(14);
+      if (data) setPlayerSignalHistory(data.reverse());
+    } catch (e) {
+      setPlayerSignalHistory([]);
+    }
+  };
+
+  const filteredPlayers = players.filter((p) => {
+    const score = p.risk_score || 0;
+    const matchSearch =
+      !search ||
+      `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+      (p.player_id || '').toLowerCase().includes(search.toLowerCase());
+
+    const matchRisk =
+      riskFilter === 'all' ||
+      (riskFilter === 'critical' && score >= 80) ||
+      (riskFilter === 'high' && score >= 60 && score < 80) ||
+      (riskFilter === 'moderate' && score >= 40 && score < 60) ||
+      (riskFilter === 'low' && score < 40);
+
+    return matchSearch && matchRisk;
+  });
+
+  const avgRisk = players.length
+    ? Math.round(players.reduce((s, p) => s + (p.risk_score || 0), 0) / players.length)
+    : 0;
+  const criticalCount = players.filter((p) => (p.risk_score || 0) >= 80).length;
+  const highRiskCount = players.filter((p) => (p.risk_score || 0) >= 60).length;
+  const crossOpCount = players.filter((p) => (p.riskProfile?.cross_operator_flags || 0) > 0).length;
+
+  const riskDistribution = [
+    { label: 'Critical', min: 80, max: 100, color: '#ef4444' },
+    { label: 'High', min: 60, max: 79, color: '#f97316' },
+    { label: 'Moderate', min: 40, max: 59, color: '#f59e0b' },
+    { label: 'Low', min: 0, max: 39, color: '#10b981' },
+  ].map((tier) => ({
+    ...tier,
+    count: players.filter((p) => {
+      const s = p.risk_score || 0;
+      return s >= tier.min && s <= tier.max;
+    }).length,
+  }));
+
+  const signalRadarData = [
+    { signal: 'Session\nDuration', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.session_duration_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Deposit\nFreq', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.deposit_frequency_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Loss\nEscalation', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.loss_escalation_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Bet\nIntensity', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.bet_intensity_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Cross\nOperator', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.cross_operator_score || 0), 0) / Math.max(players.length, 1)) },
+  ];
+
+  const interventionSuccessRate = interventions.length > 0
+    ? Math.round((interventions.filter((i) => i.intervention_successful).length / interventions.length) * 100)
+    : 0;
+
+  const formatType = (t: string) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const getResponseBadge = (r: string) => {
+    if (r === 'accepted') return { label: 'Accepted', variant: 'default' as const };
+    if (r === 'declined') return { label: 'Declined', variant: 'destructive' as const };
+    if (r === 'deferred') return { label: 'Deferred', variant: 'secondary' as const };
     return { label: 'Ignored', variant: 'outline' as const };
   };
 
-  const formatInterventionType = (type: string) =>
-    type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-  const mockTrendData = [
-    { timestamp: '10:00', riskScore: 25, impulseLevel: 20, fatigueIndex: 15 },
-    { timestamp: '10:30', riskScore: 32, impulseLevel: 28, fatigueIndex: 22 },
-    { timestamp: '11:00', riskScore: 45, impulseLevel: 42, fatigueIndex: 35 },
-    { timestamp: '11:30', riskScore: 58, impulseLevel: 55, fatigueIndex: 48 },
-    { timestamp: '12:00', riskScore: 72, impulseLevel: 68, fatigueIndex: 65 },
-    { timestamp: '12:30', riskScore: 85, impulseLevel: 82, fatigueIndex: 78 },
-  ];
-
-  const getRiskBadge = (score: number) => {
-    if (score >= 80) return { label: 'Critical', variant: 'destructive' as const };
-    if (score >= 60) return { label: 'High', variant: 'default' as const };
-    if (score >= 40) return { label: 'Medium', variant: 'secondary' as const };
-    return { label: 'Low', variant: 'outline' as const };
-  };
-
-  const handleViewPlayer = (player: any) => {
-    setSelectedPlayer(player);
-    setPlayerSheetOpen(true);
-  };
-
   return (
+    <ModuleGuard slug="behavioural-risk-intelligence" fallbackHref="/casino/dashboard">
     <DashboardLayout>
       <TooltipProvider>
-        <div className="flex h-full flex-col">
+        <div className="flex min-h-full flex-col">
           <PageHeader
-            title="Behavioral Risk Intelligence"
-            subtitle="Real-time monitoring of player behavior and risk indicators"
+            title="Behavioral Risk Intelligence Engine"
+            subtitle="Multi-signal player risk analysis — session, deposit, loss escalation, bet intensity & cross-operator"
             actions={
               <>
                 <DateRangePicker value={dateRange} onChange={setDateRange} />
-                <Button variant="outline">
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button variant="outline" size="sm">
                   <Download className="mr-2 h-4 w-4" />
                   Export
-                </Button>
-                <Button>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Live Monitor
                 </Button>
               </>
             }
           />
 
-          <div className="flex-1 overflow-auto p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="live-monitor">Live Monitor</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-              <TabsTrigger value="interventions">Interventions</TabsTrigger>
-            </TabsList>
+          <div className="flex-1 p-6 min-w-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+                <TabsTrigger value="live-monitor">
+                  <Activity className="mr-1.5 h-3.5 w-3.5" />
+                  Live Monitor
+                </TabsTrigger>
+                <TabsTrigger value="analytics">
+                  <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger value="cross-operator">
+                  <Network className="mr-1.5 h-3.5 w-3.5" />
+                  Cross-Operator
+                </TabsTrigger>
+                <TabsTrigger value="exclusion-network">
+                  <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                  SE Network
+                </TabsTrigger>
+                <TabsTrigger value="interventions">
+                  <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
+                  Interventions
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="live-monitor" className="space-y-6">
-              {/* KPI Cards */}
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <KPICard
-                  title="Active Players"
-                  value={players.length}
-                  change={{ value: 5.2, type: 'increase', label: 'vs last hour' }}
-                  icon={Users}
-                  tooltip="Number of players currently active on the platform. Tracked in real-time to monitor overall engagement and identify periods of high activity."
-                />
-                <KPICard
-                  title="Average Risk Score"
-                  value={Math.round(players.reduce((sum, p) => sum + (p.risk_score || 0), 0) / Math.max(players.length, 1))}
-                  change={{ value: -3.1, type: 'decrease', label: 'vs last hour' }}
-                  icon={Brain}
-                  tooltip="Mean risk score across all active players. Calculated using AI behavioral analysis including betting patterns, session duration, impulse indicators, and cognitive fatigue markers."
-                />
-                <KPICard
-                  title="High-Risk Sessions"
-                  value={players.filter(p => (p.risk_score || 0) >= 60).length}
-                  change={{ value: 8.5, type: 'increase', label: 'vs last hour' }}
-                  icon={AlertTriangle}
-                  tooltip="Number of active sessions flagged as high-risk (score ≥60). These players exhibit concerning behavioral patterns and may require intervention."
-                />
-                <KPICard
-                  title="Active Interventions"
-                  value={players.filter(p => (p.risk_score || 0) >= 80).length}
-                  change={{ value: 0, type: 'neutral', label: 'in progress' }}
-                  icon={Activity}
-                  tooltip="Number of AI-triggered interventions currently being deployed to players showing high-risk behavior. Includes reality checks, cool-off suggestions, and account limit prompts."
-                />
-              </div>
+              {/* ── LIVE MONITOR ── */}
+              <TabsContent value="live-monitor" className="space-y-6">
+                {/* KPI Row */}
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+                  <KPICard
+                    title="Active Players"
+                    value={players.length}
+                    change={{ value: 5.2, type: 'increase', label: 'vs last hour' }}
+                    icon={Users}
+                    tooltip="Players currently in an active gaming session."
+                  />
+                  <KPICard
+                    title="Avg Risk Score"
+                    value={avgRisk}
+                    change={{ value: -3.1, type: 'decrease', label: 'vs last hour' }}
+                    icon={Brain}
+                    tooltip="Weighted composite score across all 5 behavioral signals."
+                  />
+                  <KPICard
+                    title="Critical / High Risk"
+                    value={`${criticalCount} / ${highRiskCount}`}
+                    change={{ value: criticalCount, type: criticalCount > 0 ? 'increase' : 'neutral', label: 'critical now' }}
+                    icon={AlertTriangle}
+                    tooltip="Players scoring Critical (≥80) and High (≥60) right now."
+                  />
+                  <KPICard
+                    title="Cross-Operator Flags"
+                    value={crossOpCount}
+                    change={{ value: crossOpCount, type: crossOpCount > 0 ? 'increase' : 'neutral', label: 'active flags' }}
+                    icon={Globe}
+                    tooltip="Players flagged for multi-platform gambling activity."
+                  />
+                </div>
 
-              {/* Charts Row */}
-              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Charts Row */}
+                <div className="grid gap-5 lg:grid-cols-3">
+                  {/* Risk Distribution Bar */}
+                  <ChartCard
+                    title="Risk Distribution"
+                    description="Active players by risk tier"
+                    tooltip="Breakdown of active players across all four risk levels."
+                  >
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={riskDistribution} margin={{ top: 4, right: 4, bottom: 4, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" fontSize={11} />
+                        <YAxis fontSize={11} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                          formatter={(v: any) => [v, 'Players']}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                          {riskDistribution.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+
+                  {/* Signal Radar */}
+                  <ChartCard
+                    title="Signal Radar"
+                    description="Average signal intensity across all active players"
+                    tooltip="Spider chart showing mean score for each of the 5 risk signals."
+                  >
+                    <ResponsiveContainer width="100%" height={220}>
+                      <RadarChart data={signalRadarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+                        <PolarGrid stroke="hsl(var(--border))" />
+                        <PolarAngleAxis dataKey="signal" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                        <Radar
+                          name="Avg Signal"
+                          dataKey="value"
+                          stroke="#3b82f6"
+                          fill="#3b82f6"
+                          fillOpacity={0.25}
+                          strokeWidth={2}
+                        />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+
+                  {/* Real-time trend */}
+                  <ChartCard
+                    title="Real-Time Risk Trend"
+                    description="Aggregate signal scores over time"
+                    tooltip="Live tracking of composite risk and individual signal scores."
+                    headerAction={
+                      <Badge variant="outline" className="gap-1 text-xs">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        Live
+                      </Badge>
+                    }
+                  >
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart
+                        data={signalTrends.slice(-14)}
+                        margin={{ top: 4, right: 4, bottom: 4, left: -10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" fontSize={10} />
+                        <YAxis domain={[0, 100]} fontSize={10} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }}
+                        />
+                        <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="risk" stroke="#ef4444" strokeWidth={2.5} name="Risk Score" dot={false} />
+                        <Line type="monotone" dataKey="lossEscalation" stroke="#f97316" strokeWidth={1.5} name="Loss Escalation" dot={false} strokeDasharray="4 2" />
+                        <Line type="monotone" dataKey="betIntensity" stroke="#f59e0b" strokeWidth={1.5} name="Bet Intensity" dot={false} strokeDasharray="4 2" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+                </div>
+
+                {/* Filters */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="relative flex-1 min-w-[220px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or player ID..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select value={riskFilter} onValueChange={setRiskFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RISK_LEVELS.map((l) => (
+                          <SelectItem key={l.key} value={l.key}>{l.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-muted-foreground ml-auto">
+                    {filteredPlayers.length} of {players.length} players
+                  </div>
+                </div>
+
+                {/* Players Table */}
+                <div className="rounded-lg border bg-card overflow-x-auto">
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-sm">Active Players — Risk Monitor</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Click a row to view full signal breakdown and risk rationale
+                      </p>
+                    </div>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="text-xs">Player</TableHead>
+                        <TableHead className="text-xs">Risk Score</TableHead>
+                        <TableHead className="text-xs">Loss Escalation</TableHead>
+                        <TableHead className="text-xs">Session Duration</TableHead>
+                        <TableHead className="text-xs">Deposit Freq</TableHead>
+                        <TableHead className="text-xs">Bet Intensity</TableHead>
+                        <TableHead className="text-xs">Cross-Op</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
+                            Loading active players...
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredPlayers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
+                            No players match the current filters
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredPlayers.slice(0, 30).map((player, idx) => {
+                          const score = player.risk_score || 0;
+                          const riskCfg = getRiskConfig(score);
+                          const profile = player.riskProfile;
+                          const session = player.currentSession;
+                          const lossScore = profile?.loss_escalation_score ?? Math.min(score + 7, 100);
+                          const sessScore = profile?.session_duration_score ?? Math.max(score - 5, 0);
+                          const depScore = profile?.deposit_frequency_score ?? Math.max(score - 8, 0);
+                          const betScore = profile?.bet_intensity_score ?? Math.max(score - 3, 0);
+                          const crossScore = profile?.cross_operator_score ?? (score >= 70 ? 40 : 10);
+                          const crossFlags = profile?.cross_operator_flags ?? 0;
+
+                          const MiniBar = ({ value }: { value: number }) => {
+                            const c = getRiskConfig(value);
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: c.barColor }} />
+                                </div>
+                                <span className={`text-xs font-medium tabular-nums ${c.color}`}>{value}</span>
+                              </div>
+                            );
+                          };
+
+                          return (
+                            <TableRow
+                              key={player.id || idx}
+                              className="hover:bg-muted/40 cursor-pointer"
+                              onClick={() => handleViewPlayer(player)}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold uppercase shrink-0">
+                                    {player.first_name?.[0]}{player.last_name?.[0]}
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-medium">{player.first_name} {player.last_name}</div>
+                                    <div className="font-mono text-xs text-muted-foreground">{player.player_id}</div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-2xl font-bold tabular-nums ${riskCfg.color}`}>{score}</span>
+                                  <Badge variant={riskCfg.variant} className="text-xs">{riskCfg.label}</Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell><MiniBar value={lossScore} /></TableCell>
+                              <TableCell><MiniBar value={sessScore} /></TableCell>
+                              <TableCell><MiniBar value={depScore} /></TableCell>
+                              <TableCell><MiniBar value={betScore} /></TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <MiniBar value={crossScore} />
+                                  {crossFlags > 0 && (
+                                    <Badge variant="destructive" className="text-xs px-1 py-0">{crossFlags}</Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="gap-1 text-xs">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                                  Active
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleViewPlayer(player); }}>
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
+              {/* ── SIGNAL ANALYTICS ── */}
+              <TabsContent value="analytics" className="space-y-6">
+                {/* Signal Trend Chart */}
                 <ChartCard
-                  title="Real-Time Risk Trends"
-                  description="Last 3 hours of activity"
-                  tooltip="Live tracking of key behavioral risk indicators over the past 3 hours. Monitors aggregate risk scores, impulse levels, and cognitive fatigue across all active sessions to identify emerging patterns."
-                  headerAction={
-                    <Badge variant="outline" className="gap-1">
-                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                      Live
-                    </Badge>
-                  }
+                  title="All-Signal Trend"
+                  description={`${dateRange === '7d' ? '7-day' : dateRange === '30d' ? '30-day' : '90-day'} signal history`}
+                  tooltip="Historical view of all 5 behavioral signals averaged across active players."
                 >
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={mockTrendData}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={signalTrends} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis
-                        dataKey="timestamp"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                      />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <XAxis dataKey="date" fontSize={11} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis domain={[0, 100]} fontSize={11} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                       <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
                       />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="riskScore"
-                        stroke="hsl(var(--destructive))"
-                        strokeWidth={2}
-                        name="Risk Score"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="impulseLevel"
-                        stroke="hsl(var(--warning))"
-                        strokeWidth={2}
-                        name="Impulse Level"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="fatigueIndex"
-                        stroke="hsl(var(--chart-2))"
-                        strokeWidth={2}
-                        name="Fatigue Index"
-                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Line type="monotone" dataKey="risk" stroke="#ef4444" strokeWidth={2.5} name="Composite Risk" dot={false} />
+                      <Line type="monotone" dataKey="lossEscalation" stroke="#f97316" strokeWidth={2} name="Loss Escalation" dot={false} />
+                      <Line type="monotone" dataKey="session" stroke="#3b82f6" strokeWidth={1.5} name="Session Duration" dot={false} strokeDasharray="5 3" />
+                      <Line type="monotone" dataKey="deposit" stroke="#8b5cf6" strokeWidth={1.5} name="Deposit Freq" dot={false} strokeDasharray="5 3" />
+                      <Line type="monotone" dataKey="betIntensity" stroke="#f59e0b" strokeWidth={1.5} name="Bet Intensity" dot={false} strokeDasharray="5 3" />
+                      <Line type="monotone" dataKey="crossOperator" stroke="#06b6d4" strokeWidth={1.5} name="Cross-Operator" dot={false} strokeDasharray="5 3" />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard
-                  title="Cognitive Fatigue Distribution"
-                  description="Current session analysis"
-                  tooltip="Real-time cognitive fatigue analysis for active sessions. Measures decision stability, reaction time patterns, and session duration to identify players experiencing mental exhaustion that may impair judgment."
-                >
-                  <CognitiveFatigueIndex
-                    playerId="DEMO-001"
-                    fatigueScore={72}
-                    decisionStability={65}
-                    reactionTimeMs={1450}
-                    sessionDuration={145}
-                  />
-                </ChartCard>
-              </div>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <ChartCard
+                    title="Behavior Trend Analysis"
+                    description="7-day historical view"
+                    tooltip="Seven-day historical analysis of behavioral risk patterns."
+                  >
+                    <BehaviorTrendGraph data={signalTrends.slice(-7).map(t => ({
+                      timestamp: t.date,
+                      riskScore: t.risk,
+                      impulseLevel: t.betIntensity,
+                      fatigueIndex: t.session,
+                    }))} />
+                  </ChartCard>
 
-              {/* Live Players Table */}
-              <TableCard
-                title="Active High-Risk Players"
-                description="Real-time monitoring of players requiring attention"
-                tooltip="Live feed of active players exhibiting high-risk behavioral patterns. Displays real-time risk scores, session metrics, betting velocity, and impulse indicators. Click any player to view detailed behavioral analysis or trigger an intervention."
-                searchable
-                searchPlaceholder="Search by player ID..."
-                headerAction={
-                  <Button size="sm">
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Create Intervention
-                  </Button>
-                }
-              >
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                      <TableHead>Session Duration</TableHead>
-                      <TableHead>Bet Velocity</TableHead>
-                      <TableHead>Impulse Level</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Loading active players...
-                        </TableCell>
-                      </TableRow>
-                    ) : players.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No active players found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      players.slice(0, 20).map((player, idx) => {
-                        const risk = getRiskBadge(player.risk_score || 0);
-                        const session = player.currentSession;
-                        const betVelocity = session
-                          ? ((session.total_bets || 0) / Math.max((session.duration || 1), 1) * 60).toFixed(1)
-                          : '0.0';
-                        const impulseLevel = player.risk_score || 0;
-
-                        return (
-                          <TableRow key={player.id || idx} className="hover:bg-muted/50 cursor-pointer">
-                            <TableCell>
-                              <div className="font-medium text-body">{player.first_name} {player.last_name}</div>
-                              <div className="font-mono text-xs text-muted-foreground">{player.player_id}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="text-2xl font-bold">
-                                  {player.risk_score || 0}
-                                </div>
-                                <Badge variant={risk.variant}>{risk.label}</Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-body">
-                              {session?.duration || 0} min
-                            </TableCell>
-                            <TableCell className="text-body">
-                              {betVelocity} bets/min
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
-                                  <div
-                                    className="h-full bg-warning rounded-full"
-                                    style={{
-                                      width: `${Math.min(impulseLevel, 100)}%`,
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-body text-muted-foreground">
-                                  {impulseLevel}%
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="gap-1">
-                                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                                Active
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm" onClick={() => handleViewPlayer(player)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </TableCard>
-            </TabsContent>
-
-            <TabsContent value="analytics" className="space-y-6">
-              <div className="grid gap-6 lg:grid-cols-2">
-                <ChartCard
-                  title="Behavior Trend Analysis"
-                  description="7-day historical view"
-                  tooltip="Seven-day historical analysis of behavioral risk patterns. Track changes in risk scores, impulse levels, and fatigue markers to identify developing trends and predict future high-risk periods."
-                >
-                  <BehaviorTrendGraph data={mockTrendData} />
-                </ChartCard>
-
-                <ChartCard
-                  title="Persona Shift Detection"
-                  description="Behavioral change patterns"
-                  tooltip="AI-powered detection of sudden behavioral changes that deviate from established player patterns. Identifies personality shifts, emotional state changes, and altered betting styles that may indicate problem gambling or account compromise."
-                >
-                  <PersonaShiftChart
-                    data={{
-                      emotionalState: 'Anxious',
-                      personalityShiftScore: 67.5,
-                      bettingVelocity: 8.4,
-                      sessionDuration: 142,
-                      reactionTime: 1450,
-                    }}
-                    playerName="DEMO-001"
-                  />
-                </ChartCard>
-              </div>
-
-              <TableCard
-                title="Impulse vs Intention Analysis"
-                description="Decision-making patterns"
-                tooltip="Analysis of player decision-making quality by comparing impulsive actions versus intentional, deliberate choices. High impulse-to-intention ratios indicate poor self-control and elevated risk of harmful gambling behavior."
-              >
-                <ImpulseVsIntentionTable
-                  playerId="DEMO-001"
-                  data={[
-                    {
-                      timestamp: '12:00',
-                      action: 'Increased bet',
-                      impulseLevel: 85,
-                      intentAlignment: 45,
-                      outcome: 'loss',
-                      betAmount: 500,
-                    },
-                    {
-                      timestamp: '12:05',
-                      action: 'Quick rebuy',
-                      impulseLevel: 90,
-                      intentAlignment: 35,
-                      outcome: 'loss',
-                      betAmount: 750,
-                    },
-                  ]}
-                  overallRatio={1.8}
-                />
-              </TableCard>
-            </TabsContent>
-
-            <TabsContent value="interventions" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-3">
-                <KPICard
-                  title="Total Interventions"
-                  value={interventions.length}
-                  change={{ value: 12.3, type: 'increase', label: 'this period' }}
-                  icon={Activity}
-                  tooltip="Total number of AI-triggered interventions deployed this period across all players. Includes reality checks, cool-off periods, deposit limit suggestions, and session breaks."
-                />
-                <KPICard
-                  title="Success Rate"
-                  value={interventions.length > 0
-                    ? `${Math.round((interventions.filter(i => i.intervention_successful).length / interventions.length) * 100)}%`
-                    : '0%'}
-                  change={{ value: 3.2, type: 'increase', label: 'vs last period' }}
-                  icon={TrendingUp}
-                  tooltip="Percentage of interventions that successfully reduced player risk scores or modified harmful behavior patterns. Measured by comparing pre- and post-intervention risk levels."
-                />
-                <KPICard
-                  title="Avg Risk at Trigger"
-                  value={interventions.length > 0
-                    ? Math.round(interventions.reduce((sum, i) => sum + (i.risk_score_at_trigger || 0), 0) / interventions.length)
-                    : 0}
-                  change={{ value: -15.5, type: 'decrease', label: 'vs last period' }}
-                  icon={Zap}
-                  tooltip="Average player risk score at the time each intervention was triggered. Lower values indicate earlier, more proactive intervention."
-                />
-              </div>
-
-              <TableCard
-                title="Recent Interventions"
-                description="History of player interventions"
-                tooltip="Comprehensive log of all player interventions including trigger events, communication channels used, player responses, and outcomes. Track intervention effectiveness and refine strategies."
-                searchable
-              >
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date/Time</TableHead>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Channel</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                      <TableHead>Response</TableHead>
-                      <TableHead>Outcome</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {interventionsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Loading interventions...
-                        </TableCell>
-                      </TableRow>
-                    ) : interventions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No interventions recorded for this period
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      interventions.map((intervention, idx) => {
-                        const responseBadge = getResponseBadge(intervention.player_response);
-                        return (
-                          <TableRow key={intervention.id || idx} className="hover:bg-muted/50">
-                            <TableCell className="text-body text-muted-foreground whitespace-nowrap">
-                              {new Date(intervention.triggered_at).toLocaleString('en-ZA', {
-                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-                              })}
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium text-body">
-                                {intervention.players?.first_name && intervention.players?.last_name
-                                  ? `${intervention.players.first_name} ${intervention.players.last_name}`
-                                  : '—'}
-                              </div>
-                              {intervention.players?.player_id && (
-                                <div className="font-mono text-xs text-muted-foreground">{intervention.players.player_id}</div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-body">
-                              {formatInterventionType(intervention.intervention_type)}
-                            </TableCell>
-                            <TableCell className="capitalize text-body">
-                              {(intervention.delivery_method || '').replace(/_/g, ' ')}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <span className="font-semibold">{intervention.risk_score_at_trigger}</span>
-                                <span className="text-xs text-muted-foreground">/100</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={responseBadge.variant}>{responseBadge.label}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {intervention.intervention_successful ? (
-                                <Badge variant="default" className="bg-green-600 hover:bg-green-700">Success</Badge>
-                              ) : (
-                                <Badge variant="outline">Unsuccessful</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </TableCard>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-      </TooltipProvider>
-
-      {/* Intervention Modal */}
-      {selectedPlayer && (
-        <InterventionModal
-          open={interventionModalOpen}
-          onOpenChange={setInterventionModalOpen}
-          playerName={`${selectedPlayer.first_name || ''} ${selectedPlayer.last_name || ''}`.trim()}
-          riskScore={selectedPlayer.risk_score || 0}
-          triggerReason={`Risk score of ${selectedPlayer.risk_score || 0} detected during active session`}
-          onSubmit={(data) => {
-            setInterventionModalOpen(false);
-          }}
-        />
-      )}
-
-      {/* Player Detail Sheet */}
-      <Sheet open={playerSheetOpen} onOpenChange={setPlayerSheetOpen}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-          {selectedPlayer && (() => {
-            const risk = getRiskBadge(selectedPlayer.risk_score || 0);
-            const session = selectedPlayer.currentSession;
-            const score = selectedPlayer.risk_score || 0;
-            const betVelocity = session
-              ? ((session.total_bets || 0) / Math.max(session.duration || 1, 1) * 60).toFixed(1)
-              : '0.0';
-
-            const riskColor =
-              score >= 80 ? 'text-red-600' :
-              score >= 60 ? 'text-orange-500' :
-              score >= 40 ? 'text-yellow-500' : 'text-green-600';
-
-            const riskBg =
-              score >= 80 ? 'bg-red-50 border-red-200' :
-              score >= 60 ? 'bg-orange-50 border-orange-200' :
-              score >= 40 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200';
-
-            return (
-              <>
-                <SheetHeader className="pb-4">
-                  <SheetTitle className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted font-semibold text-sm">
-                      {selectedPlayer.first_name?.[0]}{selectedPlayer.last_name?.[0]}
-                    </div>
-                    <div>
-                      <div>{selectedPlayer.first_name} {selectedPlayer.last_name}</div>
-                      <div className="font-mono text-xs font-normal text-muted-foreground">{selectedPlayer.player_id}</div>
-                    </div>
-                  </SheetTitle>
-                  <SheetDescription>
-                    Live behavioral risk profile
-                  </SheetDescription>
-                </SheetHeader>
-
-                {/* Risk Score Banner */}
-                <div className={`rounded-lg border p-4 mb-4 ${riskBg}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Overall Risk Score</div>
-                      <div className={`text-4xl font-bold ${riskColor}`}>{score}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">out of 100</div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={risk.variant} className="text-sm px-3 py-1">{risk.label}</Badge>
-                      <div className="flex items-center gap-1 mt-2 justify-end">
-                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-xs text-muted-foreground">Active Session</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 h-2 w-full rounded-full bg-white/60 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        score >= 80 ? 'bg-red-500' : score >= 60 ? 'bg-orange-500' : score >= 40 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                      style={{ width: `${score}%` }}
+                  <ChartCard
+                    title="Persona Shift Detection"
+                    description="Behavioral change patterns"
+                    tooltip="AI-powered detection of sudden behavioral deviations from established player patterns."
+                  >
+                    <PersonaShiftChart
+                      data={{
+                        emotionalState: avgRisk >= 70 ? 'Anxious' : avgRisk >= 50 ? 'Agitated' : 'Calm',
+                        personalityShiftScore: avgRisk * 0.8,
+                        bettingVelocity: signalTrends[signalTrends.length - 1]?.betIntensity / 10 || 6.4,
+                        sessionDuration: signalTrends[signalTrends.length - 1]?.session * 1.5 || 120,
+                        reactionTime: 1200 + avgRisk * 5,
+                      }}
+                      playerName="Population Average"
                     />
-                  </div>
-                </div>
+                  </ChartCard>
 
-                {/* Session Stats */}
-                <div className="mb-4">
-                  <div className="text-sm font-semibold mb-3">Current Session</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border bg-card p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span className="text-xs">Duration</span>
-                      </div>
-                      <div className="text-lg font-semibold">{session?.duration || 0} min</div>
+                  {/* Signal Weight Explainer */}
+                  <div className="rounded-lg border bg-card p-5 space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-sm">Risk Scoring Model</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        How the composite risk score is calculated from 5 behavioral signals
+                      </p>
                     </div>
-                    <div className="rounded-lg border bg-card p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Activity className="h-3.5 w-3.5" />
-                        <span className="text-xs">Bet Velocity</span>
-                      </div>
-                      <div className="text-lg font-semibold">{betVelocity} /min</div>
-                    </div>
-                    <div className="rounded-lg border bg-card p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <DollarSign className="h-3.5 w-3.5" />
-                        <span className="text-xs">Session Wager</span>
-                      </div>
-                      <div className="text-lg font-semibold">
-                        R{((session?.total_wagered || 0)).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border bg-card p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Target className="h-3.5 w-3.5" />
-                        <span className="text-xs">Total Bets</span>
-                      </div>
-                      <div className="text-lg font-semibold">{session?.total_bets || 0}</div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="my-4" />
-
-                {/* Risk Indicators */}
-                <div className="mb-4">
-                  <div className="text-sm font-semibold mb-3">Risk Indicators</div>
-                  <div className="space-y-3">
+                    <Separator />
                     {[
-                      { label: 'Impulse Level', value: score, icon: Zap },
-                      { label: 'Cognitive Fatigue', value: Math.min(score + 8, 100), icon: Brain },
-                      { label: 'Bet Escalation', value: Math.max(score - 12, 0), icon: TrendingUp },
-                      { label: 'Session Intensity', value: Math.min(score + 5, 100), icon: ShieldAlert },
-                    ].map(({ label, value, icon: Icon }) => (
-                      <div key={label} className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">{label}</span>
-                            <span className="font-medium">{value}%</span>
+                      { label: 'Loss Escalation', weight: 30, description: 'Bet size increase after losses', color: '#f97316' },
+                      { label: 'Session Duration', weight: 20, description: 'Extended time in active play', color: '#3b82f6' },
+                      { label: 'Deposit Frequency', weight: 20, description: 'Multiple deposits in rolling windows', color: '#8b5cf6' },
+                      { label: 'Bet Intensity', weight: 20, description: 'Bets vs established baseline', color: '#f59e0b' },
+                      { label: 'Cross-Operator', weight: 10, description: 'Multi-platform activity flags', color: '#06b6d4' },
+                    ].map((signal) => (
+                      <div key={signal.label}>
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <div>
+                            <span className="font-medium">{signal.label}</span>
+                            <span className="text-muted-foreground ml-2">{signal.description}</span>
                           </div>
-                          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                value >= 80 ? 'bg-red-500' : value >= 60 ? 'bg-orange-500' : value >= 40 ? 'bg-yellow-500' : 'bg-green-500'
-                              }`}
-                              style={{ width: `${value}%` }}
-                            />
-                          </div>
+                          <span className="font-bold tabular-nums">{signal.weight}%</span>
                         </div>
+                        <Progress value={signal.weight * 3} className="h-1.5" style={{ '--progress-color': signal.color } as any} />
                       </div>
                     ))}
+                    <div className="pt-2 text-xs text-muted-foreground border-t">
+                      Composite Score = (Loss Escalation × 0.30) + (Session × 0.20) + (Deposit × 0.20) + (Bet × 0.20) + (Cross-Op × 0.10)
+                    </div>
                   </div>
-                </div>
 
-                <Separator className="my-4" />
-
-                {/* Player Profile */}
-                <div className="mb-4">
-                  <div className="text-sm font-semibold mb-3">Player Profile</div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Email</span>
-                      <span className="font-medium truncate max-w-[200px]">{selectedPlayer.email || '—'}</span>
+                  {/* Impulse vs Intention */}
+                  <div className="rounded-lg border bg-card overflow-hidden">
+                    <div className="px-4 py-3 border-b">
+                      <h3 className="font-semibold text-sm">Impulse vs Intention Analysis</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Decision-making quality breakdown</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Wagered</span>
-                      <span className="font-medium">R{(selectedPlayer.total_wagered || 0).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Active</span>
-                      <span className="font-medium">
-                        {selectedPlayer.last_active
-                          ? new Date(selectedPlayer.last_active).toLocaleDateString('en-ZA')
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Self Excluded</span>
-                      <span className="font-medium">{selectedPlayer.self_excluded ? 'Yes' : 'No'}</span>
+                    <div className="p-4">
+                      <ImpulseVsIntentionTable
+                        playerId="aggregate"
+                        data={[
+                          { timestamp: '08:00', action: 'Bet increase post-loss', impulseLevel: 82, intentAlignment: 42, outcome: 'loss', betAmount: 450 },
+                          { timestamp: '09:15', action: 'Rapid re-deposit', impulseLevel: 88, intentAlignment: 35, outcome: 'loss', betAmount: 800 },
+                          { timestamp: '10:30', action: 'Session extension', impulseLevel: 71, intentAlignment: 55, outcome: 'win', betAmount: 300 },
+                          { timestamp: '11:45', action: 'Max bet stake', impulseLevel: 94, intentAlignment: 28, outcome: 'loss', betAmount: 1200 },
+                        ]}
+                        overallRatio={1.9}
+                      />
                     </div>
                   </div>
                 </div>
+              </TabsContent>
 
-                <Separator className="my-4" />
+              {/* ── INTERVENTIONS ── */}
+              {/* ── CROSS-OPERATOR INTELLIGENCE ── */}
+              <TabsContent value="cross-operator" className="space-y-6">
+                <CrossOperatorIntelligence />
+              </TabsContent>
 
-                {/* Actions */}
-                <div className="flex flex-col gap-2">
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      setPlayerSheetOpen(false);
-                      setInterventionModalOpen(true);
-                    }}
-                  >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Send Intervention
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setPlayerSheetOpen(false);
-                      router.push('/casino/players');
-                    }}
-                  >
-                    <TrendingDown className="mr-2 h-4 w-4" />
-                    View Full History
-                  </Button>
+              {/* ── SELF-EXCLUSION NETWORK ── */}
+              <TabsContent value="exclusion-network" className="space-y-6">
+                <SelfExclusionNetwork />
+              </TabsContent>
+
+              <TabsContent value="interventions" className="space-y-6">
+                <div className="grid gap-5 md:grid-cols-3">
+                  <KPICard
+                    title="Total Interventions"
+                    value={interventions.length}
+                    change={{ value: 12.3, type: 'increase', label: 'this period' }}
+                    icon={Activity}
+                    tooltip="Total AI-triggered interventions deployed this period."
+                  />
+                  <KPICard
+                    title="Success Rate"
+                    value={`${interventionSuccessRate}%`}
+                    change={{ value: 3.2, type: 'increase', label: 'vs last period' }}
+                    icon={TrendingUp}
+                    tooltip="Percentage of interventions that successfully reduced player risk scores."
+                  />
+                  <KPICard
+                    title="Avg Risk at Trigger"
+                    value={
+                      interventions.length > 0
+                        ? Math.round(interventions.reduce((s, i) => s + (i.risk_score_at_trigger || 0), 0) / interventions.length)
+                        : 0
+                    }
+                    change={{ value: -15.5, type: 'decrease', label: 'vs last period' }}
+                    icon={Zap}
+                    tooltip="Average risk score when interventions were triggered. Lower = earlier intervention."
+                  />
                 </div>
-              </>
-            );
-          })()}
-        </SheetContent>
-      </Sheet>
+
+                <div className="rounded-lg border bg-card overflow-hidden">
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-sm">Intervention History</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Complete log of AI-triggered player interventions
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {interventions.length} records
+                    </Badge>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="text-xs">Date / Time</TableHead>
+                        <TableHead className="text-xs">Player</TableHead>
+                        <TableHead className="text-xs">Intervention Type</TableHead>
+                        <TableHead className="text-xs">Channel</TableHead>
+                        <TableHead className="text-xs">Risk Score</TableHead>
+                        <TableHead className="text-xs">Response</TableHead>
+                        <TableHead className="text-xs">Outcome</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {interventionsLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
+                            Loading interventions...
+                          </TableCell>
+                        </TableRow>
+                      ) : interventions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                            No interventions recorded for this period
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        interventions.map((iv, idx) => {
+                          const rb = getResponseBadge(iv.player_response);
+                          const ivScore = iv.risk_score_at_trigger || 0;
+                          const riskCfg = getRiskConfig(ivScore);
+                          return (
+                            <TableRow key={iv.id || idx} className="hover:bg-muted/40">
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(iv.triggered_at).toLocaleString('en-ZA', {
+                                  day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                                })}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm font-medium">
+                                  {iv.players?.first_name && iv.players?.last_name
+                                    ? `${iv.players.first_name} ${iv.players.last_name}`
+                                    : '—'}
+                                </div>
+                                {iv.players?.player_id && (
+                                  <div className="font-mono text-xs text-muted-foreground">{iv.players.player_id}</div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm">{formatType(iv.intervention_type || '')}</TableCell>
+                              <TableCell className="capitalize text-sm text-muted-foreground">
+                                {(iv.delivery_method || '').replace(/_/g, ' ')}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`font-bold text-sm ${riskCfg.color}`}>{ivScore}</span>
+                                  <Badge variant={riskCfg.variant} className="text-xs">{riskCfg.label}</Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={rb.variant} className="text-xs">{rb.label}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                {iv.intervention_successful ? (
+                                  <div className="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    Success
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    No change
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+
+        {/* Player Risk Profile Sheet */}
+        <PlayerRiskProfileSheet
+          open={playerSheetOpen}
+          onOpenChange={setPlayerSheetOpen}
+          player={selectedPlayer}
+          signalHistory={playerSignalHistory}
+          onIntervene={() => {
+            setPlayerSheetOpen(false);
+            setInterventionModalOpen(true);
+          }}
+          onViewHistory={() => {
+            setPlayerSheetOpen(false);
+            setHistorySheetOpen(true);
+          }}
+        />
+
+        {/* Intervention Modal */}
+        {selectedPlayer && (
+          <>
+            <PlayerHistorySheet
+              open={historySheetOpen}
+              onOpenChange={setHistorySheetOpen}
+              player={selectedPlayer}
+            />
+            <InterventionModal
+              open={interventionModalOpen}
+              onOpenChange={setInterventionModalOpen}
+              playerName={`${selectedPlayer.first_name || ''} ${selectedPlayer.last_name || ''}`.trim()}
+              riskScore={selectedPlayer.risk_score || 0}
+              triggerReason={`Risk score of ${selectedPlayer.risk_score || 0} — ${
+                getRiskConfig(selectedPlayer.risk_score || 0).label
+              } level detected during active session`}
+              onSubmit={() => {
+                setInterventionModalOpen(false);
+                loadInterventions();
+              }}
+            />
+          </>
+        )}
+      </TooltipProvider>
     </DashboardLayout>
+    </ModuleGuard>
   );
 }
