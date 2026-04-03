@@ -42,7 +42,7 @@ BEGIN
     COALESCE(
       new.raw_user_meta_data->>'role',
       'casino_admin'
-    ),
+    )::user_role,
     CASE
       WHEN (new.raw_user_meta_data->>'casino_id') IS NOT NULL
         AND (new.raw_user_meta_data->>'casino_id') <> ''
@@ -51,7 +51,10 @@ BEGIN
     END,
     true,
     -- unusable stub hash — real auth handled by auth.users.encrypted_password
-    crypt('__unusable__', gen_salt('bf')),
+    -- Static non-matchable stub. public.users.password_hash is never
+    -- checked during login — auth is handled by auth.users.encrypted_password.
+    -- Avoids a pgcrypto dependency (gen_salt not guaranteed in search_path).
+    '__no_password_set__',
     now(),
     now()
   )
@@ -77,10 +80,10 @@ SELECT
   au.id,
   au.email,
   COALESCE(au.raw_user_meta_data->>'full_name', split_part(au.email, '@', 1)),
-  COALESCE(au.raw_user_meta_data->>'role', 'casino_admin'),
+  COALESCE(au.raw_user_meta_data->>'role', 'casino_admin')::user_role,
   NULL,
   true,
-  crypt('__unusable__', gen_salt('bf')),
+  '__no_password_set__',
   au.created_at,
   now()
 FROM auth.users au

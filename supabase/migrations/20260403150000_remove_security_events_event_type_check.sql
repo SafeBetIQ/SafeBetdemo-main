@@ -30,7 +30,8 @@ DECLARE
   v_constraint_name text;
 BEGIN
   -- Find any CHECK constraint on event_type for the security_events table.
-  -- pg_constraint.consrc contains the constraint expression text.
+  -- pg_get_constraintdef() is used instead of the removed pg_constraint.consrc
+  -- column (consrc was dropped in PostgreSQL 12; compatible with PG 12-17+).
   SELECT c.conname
   INTO   v_constraint_name
   FROM   pg_constraint c
@@ -38,8 +39,8 @@ BEGIN
   JOIN   pg_namespace  n ON n.oid = t.relnamespace
   WHERE  t.relname  = 'security_events'
     AND  n.nspname  = 'public'
-    AND  c.contype  = 'c'                     -- CHECK constraint
-    AND  c.consrc  LIKE '%event_type%'        -- targets event_type column
+    AND  c.contype  = 'c'                                        -- CHECK constraint
+    AND  pg_get_constraintdef(c.oid) LIKE '%event_type%'         -- targets event_type column
   LIMIT 1;
 
   IF v_constraint_name IS NOT NULL THEN

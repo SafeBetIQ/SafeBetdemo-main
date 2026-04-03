@@ -122,8 +122,16 @@ CREATE TRIGGER trg_casinos_updated_at
 
 ALTER TABLE public.casinos ENABLE ROW LEVEL SECURITY;
 
+-- DROP before CREATE is fully idempotent (IF EXISTS prevents errors on fresh DBs).
+-- PostgreSQL does not support CREATE POLICY IF NOT EXISTS.
+
+DROP POLICY IF EXISTS "super_admin_read_all_casinos"              ON public.casinos;
+DROP POLICY IF EXISTS "casino_admin_read_own_casino"              ON public.casinos;
+DROP POLICY IF EXISTS "national_regulator_read_all_casinos"       ON public.casinos;
+DROP POLICY IF EXISTS "provincial_regulator_read_province_casinos" ON public.casinos;
+
 -- Super admin: full read access to all casinos
-CREATE POLICY IF NOT EXISTS "super_admin_read_all_casinos"
+CREATE POLICY "super_admin_read_all_casinos"
   ON public.casinos
   FOR SELECT TO authenticated
   USING (
@@ -131,7 +139,7 @@ CREATE POLICY IF NOT EXISTS "super_admin_read_all_casinos"
   );
 
 -- Casino admin / compliance officer: read only their own casino
-CREATE POLICY IF NOT EXISTS "casino_admin_read_own_casino"
+CREATE POLICY "casino_admin_read_own_casino"
   ON public.casinos
   FOR SELECT TO authenticated
   USING (
@@ -141,7 +149,7 @@ CREATE POLICY IF NOT EXISTS "casino_admin_read_own_casino"
   );
 
 -- National regulators: read all casinos
-CREATE POLICY IF NOT EXISTS "national_regulator_read_all_casinos"
+CREATE POLICY "national_regulator_read_all_casinos"
   ON public.casinos
   FOR SELECT TO authenticated
   USING (
@@ -150,7 +158,7 @@ CREATE POLICY IF NOT EXISTS "national_regulator_read_all_casinos"
   );
 
 -- Provincial regulators: read casinos in their province
-CREATE POLICY IF NOT EXISTS "provincial_regulator_read_province_casinos"
+CREATE POLICY "provincial_regulator_read_province_casinos"
   ON public.casinos
   FOR SELECT TO authenticated
   USING (

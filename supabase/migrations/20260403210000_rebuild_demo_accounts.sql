@@ -52,9 +52,58 @@ DECLARE
   uuid_northerncape uuid := 'f1000001-0000-0000-0000-000000000009';
 
 BEGIN
+  -- pgcrypto (crypt / gen_salt) is installed by Supabase in the extensions schema.
+  -- SET LOCAL inside a DO block is valid (runs in the current transaction).
+  SET LOCAL search_path TO public, extensions;
+
   -- Generate hashes once — avoids 14 separate bcrypt calls
   demo_hash := crypt('Demo@SafeBet2025!', gen_salt('bf'));
   stub_hash := crypt('__unusable__', gen_salt('bf'));
+
+  -- ──────────────────────────────────────────────────────────────────────────
+  -- 0. Remove any existing provincial_regulator rows whose email matches our
+  --    canonical list but may have been created with different UUIDs.
+  --    We then re-insert with deterministic UUIDs below.
+  --    auth.identities rows are cascade-deleted via FK, or deleted explicitly.
+  -- ──────────────────────────────────────────────────────────────────────────
+  DELETE FROM auth.identities
+  WHERE provider_id IN (
+    'regulator@gauteng.pgb.gov.za',
+    'regulator@westerncape.pgb.gov.za',
+    'regulator@kwazulunatal.pgb.gov.za',
+    'regulator@mpumalanga.pgb.gov.za',
+    'regulator@limpopo.pgb.gov.za',
+    'regulator@freestate.pgb.gov.za',
+    'regulator@easterncape.pgb.gov.za',
+    'regulator@northwest.pgb.gov.za',
+    'regulator@northerncape.pgb.gov.za'
+  );
+
+  DELETE FROM public.users
+  WHERE email IN (
+    'regulator@gauteng.pgb.gov.za',
+    'regulator@westerncape.pgb.gov.za',
+    'regulator@kwazulunatal.pgb.gov.za',
+    'regulator@mpumalanga.pgb.gov.za',
+    'regulator@limpopo.pgb.gov.za',
+    'regulator@freestate.pgb.gov.za',
+    'regulator@easterncape.pgb.gov.za',
+    'regulator@northwest.pgb.gov.za',
+    'regulator@northerncape.pgb.gov.za'
+  );
+
+  DELETE FROM auth.users
+  WHERE email IN (
+    'regulator@gauteng.pgb.gov.za',
+    'regulator@westerncape.pgb.gov.za',
+    'regulator@kwazulunatal.pgb.gov.za',
+    'regulator@mpumalanga.pgb.gov.za',
+    'regulator@limpopo.pgb.gov.za',
+    'regulator@freestate.pgb.gov.za',
+    'regulator@easterncape.pgb.gov.za',
+    'regulator@northwest.pgb.gov.za',
+    'regulator@northerncape.pgb.gov.za'
+  );
 
   -- ──────────────────────────────────────────────────────────────────────────
   -- 1. Standardise passwords for the 5 existing accounts
