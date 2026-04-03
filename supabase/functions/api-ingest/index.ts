@@ -181,6 +181,227 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// ─── Replay Abuse Detection ──────────────────────────────────────────────────
+
+const REPLAY_ESCALATION_THRESHOLD = 10;   // >10 in 5 min → high severity
+const REPLAY_CIRCUIT_THRESHOLD    = 25;   // >25 in 5 min → circuit open
+const REPLAY_WINDOW_MINUTES       = 5;
+const REPLAY_CIRCUIT_ENDPOINT     = "api-ingest"; // circuit covers all ingest traffic
+
+/**
+ * Hash a raw IP address with SHA-256 before storing.
+ * Satisfies POPIA/GDPR — no raw IP ever written to DB.
+ */
+async function hashIp(ip: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Fast circuit check for replay-abuse circuit.
+ * Single indexed PK lookup — < 1 ms. Returns true if the circuit is open.
+ * Called on every authenticated request; failure degrades gracefully (allow).
+ */
+async function checkReplayCircuit(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("circuit_breaker_state")
+      .select("state")
+      .eq("casino_id", casinoId)
+      .eq("endpoint", REPLAY_CIRCUIT_ENDPOINT)
+      .maybeSingle();
+    return data?.state === "open";
+  } catch (_err) {
+    // Never block ingestion due to a circuit-check error
+    console.error("replay_circuit_check_error", _err);
+    return false;
+  }
+}
+
+/**
+ * Count replay_attack events for this casino in the last REPLAY_WINDOW_MINUTES.
+ * Uses the composite partial index idx_sec_events_replay_window.
+ */
+async function countRecentReplayAttacks(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+): Promise<number> {
+  const windowStart = new Date(
+    Date.now() - REPLAY_WINDOW_MINUTES * 60 * 1000,
+  ).toISOString();
+
+  const { count, error } = await supabase
+    .from("security_events")
+    .select("id", { count: "exact", head: true })
+    .eq("casino_id", casinoId)
+    .eq("event_type", "replay_attack")
+    .gte("created_at", windowStart);
+
+  if (error) {
+    console.error("replay_count_error", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Open the replay-abuse circuit breaker for this casino.
+ * Uses UPSERT so repeated triggers are idempotent.
+ */
+async function openReplayCircuit(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+  reason: string,
+): Promise<void> {
+  await supabase
+    .from("circuit_breaker_state")
+    .upsert(
+      {
+        casino_id:             casinoId,
+        endpoint:              REPLAY_CIRCUIT_ENDPOINT,
+        state:                 "open",
+        opened_at:             new Date().toISOString(),
+        opened_reason:         reason,
+        consecutive_violations: REPLAY_CIRCUIT_THRESHOLD + 1,
+        consecutive_successes:  0,
+      },
+      { onConflict: "casino_id,endpoint" },
+    );
+}
+
+interface ReplayAbuseResult {
+  replayCount: number;
+  severity: "medium" | "high";
+  circuitOpened: boolean;
+}
+
+/**
+ * Detect, log, escalate, and optionally circuit-break on replay abuse.
+ *
+ * Called only on the expired-key path — zero impact on normal ingestion.
+ *
+ * Escalation tiers:
+ *   0–10  attempts / 5 min  → medium  (log only)
+ *  11–25  attempts / 5 min  → high    (log escalation event)
+ *   >25   attempts / 5 min  → critical circuit open (log + open circuit → 503)
+ */
+async function detectAndLogReplayAbuse(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+  requestId: string,
+  expiredRow: IngestRequest,
+  sourceIpHash: string | null,
+  endpoint: string,
+): Promise<ReplayAbuseResult> {
+  const now = new Date().toISOString();
+
+  // ── Step 1: Log the individual replay_attack event ───────────────────────
+  // Written immediately so the subsequent COUNT includes this event.
+  try {
+    await supabase.from("security_events").insert({
+      casino_id:       casinoId,
+      event_type:      "replay_attack",
+      severity:        "medium",
+      title:           "Replay Attack — Expired Idempotency Key Reused",
+      description:     `Expired X-Request-ID submitted to endpoint /${endpoint}.`,
+      source_ip_hash:  sourceIpHash,
+      affected_system: "api-ingest",
+      resource_path:   `/api-ingest/${endpoint}`,
+      raw_metadata: {
+        request_id:  requestId,
+        expired_at:  expiredRow.expires_at,
+        endpoint,
+        timestamp:   now,
+      },
+      is_automated: true,
+      is_resolved:  false,
+      created_at:   now,
+    });
+  } catch (err) {
+    console.error("replay_event_log_error", err);
+    // Non-fatal — continue to count and escalate
+  }
+
+  // ── Step 2: Count recent replay attempts for this casino ─────────────────
+  const replayCount = await countRecentReplayAttacks(supabase, casinoId);
+
+  // ── Step 3: Escalate based on count ──────────────────────────────────────
+  let severity: "medium" | "high" = "medium";
+  let circuitOpened = false;
+
+  if (replayCount > REPLAY_CIRCUIT_THRESHOLD) {
+    // Tier 3: circuit open
+    severity = "high";
+    circuitOpened = true;
+
+    const reason = `Replay abuse: ${replayCount} expired key attempts in ${REPLAY_WINDOW_MINUTES} minutes.`;
+
+    await openReplayCircuit(supabase, casinoId, reason);
+
+    // Log the circuit-open escalation as a separate critical event
+    try {
+      await supabase.from("security_events").insert({
+        casino_id:       casinoId,
+        event_type:      "circuit_breaker_open",
+        severity:        "critical",
+        title:           "API Ingest Circuit Opened — Replay Abuse Threshold Exceeded",
+        description:     reason,
+        source_ip_hash:  sourceIpHash,
+        affected_system: "api-ingest",
+        resource_path:   `/api-ingest/${endpoint}`,
+        raw_metadata: {
+          replay_count:  replayCount,
+          threshold:     REPLAY_CIRCUIT_THRESHOLD,
+          window_minutes: REPLAY_WINDOW_MINUTES,
+          casino_id:     casinoId,
+          timestamp:     now,
+        },
+        is_automated: true,
+        is_resolved:  false,
+        created_at:   now,
+      });
+    } catch (err) {
+      console.error("circuit_open_event_log_error", err);
+    }
+
+  } else if (replayCount > REPLAY_ESCALATION_THRESHOLD) {
+    // Tier 2: high severity escalation — log but don't open circuit yet
+    severity = "high";
+
+    try {
+      await supabase.from("security_events").insert({
+        casino_id:       casinoId,
+        event_type:      "replay_attack_escalated",
+        severity:        "high",
+        title:           "Replay Attack Escalated — High Frequency Detected",
+        description:     `${replayCount} expired key attempts in ${REPLAY_WINDOW_MINUTES} minutes. Circuit will open at ${REPLAY_CIRCUIT_THRESHOLD + 1}.`,
+        source_ip_hash:  sourceIpHash,
+        affected_system: "api-ingest",
+        resource_path:   `/api-ingest/${endpoint}`,
+        raw_metadata: {
+          replay_count:   replayCount,
+          escalation_threshold: REPLAY_ESCALATION_THRESHOLD,
+          circuit_threshold:    REPLAY_CIRCUIT_THRESHOLD,
+          window_minutes: REPLAY_WINDOW_MINUTES,
+          casino_id:      casinoId,
+          timestamp:      now,
+        },
+        is_automated: true,
+        is_resolved:  false,
+        created_at:   now,
+      });
+    } catch (err) {
+      console.error("replay_escalation_event_log_error", err);
+    }
+  }
+
+  return { replayCount, severity, circuitOpened };
+}
+// ─── End Replay Abuse Detection ──────────────────────────────────────────────
+
 async function sha256Hex(input: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
@@ -704,6 +925,13 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    // Extract and hash source IP early — used by abuse detection if triggered.
+    // Never stored raw; SHA-256 hashed for POPIA compliance.
+    const rawIp = req.headers.get("cf-connecting-ip")
+      ?? req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+      ?? null;
+    const sourceIpHash = rawIp ? await hashIp(rawIp) : null;
+
     const casinoId = req.headers.get("X-Casino-ID");
     const apiKey = req.headers.get("X-API-Key");
 
@@ -711,6 +939,28 @@ Deno.serve(async (req: Request) => {
     if (!auth.valid) {
       return jsonResponse({ error: auth.error ?? "Unauthorized" }, 401);
     }
+
+    // ── Replay-abuse circuit check ────────────────────────────────────────────
+    // Single indexed PK lookup on circuit_breaker_state. Negligible overhead.
+    // Only blocks when a prior abuse detection has explicitly opened the circuit.
+    if (await checkReplayCircuit(supabase, casinoId!)) {
+      return new Response(
+        JSON.stringify({
+          error: "Integration suspended due to repeated security policy violations. Contact SafeBet IQ support to restore access.",
+          code: "REPLAY_CIRCUIT_OPEN",
+        }),
+        {
+          status: 503,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": "3600",
+            "X-Circuit-Open": "true",
+          },
+        },
+      );
+    }
+    // ── End circuit check ─────────────────────────────────────────────────────
 
     const endpoint = pathname.replace("/api-ingest/", "");
     const rateCheck = await checkRateLimit(supabase, casinoId!, endpoint);
@@ -747,7 +997,40 @@ Deno.serve(async (req: Request) => {
     const idempotency = await claimIdempotencySlot(supabase, casinoId!, requestId, endpoint);
 
     if (!idempotency.claimed) {
-      // Duplicate or in-flight request — return the appropriate idempotent response
+      // ── Replay abuse detection (expired keys only) ──────────────────────────
+      // Runs only when the existing row has passed its expiry. Normal in-window
+      // duplicates (legitimate retries) are NOT flagged.
+      if (isIdempotencyKeyExpired(idempotency.row)) {
+        const abuse = await detectAndLogReplayAbuse(
+          supabase,
+          casinoId!,
+          requestId,
+          idempotency.row,
+          sourceIpHash,
+          endpoint,
+        );
+
+        if (abuse.circuitOpened) {
+          return new Response(
+            JSON.stringify({
+              error: "Integration suspended due to repeated security policy violations. Contact SafeBet IQ support.",
+              code: "REPLAY_CIRCUIT_OPEN",
+              replay_count: abuse.replayCount,
+            }),
+            {
+              status: 503,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json",
+                "Retry-After": "3600",
+                "X-Circuit-Open": "true",
+              },
+            },
+          );
+        }
+      }
+      // ── End replay abuse detection ──────────────────────────────────────────
+
       return buildIdempotentResponse(idempotency.row);
     }
     // ── End idempotency check ─────────────────────────────────────────────────
