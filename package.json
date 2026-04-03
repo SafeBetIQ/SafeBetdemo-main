@@ -9,11 +9,11 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
 
-    "db:push:demo": "supabase db push --project-ref $SUPABASE_DEMO_PROJECT_REF",
-    "db:push:prod": "supabase db push --project-ref $SUPABASE_PROD_PROJECT_REF",
+    "db:push:demo": "supabase db push --project-ref uexdjngogzunjxkpxwll",
+    "db:push:prod": "supabase db push --project-ref REPLACE_WITH_PROD_PROJECT_REF",
 
-    "db:diff:demo": "supabase db diff --project-ref $SUPABASE_DEMO_PROJECT_REF",
-    "db:diff:prod": "supabase db diff --project-ref $SUPABASE_PROD_PROJECT_REF",
+    "db:diff:demo": "supabase db diff --project-ref uexdjngogzunjxkpxwll",
+    "db:diff:prod": "supabase db diff --project-ref REPLACE_WITH_PROD_PROJECT_REF",
 
     "db:reset:local": "supabase db reset",
 
