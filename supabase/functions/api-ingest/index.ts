@@ -181,6 +181,176 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// ─── HMAC Signature Verification ─────────────────────────────────────────────
+//
+// Casino platforms sign each request with HMAC-SHA256 using a shared secret
+// stored in operator_integrations.hmac_secret.
+//
+// Canonical string:  X-Timestamp + "." + request body (raw bytes, not re-serialised)
+//
+// Why raw body instead of JSON.stringify(parsedPayload)?
+//   Re-serialising a parsed object can silently reorder keys, strip whitespace,
+//   or alter Unicode escapes — making the computed MAC differ from what the casino
+//   signed. Using the raw wire bytes guarantees byte-for-byte fidelity.
+//
+// Headers required on every HMAC-signed request:
+//   X-SafeBet-Signature : hex-encoded HMAC-SHA256
+//   X-Timestamp         : Unix epoch in seconds (string)
+//
+// Downgrade prevention:
+//   If X-SafeBet-Signature is present, the system ONLY attempts HMAC verification.
+//   It never falls back to API key auth. This prevents an attacker who has stolen
+//   an API key from stripping the signature header to bypass HMAC.
+
+const HMAC_TIMESTAMP_TOLERANCE_SECONDS = 300; // ±5 minutes — prevents replay of signed requests
+
+type HmacError =
+  | "missing_signature"
+  | "missing_timestamp"
+  | "malformed_timestamp"
+  | "timestamp_expired"
+  | "malformed_signature"
+  | "signature_mismatch"
+  | "secret_unavailable";
+
+interface HmacVerificationInput {
+  /** Raw request body exactly as received over the wire. */
+  rawBody:   string;
+  /** Hex-encoded HMAC-SHA256 from X-SafeBet-Signature header. */
+  signature: string;
+  /** Unix epoch in seconds from X-Timestamp header. */
+  timestamp: string;
+  /** Shared secret from operator_integrations.hmac_secret. */
+  secret:    string;
+}
+
+interface HmacVerificationResult {
+  valid: true;
+} | {
+  valid: false;
+  error: HmacError;
+  detail: string;
+}
+
+/**
+ * Constant-time byte comparison — prevents timing oracle attacks.
+ *
+ * Iterates the full length of `expected` (always 32 bytes for HMAC-SHA256)
+ * regardless of the length of `received`, so the runtime does not leak
+ * information about how many bytes matched before a mismatch occurred.
+ */
+function safeEqual(expected: Uint8Array, received: Uint8Array): boolean {
+  // XOR length difference into result so unequal lengths always fail.
+  let diff = expected.length ^ received.length;
+  // Always iterate expected.length (32) times — no early exit.
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected[i] ^ (received[i] ?? 0);
+  }
+  return diff === 0;
+}
+
+/**
+ * Decode a lowercase hex string to a Uint8Array.
+ * Returns null if the input is not valid hex (odd length or invalid chars).
+ */
+function hexToBytes(hex: string): Uint8Array | null {
+  if (hex.length % 2 !== 0) return null;
+  if (!/^[0-9a-f]*$/i.test(hex)) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+/**
+ * Verify the HMAC-SHA256 signature on an api-ingest request.
+ *
+ * Algorithm:
+ *   canonical  = X-Timestamp + "." + rawBody
+ *   expected   = HMAC-SHA256(secret, canonical)   [using crypto.subtle]
+ *   valid      = safeEqual(expected, received)     [constant-time]
+ */
+async function verifyHmacSignature(
+  input: HmacVerificationInput,
+): Promise<HmacVerificationResult> {
+  const { rawBody, signature, timestamp, secret } = input;
+
+  // ── 1. Validate timestamp ────────────────────────────────────────────────
+  const ts = parseInt(timestamp, 10);
+  if (isNaN(ts) || timestamp.trim() === "") {
+    return { valid: false, error: "malformed_timestamp", detail: "X-Timestamp must be a Unix epoch integer." };
+  }
+
+  const nowSeconds  = Math.floor(Date.now() / 1000);
+  const skewSeconds = Math.abs(nowSeconds - ts);
+
+  if (skewSeconds > HMAC_TIMESTAMP_TOLERANCE_SECONDS) {
+    return {
+      valid:  false,
+      error:  "timestamp_expired",
+      detail: `Request timestamp is ${skewSeconds}s from server time. Tolerance is ±${HMAC_TIMESTAMP_TOLERANCE_SECONDS}s.`,
+    };
+  }
+
+  // ── 2. Decode the incoming signature ────────────────────────────────────
+  const receivedBytes = hexToBytes(signature.toLowerCase());
+  if (!receivedBytes) {
+    return { valid: false, error: "malformed_signature", detail: "X-SafeBet-Signature must be a lowercase hex string." };
+  }
+
+  // ── 3. Compute expected HMAC ─────────────────────────────────────────────
+  const enc = new TextEncoder();
+
+  // Import the shared secret as a HMAC-SHA256 signing key.
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,           // not extractable
+    ["sign"],
+  );
+
+  // canonical = timestamp + "." + rawBody  (matches what the casino platform signs)
+  const canonical  = `${timestamp}.${rawBody}`;
+  const macBuffer  = await crypto.subtle.sign("HMAC", key, enc.encode(canonical));
+  const expectedBytes = new Uint8Array(macBuffer);
+
+  // ── 4. Constant-time comparison ──────────────────────────────────────────
+  if (!safeEqual(expectedBytes, receivedBytes)) {
+    return { valid: false, error: "signature_mismatch", detail: "Signature does not match." };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Fetch the HMAC shared secret for a casino from operator_integrations.
+ * Returns null if the casino has no HMAC secret configured (legacy API key only).
+ */
+async function fetchHmacSecret(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("operator_integrations")
+      .select("hmac_secret")
+      .eq("casino_id", casinoId)
+      .eq("status", "active")
+      .not("hmac_secret", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    return data?.hmac_secret ?? null;
+  } catch (_err) {
+    console.error("hmac_secret_fetch_error", _err);
+    return null;
+  }
+}
+
+// ─── End HMAC Signature Verification ─────────────────────────────────────────
+
 // ─── Replay Abuse Detection ──────────────────────────────────────────────────
 
 const REPLAY_ESCALATION_THRESHOLD = 10;   // >10 in 5 min → high severity
@@ -932,18 +1102,104 @@ Deno.serve(async (req: Request) => {
       ?? null;
     const sourceIpHash = rawIp ? await hashIp(rawIp) : null;
 
-    const casinoId = req.headers.get("X-Casino-ID");
-    const apiKey = req.headers.get("X-API-Key");
+    const casinoId        = req.headers.get("X-Casino-ID");
+    const hmacSignature   = req.headers.get("X-SafeBet-Signature");
+    const hmacTimestamp   = req.headers.get("X-Timestamp");
 
-    const auth = await authenticateRequest(supabase, casinoId, apiKey);
-    if (!auth.valid) {
-      return jsonResponse({ error: auth.error ?? "Unauthorized" }, 401);
+    if (!casinoId) {
+      return jsonResponse({ error: "Missing required header: X-Casino-ID" }, 400);
     }
+
+    // ── Read raw body once ────────────────────────────────────────────────────
+    // Body is consumed here and reused for both HMAC verification and JSON
+    // parsing. req.json() / req.text() can only be called once per request.
+    let rawBody: string;
+    try {
+      rawBody = await req.text();
+    } catch (_err) {
+      return jsonResponse({ error: "Failed to read request body" }, 400);
+    }
+
+    if (rawBody.length > 1_048_576) { // 1 MB hard cap
+      return jsonResponse({ error: "Request body exceeds maximum allowed size (1 MB)." }, 413);
+    }
+
+    // ── Dual-auth gate ────────────────────────────────────────────────────────
+    // Rule: if X-SafeBet-Signature is present → HMAC ONLY.
+    //       Never fall back to API key when HMAC headers are present.
+    //       This prevents a downgrade attack where an attacker strips the
+    //       signature header to bypass HMAC and authenticate with a stolen key.
+    let authMethod: "hmac" | "api_key";
+
+    if (hmacSignature !== null) {
+      // ── HMAC path ───────────────────────────────────────────────────────────
+      if (!hmacTimestamp) {
+        return jsonResponse({
+          error: "X-Timestamp header is required when X-SafeBet-Signature is present.",
+          code:  "missing_timestamp",
+        }, 400);
+      }
+
+      const hmacSecret = await fetchHmacSecret(supabase, casinoId);
+      if (!hmacSecret) {
+        await logSecurityEvent(supabase, {
+          event_type: "api_auth_failed",
+          severity:   "high",
+          source:     "api-ingest",
+          ip_hash:    sourceIpHash,
+          resource:   `casino:${casinoId}`,
+          details:    { reason: "hmac_secret_not_configured", casino_id: casinoId },
+        });
+        return jsonResponse({
+          error: "HMAC authentication is not configured for this casino. Contact SafeBet IQ support.",
+          code:  "hmac_secret_unavailable",
+        }, 401);
+      }
+
+      const hmacResult = await verifyHmacSignature({
+        rawBody,
+        signature: hmacSignature,
+        timestamp: hmacTimestamp,
+        secret:    hmacSecret,
+      });
+
+      if (!hmacResult.valid) {
+        await logSecurityEvent(supabase, {
+          event_type: "api_auth_failed",
+          severity:   hmacResult.error === "timestamp_expired" ? "medium" : "high",
+          source:     "api-ingest",
+          ip_hash:    sourceIpHash,
+          resource:   `casino:${casinoId}`,
+          details: {
+            reason:    hmacResult.error,
+            detail:    hmacResult.detail,
+            casino_id: casinoId,
+          },
+        });
+        return jsonResponse({
+          error:  "Request signature verification failed.",
+          code:   hmacResult.error,
+          detail: hmacResult.detail,
+        }, 401);
+      }
+
+      authMethod = "hmac";
+
+    } else {
+      // ── API key path (legacy) ───────────────────────────────────────────────
+      const apiKey = req.headers.get("X-API-Key");
+      const auth   = await authenticateRequest(supabase, casinoId, apiKey);
+      if (!auth.valid) {
+        return jsonResponse({ error: auth.error ?? "Unauthorized" }, 401);
+      }
+      authMethod = "api_key";
+    }
+    // ── End dual-auth gate ────────────────────────────────────────────────────
 
     // ── Replay-abuse circuit check ────────────────────────────────────────────
     // Single indexed PK lookup on circuit_breaker_state. Negligible overhead.
     // Only blocks when a prior abuse detection has explicitly opened the circuit.
-    if (await checkReplayCircuit(supabase, casinoId!)) {
+    if (await checkReplayCircuit(supabase, casinoId)) {
       return new Response(
         JSON.stringify({
           error: "Integration suspended due to repeated security policy violations. Contact SafeBet IQ support to restore access.",
@@ -963,7 +1219,7 @@ Deno.serve(async (req: Request) => {
     // ── End circuit check ─────────────────────────────────────────────────────
 
     const endpoint = pathname.replace("/api-ingest/", "");
-    const rateCheck = await checkRateLimit(supabase, casinoId!, endpoint);
+    const rateCheck = await checkRateLimit(supabase, casinoId, endpoint);
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Max 100 requests/minute per casino." }),
@@ -994,7 +1250,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "X-Request-ID must be ≤ 128 characters." }, 400);
     }
 
-    const idempotency = await claimIdempotencySlot(supabase, casinoId!, requestId, endpoint);
+    const idempotency = await claimIdempotencySlot(supabase, casinoId, requestId, endpoint);
 
     if (!idempotency.claimed) {
       // ── Replay abuse detection (expired keys only) ──────────────────────────
@@ -1003,7 +1259,7 @@ Deno.serve(async (req: Request) => {
       if (isIdempotencyKeyExpired(idempotency.row)) {
         const abuse = await detectAndLogReplayAbuse(
           supabase,
-          casinoId!,
+          casinoId,
           requestId,
           idempotency.row,
           sourceIpHash,
@@ -1035,42 +1291,45 @@ Deno.serve(async (req: Request) => {
     }
     // ── End idempotency check ─────────────────────────────────────────────────
 
+    // rawBody was read before auth — parse it here instead of calling req.json()
+    // (the request stream is already consumed; a second read would throw).
     let body: Record<string, unknown>;
     try {
-      body = await req.json();
+      body = JSON.parse(rawBody);
     } catch (_err) {
       // Malformed JSON: mark slot as failed so the casino can resubmit
-      await finaliseIdempotencySlot(supabase, casinoId!, requestId, 400, JSON.stringify({ error: "Invalid or missing JSON body" }), false);
+      await finaliseIdempotencySlot(supabase, casinoId, requestId, 400, JSON.stringify({ error: "Invalid or missing JSON body" }), false);
       return jsonResponse({ error: "Invalid or missing JSON body" }, 400);
     }
 
     const responseHeaders = {
       ...corsHeaders,
-      "Content-Type": "application/json",
+      "Content-Type":        "application/json",
       "X-RateLimit-Remaining": String(rateCheck.remaining),
+      "X-Auth-Method":       authMethod,  // "hmac" or "api_key" — aids casino debugging
     };
 
     let result: Response;
 
     if (pathname === "/api-ingest/session") {
-      result = await handleSession(supabase, body, casinoId!);
+      result = await handleSession(supabase, body, casinoId);
     } else if (pathname === "/api-ingest/bets") {
-      result = await handleBets(supabase, body, casinoId!);
+      result = await handleBets(supabase, body, casinoId);
     } else if (pathname === "/api-ingest/deposits") {
-      result = await handleDeposits(supabase, body, casinoId!);
+      result = await handleDeposits(supabase, body, casinoId);
     } else if (pathname === "/api-ingest/withdrawals") {
-      result = await handleWithdrawals(supabase, body, casinoId!);
+      result = await handleWithdrawals(supabase, body, casinoId);
     } else if (pathname === "/api-ingest/self-exclusion") {
-      result = await handleSelfExclusion(supabase, body, casinoId!);
+      result = await handleSelfExclusion(supabase, body, casinoId);
     } else {
-      await finaliseIdempotencySlot(supabase, casinoId!, requestId, 404, JSON.stringify({ error: "Route not found" }), false);
+      await finaliseIdempotencySlot(supabase, casinoId, requestId, 404, JSON.stringify({ error: "Route not found" }), false);
       return jsonResponse({ error: "Route not found" }, 404);
     }
 
     // Persist the response so replays can return it verbatim
     const resultBody = await result.text();
     const success = result.status >= 200 && result.status < 300;
-    await finaliseIdempotencySlot(supabase, casinoId!, requestId, result.status, resultBody, success);
+    await finaliseIdempotencySlot(supabase, casinoId, requestId, result.status, resultBody, success);
 
     return new Response(resultBody, {
       status: result.status,
