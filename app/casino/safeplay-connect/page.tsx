@@ -105,11 +105,11 @@ export default function CasinoSafePlayConnectPage() {
   const [testingEndpoint, setTestingEndpoint] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  const baseUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/functions/v1`
-    : process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`
-      : 'https://your-project.supabase.co/functions/v1';
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`
+    : typeof window !== 'undefined'
+      ? `${window.location.origin}/functions/v1`
+      : '';
 
   const loadData = useCallback(async () => {
     if (!user?.casino_id) return;

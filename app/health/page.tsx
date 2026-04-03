@@ -104,9 +104,9 @@ export default function HealthCheckPage() {
                         <p className="text-red-300 font-semibold text-xs mb-1">Step 2: Add these variables:</p>
                         <div className="text-xs font-mono text-red-400 space-y-1">
                           <p>Key: NEXT_PUBLIC_SUPABASE_URL</p>
-                          <p>Value: https://uexdjngogzunjxkpxwll.supabase.co</p>
+                          <p>Value: https://&lt;your-project-ref&gt;.supabase.co</p>
                           <p className="mt-2">Key: NEXT_PUBLIC_SUPABASE_ANON_KEY</p>
-                          <p className="break-all">Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVleGRqbmdvZ3p1bmp4a3B4d2xsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4ODE4OTUsImV4cCI6MjA3OTQ1Nzg5NX0.-OSpm7VFAK8CM2_N80gqjCKRN_8d-5MwqnstYAPnpbo</p>
+                          <p className="break-all">Value: &lt;your-anon-key&gt;</p>
                         </div>
                       </div>
                       <div>
