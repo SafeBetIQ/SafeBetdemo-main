@@ -467,21 +467,147 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
     if (casinoId) loadInitialData(casinoId);
   }, [casinoId, loadInitialData]);
 
+  // ─── Client-side live feed generator ────────────────────────────────────────
+  // Inserts directly into live_events every 3 s using the authenticated Supabase
+  // client.  No Edge Function round-trip = zero cold-start latency.
+  // Realtime subscription above picks up each INSERT and updates the UI.
+
+  const sessionPoolRef = useRef<{ playerId: string; sessionId: string }[]>([]);
+
+  const loadSessionPool = useCallback(async (id: string) => {
+    const { data } = await supabase
+      .from('gaming_sessions')
+      .select('id, player_id')
+      .eq('casino_id', id)
+      .eq('is_active', true)
+      .limit(100);
+    if (data && data.length > 0) {
+      sessionPoolRef.current = data.map((s: { id: string; player_id: string }) => ({
+        sessionId: s.id,
+        playerId: s.player_id,
+      }));
+    }
+  }, []);
+
+  const generateAndInsert = useCallback(async (id: string) => {
+    const pool = sessionPoolRef.current;
+    const batchSize = 2 + Math.floor(Math.random() * 4); // 2–5 events per tick
+
+    const GAME_TYPES_W = ['slots','slots','slots','blackjack','roulette','poker','baccarat'];
+    const BET_BASE: Record<string, number> = { slots:50, blackjack:300, roulette:175, poker:400, baccarat:225 };
+    const HOUSE_EDGE: Record<string, number> = { slots:0.055, blackjack:0.005, roulette:0.027, poker:0.030, baccarat:0.012 };
+    const SA_FIRST = ['Thabo','Sipho','Lerato','Nomvula','Kagiso','Zanele','Tshepo','Palesa','Lungelo','Bongani','Pieter','Ahmed','Ravi','Lindiwe','Neo'];
+    const SA_LAST  = ['Dlamini','Nkosi','Mthembu','Zulu','Ndlovu','Sithole','Mkhize','Khumalo','Radebe','Molefe','Van der Merwe','Mohamed','Naidoo','Phiri','Cele'];
+
+    const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const ri = (lo: number, hi: number) => Math.floor(lo + Math.random() * (hi - lo + 1));
+    const r5 = (n: number) => Math.round(n / 5) * 5;
+
+    // Event type weights — roughly realistic casino floor mix
+    // 60% BET_PLACED · 10% DEPOSIT · 8% WITHDRAWAL · 12% SESSION_START · 10% SESSION_END
+    const EVENT_TYPE_ROLLS = [
+      ...Array(60).fill('BET_PLACED'),
+      ...Array(10).fill('DEPOSIT'),
+      ...Array(8).fill('WITHDRAWAL'),
+      ...Array(12).fill('SESSION_START'),
+      ...Array(10).fill('SESSION_END'),
+    ];
+
+    const rows = Array.from({ length: batchSize }, () => {
+      const poolEntry = pool.length > 0 ? pick(pool) : null;
+      const playerId  = poolEntry?.playerId ?? crypto.randomUUID();
+      const sessionId = poolEntry?.sessionId ?? crypto.randomUUID();
+
+      const gameType  = pick(GAME_TYPES_W);
+      const base      = BET_BASE[gameType] || 100;
+      const betAmount = r5(base * (0.4 + Math.random() * 2.2));
+      const edge      = HOUSE_EDGE[gameType] || 0.04;
+      const isWin     = Math.random() > edge * 3;
+      const winAmount = isWin ? r5(betAmount * (0.7 + Math.random() * 2.5)) : 0;
+
+      // Risk logic ─────────────────────────────────────────────────────────────
+      // Base risk from a seeded hash of the playerId so the same player drifts
+      // consistently rather than jumping randomly on each event.
+      const pidHash   = playerId.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+      const baseRisk  = (pidHash % 55) + 10;                // 10–64 typical range
+
+      // Behavioural flags
+      const flagLoss  = !isWin && Math.random() < 0.25;     // loss chasing signal
+      const flagTime  = Math.random() < 0.12;               // long session
+      const flagEsc   = betAmount > base * 2 && Math.random() < 0.40; // bet escalation
+      const flagRapid = betAmount > base * 3 && Math.random() < 0.20; // rapid high stakes
+
+      const riskFlags: string[] = [];
+      if (flagLoss)  riskFlags.push('loss_chasing');
+      if (flagTime)  riskFlags.push('excessive_time');
+      if (flagEsc)   riskFlags.push('bet_escalation');
+      if (flagRapid) riskFlags.push('rapid_high_stakes');
+
+      const riskBoost = (flagLoss ? 18 : 0) + (flagTime ? 9 : 0) + (flagEsc ? 12 : 0) + (flagRapid ? 14 : 0) + ri(0, 6);
+      const riskScore = Math.min(100, Math.max(0, baseRisk + riskBoost));
+
+      const eventType = pick(EVENT_TYPE_ROLLS);
+      const nameFirst = SA_FIRST[pidHash % SA_FIRST.length];
+      const nameLast  = SA_LAST[(pidHash + 7) % SA_LAST.length];
+
+      // For non-bet events, amounts make contextual sense
+      const isBet      = eventType === 'BET_PLACED';
+      const isDeposit  = eventType === 'DEPOSIT';
+      const isWithdraw = eventType === 'WITHDRAWAL';
+      const finalBet   = isBet ? betAmount : 0;
+      const finalWin   = isBet ? winAmount : 0;
+
+      return {
+        event_id:                crypto.randomUUID(),
+        event_type:              eventType,
+        casino_id:               id,
+        player_id:               playerId,
+        session_id:              sessionId,
+        game_id:                 `GAME-${gameType.toUpperCase()}-${ri(1, 99)}`,
+        machine_id:              `M-${String(ri(1, 80)).padStart(3, '0')}`,
+        bet_amount:              finalBet,
+        win_amount:              finalWin,
+        balance_after:           isDeposit ? ri(500, 10000) : isWithdraw ? ri(0, 5000) : null,
+        duration_seconds:        ri(30, 7200),
+        risk_score:              riskScore,
+        risk_flags:              riskFlags,
+        outcome:                 isBet ? (isWin ? 'win' : 'loss') : 'active',
+        game_type:               gameType,
+        is_simulated:            true,
+        metadata: {
+          player_name:   `${nameFirst} ${nameLast}`,
+          game_type:     gameType,
+          ingest_source: 'simulator',
+        },
+        created_at: new Date().toISOString(),
+      };
+    });
+
+    await supabase.from('live_events').insert(rows);
+  }, []);
+
   useEffect(() => {
     if (!casinoId) return;
 
     setData(prev => ({ ...prev, isSimulating: true }));
     loadInitialData(casinoId);
     subscribeRealtime(casinoId);
+    loadSessionPool(casinoId);
 
+    // Seed an initial burst via Edge Function (also warms up sessions + machine_activity)
     triggerBurst(30);
 
+    // Client-side tick: 3-second interval, 2–5 events per tick ≈ 60–100 events/min
     burstTimerRef.current = setInterval(() => {
-      triggerBurst(Math.floor(Math.random() * 8) + 3);
-    }, 30000);
+      generateAndInsert(casinoId);
+    }, 3000);
+
+    // Refresh session pool every 2 minutes so new sessions are included
+    const poolTimer = setInterval(() => loadSessionPool(casinoId), 120_000);
 
     return () => {
       if (burstTimerRef.current) clearInterval(burstTimerRef.current);
+      clearInterval(poolTimer);
       if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
     };
   }, [casinoId]);

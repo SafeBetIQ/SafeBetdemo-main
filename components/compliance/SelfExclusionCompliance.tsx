@@ -43,6 +43,24 @@ interface NetworkEvent {
   created_at: string;
 }
 
+interface BreachDetection {
+  id: string;
+  pseudonym_token: string;
+  detection_method: string;
+  detection_context: string;
+  severity: string;
+  status: string;
+  amount_deposited_before_detection: number | null;
+  session_duration_before_detection: number | null;
+  regulatory_report_filed: boolean;
+  nrgp_notified: boolean;
+  detected_at: string;
+  responded_at: string | null;
+  response_action: string | null;
+  originating_casino_id: string;
+  detecting_casino_id: string;
+}
+
 interface SelfExclusionComplianceProps {
   casinoId: string;
 }
@@ -66,6 +84,7 @@ const EXCLUSION_TYPE_LABELS: Record<string, string> = {
 export function SelfExclusionCompliance({ casinoId }: SelfExclusionComplianceProps) {
   const [exclusions, setExclusions] = useState<Exclusion[]>([]);
   const [networkEvents, setNetworkEvents] = useState<NetworkEvent[]>([]);
+  const [breaches, setBreaches] = useState<BreachDetection[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -75,7 +94,7 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
 
   async function loadData() {
     setLoading(true);
-    const [exRes, netRes] = await Promise.all([
+    const [exRes, netRes, breachRes] = await Promise.all([
       supabase.from('self_exclusion_registry')
         .select('*, players(first_name, last_name, player_id, email)')
         .eq('casino_id', casinoId)
@@ -85,9 +104,15 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
         .eq('submitting_casino_id', casinoId)
         .order('created_at', { ascending: false })
         .limit(20),
+      supabase.from('sen_breach_detections')
+        .select('*')
+        .or(`detecting_casino_id.eq.${casinoId},originating_casino_id.eq.${casinoId}`)
+        .order('detected_at', { ascending: false })
+        .limit(50),
     ]);
     setExclusions(exRes.data || []);
     setNetworkEvents(netRes.data || []);
+    setBreaches(breachRes.data || []);
     setLoading(false);
   }
 
@@ -292,6 +317,120 @@ export function SelfExclusionCompliance({ casinoId }: SelfExclusionCompliancePro
                   ))}
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Network Breach Detections */}
+      {breaches.length > 0 && (
+        <Card className={`relative ${breaches.some(b => b.status === 'open') ? 'border-red-300 bg-red-50/30' : ''}`}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="absolute top-3 right-3 h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors z-10" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>Instances where a self-excluded player was detected attempting or completing a gambling transaction at this or another operator. Requires regulatory escalation.</p></TooltipContent>
+          </Tooltip>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Network Breach Detections
+              {breaches.filter(b => b.status === 'open').length > 0 && (
+                <Badge className="bg-red-500 text-white border-0 text-xs animate-pulse">
+                  {breaches.filter(b => b.status === 'open').length} Open
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="text-xs">Self-exclusion violations detected across the SafeBet IQ network</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {breaches.map(b => {
+                const isOpen = b.status === 'open';
+                const isOriginator = b.originating_casino_id === casinoId;
+                return (
+                  <div key={b.id} className={`rounded-lg border p-4 space-y-3 ${isOpen ? 'border-red-200 bg-red-50/40' : 'border-border bg-muted/20'}`}>
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge className={`border-0 text-xs ${isOpen ? 'bg-red-500 text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {b.status === 'open' ? 'Open — Action Required' : b.status}
+                        </Badge>
+                        <Badge className={`border-0 text-xs ${b.severity === 'critical' ? 'bg-red-100 text-red-700' : b.severity === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {b.severity}
+                        </Badge>
+                        <Badge className="border-0 text-xs bg-muted text-muted-foreground">
+                          {isOriginator ? 'You originated this exclusion' : 'Detected at your operator'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground shrink-0">
+                        {new Date(b.detected_at).toLocaleDateString()} {new Date(b.detected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+
+                    {/* Detail grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Detection Method</p>
+                        <p className="text-xs font-medium capitalize">{b.detection_method?.replace(/_/g, ' ') || '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Context</p>
+                        <p className="text-xs font-medium capitalize">{b.detection_context?.replace(/_/g, ' ') || '—'}</p>
+                      </div>
+                      {b.amount_deposited_before_detection != null && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Amount Before Detection</p>
+                          <p className="text-xs font-medium text-red-600">R {b.amount_deposited_before_detection.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {b.session_duration_before_detection != null && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Session Duration</p>
+                          <p className="text-xs font-medium">{b.session_duration_before_detection} min</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Player token */}
+                    <div className="flex items-center gap-2 p-2 rounded bg-muted/40 border">
+                      <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Pseudonymised Player Token</p>
+                        <p className="text-xs font-mono truncate">{b.pseudonym_token}</p>
+                      </div>
+                    </div>
+
+                    {/* Regulatory status */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full ${b.regulatory_report_filed ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                        <span className="text-xs text-muted-foreground">Regulatory report {b.regulatory_report_filed ? 'filed' : 'not filed'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full ${b.nrgp_notified ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                        <span className="text-xs text-muted-foreground">NRGP {b.nrgp_notified ? 'notified' : 'not notified'}</span>
+                      </div>
+                      {b.responded_at && (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                          <span className="text-xs text-muted-foreground">
+                            Responded {new Date(b.responded_at).toLocaleDateString()}
+                            {b.response_action && ` · ${b.response_action.replace(/_/g, ' ')}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Open breach action prompt */}
+                    {isOpen && (
+                      <div className="p-3 rounded-lg bg-red-100/60 border border-red-200 text-xs text-red-800">
+                        <strong>Action required:</strong> This breach must be escalated to the National Gambling Board and a regulatory report filed within 24 hours under NGA Section 14. Contact NRGP immediately if not already done.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

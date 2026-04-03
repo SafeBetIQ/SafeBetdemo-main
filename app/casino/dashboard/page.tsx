@@ -130,8 +130,8 @@ export default function CasinoDashboardPage() {
       id: 'self-exclusion',
       label: 'Self-Exclusion',
       icon: ShieldOff,
-      badge: summary.activeExclusions > 0 ? summary.activeExclusions : undefined,
-      badgeClass: 'bg-orange-500',
+      badge: summary.openBreaches > 0 ? summary.openBreaches : summary.activeExclusions > 0 ? summary.activeExclusions : undefined,
+      badgeClass: summary.openBreaches > 0 ? 'bg-red-500' : 'bg-orange-500',
       description: 'Monitoring & network',
     },
   ];
@@ -186,8 +186,13 @@ export default function CasinoDashboardPage() {
                 { label: 'Compliance',        value: `${summary.complianceScore}%`, icon: Shield,       color: summary.complianceScore >= 85 ? 'text-emerald-600' : summary.complianceScore >= 70 ? 'text-yellow-600' : 'text-red-600' },
               ].map(k => {
                 const Icon = k.icon;
+                const isBreachCard = k.label === 'Open Breaches' && summary.openBreaches > 0;
                 return (
-                  <div key={k.label} className="flex flex-col items-start px-3 py-2 rounded-lg bg-muted/30 border">
+                  <div
+                    key={k.label}
+                    onClick={isBreachCard ? () => setActiveTab('self-exclusion') : undefined}
+                    className={`flex flex-col items-start px-3 py-2 rounded-lg bg-muted/30 border ${isBreachCard ? 'cursor-pointer hover:border-red-400 hover:bg-red-50/30 transition-colors' : ''}`}
+                  >
                     <div className="flex items-center gap-1 mb-0.5">
                       <Icon className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">{k.label}</span>

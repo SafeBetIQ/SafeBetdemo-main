@@ -143,22 +143,33 @@ function generateEvent(
   const mId = machineId(playerId, casinoId);
   const playerName = playerNameFor(playerId);
 
+  // Event type mix: 60% BET_PLACED · 10% DEPOSIT · 8% WITHDRAWAL · 12% SESSION_START · 10% SESSION_END
+  const EVENT_POOL = [
+    ...Array(60).fill("BET_PLACED"),
+    ...Array(10).fill("DEPOSIT"),
+    ...Array(8).fill("WITHDRAWAL"),
+    ...Array(12).fill("SESSION_START"),
+    ...Array(10).fill("SESSION_END"),
+  ];
+  const eventType = pick(EVENT_POOL);
+  const isBet = eventType === "BET_PLACED";
+
   return {
     id: crypto.randomUUID(),
     event_id: crypto.randomUUID(),
-    event_type: "BET_PLACED",
+    event_type: eventType,
     casino_id: casinoId,
     player_id: playerId,
     session_id: sessionId,
     game_id: `GAME-${gameType.toUpperCase()}-${randInt(1, 99)}`,
     machine_id: mId,
-    bet_amount: betAmount,
-    win_amount: winAmount,
-    balance_after: null,
+    bet_amount: isBet ? betAmount : 0,
+    win_amount: isBet ? winAmount : 0,
+    balance_after: eventType === "DEPOSIT" ? randInt(500, 10000) : eventType === "WITHDRAWAL" ? randInt(0, 5000) : null,
     duration_seconds: randInt(30, 7200),
     risk_score: riskScore,
     risk_flags: riskFlags,
-    outcome,
+    outcome: isBet ? outcome : "active",
     game_type: gameType,
     is_simulated: true,
     metadata: {
