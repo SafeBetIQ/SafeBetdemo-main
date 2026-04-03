@@ -27,7 +27,7 @@
 
 # Replace with the actual demo Supabase project reference ID.
 # This value is NOT a secret — it is safe to commit once known.
-project_id = "REPLACE_WITH_DEMO_PROJECT_REF"
+project_id = "uexdjngogzunjxkpxwll"
 
 # ── API ───────────────────────────────────────────────────────────────────────
 [api]
