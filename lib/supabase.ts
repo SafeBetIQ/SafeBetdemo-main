@@ -1,25 +1,74 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const isDev = process.env.NODE_ENV === 'development';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    '[SafeBet IQ] Missing required environment variables.\n' +
-    'NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.\n' +
-    'Copy .env.example to .env.local and fill in the values for your environment.\n' +
-    'Never use hardcoded fallback credentials — they risk connecting to the wrong database.'
-  );
+const SETUP_GUIDE =
+  '\n  1. Copy .env.example to .env.local' +
+  '\n  2. Open https://supabase.com/dashboard → your project → Settings → API' +
+  '\n  3. Copy "Project URL" → NEXT_PUBLIC_SUPABASE_URL' +
+  '\n  4. Copy "anon public" key → NEXT_PUBLIC_SUPABASE_ANON_KEY' +
+  '\n  5. Restart the dev server (npm run dev)\n';
+
+function createUnconfiguredClient(): SupabaseClient {
+  // Returns a real SupabaseClient pointed at a non-existent local address.
+  // Any query will fail at the network level with a clear console message
+  // rather than crashing the module at import time.
+  // This client is only ever created in development when env vars are missing.
+  const stub = createClient('http://localhost:0', 'unconfigured', {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Wrap fetch so every network attempt logs a helpful message before failing.
+  // The actual request will fail (nothing listens on port 0), giving a
+  // clear network error in the browser devtools as a secondary signal.
+  if (typeof window !== 'undefined') {
+    const _originalFetch = window.fetch.bind(window);
+    (stub as unknown as { fetch: typeof fetch }).fetch = (...args) => {
+      console.error(
+        '%c[SafeBet IQ] Supabase is not configured.\n' +
+        'This query will fail. Set environment variables to connect to a real project.' +
+        SETUP_GUIDE,
+        'color: #f87171; font-weight: bold;'
+      );
+      return _originalFetch(...args);
+    };
+  }
+
+  return stub;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  },
-});
+function buildClient(): SupabaseClient {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const message =
+      '[SafeBet IQ] Missing required environment variables:\n' +
+      '  NEXT_PUBLIC_SUPABASE_URL' + (supabaseUrl    ? ' ✓' : ' ✗ MISSING') + '\n' +
+      '  NEXT_PUBLIC_SUPABASE_ANON_KEY' + (supabaseAnonKey ? ' ✓' : ' ✗ MISSING') + '\n' +
+      SETUP_GUIDE;
+
+    if (!isDev) {
+      // Production: fail immediately — no silent misconfiguration allowed.
+      throw new Error(message);
+    }
+
+    // Development: warn loudly but return a stub so the app renders
+    // (useful for browsing UI without a DB connection).
+    console.error(message);
+    return createUnconfiguredClient();
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  });
+}
+
+export const supabase = buildClient();
 
 export type UserRole =
   | 'super_admin'
