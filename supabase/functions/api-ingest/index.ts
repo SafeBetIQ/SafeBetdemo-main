@@ -21,6 +21,18 @@ interface IngestRequest {
   status: "pending" | "completed" | "failed";
   response_status: number | null;
   response_body: string | null;
+  expires_at: string | null;   // ISO timestamp; null only on very old pre-migration rows
+}
+
+const IDEMPOTENCY_KEY_TTL_HOURS = 24;
+
+/** Returns true when the row's idempotency key has passed its expiry. */
+function isIdempotencyKeyExpired(row: IngestRequest): boolean {
+  if (row.expires_at) {
+    return new Date(row.expires_at) < new Date();
+  }
+  // Pre-migration rows have no expires_at — treat as expired (safe default).
+  return true;
 }
 
 async function claimIdempotencySlot(
@@ -31,10 +43,12 @@ async function claimIdempotencySlot(
 ): Promise<{ claimed: true } | { claimed: false; row: IngestRequest }> {
   // Single atomic INSERT … ON CONFLICT DO NOTHING.
   // If the row already exists the insert silently no-ops and returns no rows.
+  const expiresAt = new Date(Date.now() + IDEMPOTENCY_KEY_TTL_HOURS * 60 * 60 * 1000).toISOString();
+
   const { data: inserted, error: insertError } = await supabase
     .from("ingest_requests")
-    .insert({ casino_id: casinoId, request_id: requestId, endpoint, status: "pending" })
-    .select("id, status, response_status, response_body")
+    .insert({ casino_id: casinoId, request_id: requestId, endpoint, status: "pending", expires_at: expiresAt })
+    .select("id, status, response_status, response_body, expires_at")
     .maybeSingle();
 
   if (insertError) {
@@ -42,7 +56,7 @@ async function claimIdempotencySlot(
     if (insertError.code === "23505") {
       const { data: existing } = await supabase
         .from("ingest_requests")
-        .select("id, status, response_status, response_body")
+        .select("id, status, response_status, response_body, expires_at")
         .eq("casino_id", casinoId)
         .eq("request_id", requestId)
         .maybeSingle();
@@ -59,7 +73,7 @@ async function claimIdempotencySlot(
     // ON CONFLICT DO NOTHING fired — row exists
     const { data: existing } = await supabase
       .from("ingest_requests")
-      .select("id, status, response_status, response_body")
+      .select("id, status, response_status, response_body, expires_at")
       .eq("casino_id", casinoId)
       .eq("request_id", requestId)
       .maybeSingle();
@@ -102,6 +116,28 @@ async function finaliseIdempotencySlot(
  * knows not to discard the retry.
  */
 function buildIdempotentResponse(row: IngestRequest): Response {
+  // ── Expiry gate ───────────────────────────────────────────────────────────
+  // Checked before status so an expired completed row does NOT replay its
+  // response — the casino must resubmit with a fresh X-Request-ID.
+  if (isIdempotencyKeyExpired(row)) {
+    return new Response(
+      JSON.stringify({
+        error: "Idempotency key expired. Generate a new request.",
+        expired_at: row.expires_at,
+        hint: `X-Request-ID keys are valid for ${IDEMPOTENCY_KEY_TTL_HOURS} hours. Generate a new UUID for this request.`,
+      }),
+      {
+        status: 409,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-Idempotency-Expired": "true",
+        },
+      },
+    );
+  }
+  // ── End expiry gate ───────────────────────────────────────────────────────
+
   if (row.status === "completed" && row.response_status && row.response_body) {
     // Return the exact original response, plus idempotency marker
     let body: Record<string, unknown>;
