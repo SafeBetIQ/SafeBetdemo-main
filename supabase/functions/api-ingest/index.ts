@@ -685,24 +685,28 @@ async function logSecurityEvent(
   event: {
     event_type: string;
     severity: string;
-    source: string;
-    ip_hash: string | null;
-    resource: string | null;
-    details: Record<string, unknown>;
+    source: string;       // maps to affected_system
+    ip_hash: string | null; // maps to source_ip_hash
+    resource: string | null; // maps to resource_path
+    details: Record<string, unknown>; // maps to raw_metadata
     actor_email_hash?: string | null;
+    casino_id?: string | null;
+    title?: string | null;
   }
 ): Promise<void> {
   try {
     await supabase.from("security_events").insert({
-      event_type: event.event_type,
-      severity: event.severity,
-      source: event.source,
-      ip_hash: event.ip_hash,
-      resource: event.resource,
-      details: event.details,
-      actor_email_hash: event.actor_email_hash ?? null,
-      resolved: false,
-      created_at: new Date().toISOString(),
+      casino_id:       event.casino_id ?? null,
+      event_type:      event.event_type,
+      severity:        event.severity,
+      title:           event.title ?? event.event_type,
+      source_ip_hash:  event.ip_hash,
+      affected_system: event.source,
+      resource_path:   event.resource,
+      raw_metadata:    event.details ?? {},
+      actor_hash:      event.actor_email_hash ?? null,
+      is_resolved:     false,
+      created_at:      new Date().toISOString(),
     });
   } catch (_err) {
     console.error("Failed to log security event:", _err);
