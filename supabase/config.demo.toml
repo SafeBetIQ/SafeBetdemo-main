@@ -1,0 +1,202 @@
+# SafeBet IQ — DEMO Environment Config
+# ─────────────────────────────────────────────────────────────────────────────
+# Project : SafeBet Demo
+# Branch  : Production (default branch in Supabase project)
+# Purpose : Pre-production environment for QA, stakeholder demos,
+#           and migration validation before production push
+#
+# HOW TO GET YOUR PROJECT REF
+# ───────────────────────────
+# 1. Open https://supabase.com/dashboard
+# 2. Select the "SafeBet Demo" project
+# 3. Go to Project Settings → General
+# 4. Copy the "Reference ID"  (looks like: abcdefghijklmnop)
+# 5. Replace REPLACE_WITH_DEMO_PROJECT_REF below with that value
+#    OR export it as an environment variable:
+#
+#       export SUPABASE_DEMO_PROJECT_REF=abcdefghijklmnop
+#
+# HOW TO PUSH MIGRATIONS TO DEMO
+# ────────────────────────────────
+#   supabase db push --project-ref $SUPABASE_DEMO_PROJECT_REF
+#
+# Or using npm scripts (after setting the env var):
+#   npm run db:push:demo
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Replace with the actual demo Supabase project reference ID.
+# This value is NOT a secret — it is safe to commit once known.
+project_id = "REPLACE_WITH_DEMO_PROJECT_REF"
+
+# ── API ───────────────────────────────────────────────────────────────────────
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[api.tls]
+enabled = false
+
+# ── Database ──────────────────────────────────────────────────────────────────
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+# ── Realtime ──────────────────────────────────────────────────────────────────
+[realtime]
+enabled = true
+
+# ── Studio ────────────────────────────────────────────────────────────────────
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# ── Storage ───────────────────────────────────────────────────────────────────
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[image_transformation]
+enabled = false
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+[analytics]
+enabled = false
+port = 54324
+backend = "postgres"
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+[auth]
+enabled = true
+site_url = "https://demo.safebetiq.com"
+additional_redirect_urls = [
+  "https://demo.safebetiq.com",
+  "https://demo.safebetiq.com/login",
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Signup disabled — demo users are provisioned by migration only
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Confirmations disabled for demo accounts (no real email)
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+max_frequency = "5s"
+
+[auth.external.apple]
+enabled = false
+[auth.external.azure]
+enabled = false
+[auth.external.bitbucket]
+enabled = false
+[auth.external.discord]
+enabled = false
+[auth.external.facebook]
+enabled = false
+[auth.external.github]
+enabled = false
+[auth.external.gitlab]
+enabled = false
+[auth.external.google]
+enabled = false
+[auth.external.linkedin_oidc]
+enabled = false
+[auth.external.notion]
+enabled = false
+[auth.external.slack_oidc]
+enabled = false
+[auth.external.spotify]
+enabled = false
+[auth.external.twitter]
+enabled = false
+[auth.external.zoom]
+enabled = false
+
+# ── Edge Functions ────────────────────────────────────────────────────────────
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+[functions.api-ingest]
+verify_jwt = false
+
+[functions.bri-risk-score]
+verify_jwt = true
+
+[functions.casino-simulator]
+verify_jwt = false
+
+[functions.cross-operator-intelligence]
+verify_jwt = true
+
+[functions.db-maintenance]
+verify_jwt = true
+
+[functions.demo-sync-all-casinos]
+verify_jwt = false
+
+[functions.integration-altenar-sync]
+verify_jwt = true
+
+[functions.integration-betsoftware-sync]
+verify_jwt = true
+
+[functions.integration-evolution-sync]
+verify_jwt = true
+
+[functions.integration-playtech-sync]
+verify_jwt = true
+
+[functions.integration-softswiss-sync]
+verify_jwt = true
+
+[functions.integration-whatsapp-send]
+verify_jwt = true
+
+[functions.intervention-engine]
+verify_jwt = true
+
+[functions.reset-staff-password]
+verify_jwt = true
+
+[functions.safeplay-ai-risk-engine]
+verify_jwt = true
+
+[functions.self-exclusion-network]
+verify_jwt = true
+
+[functions.send-wellbeing-invitation]
+verify_jwt = true
+
+[functions.sync-real-casino-data]
+verify_jwt = true
+
+[functions.wellbeing-risk-calculator]
+verify_jwt = true

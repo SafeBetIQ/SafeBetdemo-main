@@ -1,0 +1,13 @@
+-- SafeBet IQ — Seed File
+-- ─────────────────────────────────────────────────────────────────────────────
+-- This file is run automatically by `supabase db reset` (local dev only).
+-- It is NOT applied by `supabase db push`.
+--
+-- All demo data is managed through migrations:
+--   supabase/migrations/20260403210000_rebuild_demo_accounts.sql
+--
+-- To reset local dev to a clean state with all demo data:
+--   supabase db reset
+--
+-- This file intentionally left empty — demo data lives in migrations so that
+-- remote environments (demo, prod) also receive it via `supabase db push`.
