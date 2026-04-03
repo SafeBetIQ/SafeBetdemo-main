@@ -7,6 +7,137 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// ─── Idempotency ─────────────────────────────────────────────────────────────
+
+/**
+ * Try to claim a (casino_id, request_id) slot atomically.
+ *
+ * Returns:
+ *   { claimed: true }                             — first time; caller must process
+ *   { claimed: false, row: IngestRequest }        — duplicate; row has cached response (if completed)
+ */
+interface IngestRequest {
+  id: string;
+  status: "pending" | "completed" | "failed";
+  response_status: number | null;
+  response_body: string | null;
+}
+
+async function claimIdempotencySlot(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+  requestId: string,
+  endpoint: string,
+): Promise<{ claimed: true } | { claimed: false; row: IngestRequest }> {
+  // Single atomic INSERT … ON CONFLICT DO NOTHING.
+  // If the row already exists the insert silently no-ops and returns no rows.
+  const { data: inserted, error: insertError } = await supabase
+    .from("ingest_requests")
+    .insert({ casino_id: casinoId, request_id: requestId, endpoint, status: "pending" })
+    .select("id, status, response_status, response_body")
+    .maybeSingle();
+
+  if (insertError) {
+    // 23505 = unique_violation — the race lost, treat as duplicate
+    if (insertError.code === "23505") {
+      const { data: existing } = await supabase
+        .from("ingest_requests")
+        .select("id, status, response_status, response_body")
+        .eq("casino_id", casinoId)
+        .eq("request_id", requestId)
+        .maybeSingle();
+
+      if (existing) return { claimed: false, row: existing as IngestRequest };
+    }
+    // Any other DB error: log and allow processing to continue rather than
+    // blocking ingest entirely. The idempotency guarantee degrades gracefully.
+    console.error("idempotency_claim_error", insertError);
+    return { claimed: true };
+  }
+
+  if (!inserted) {
+    // ON CONFLICT DO NOTHING fired — row exists
+    const { data: existing } = await supabase
+      .from("ingest_requests")
+      .select("id, status, response_status, response_body")
+      .eq("casino_id", casinoId)
+      .eq("request_id", requestId)
+      .maybeSingle();
+
+    if (existing) return { claimed: false, row: existing as IngestRequest };
+    // Row disappeared between ops (extremely unlikely) — allow processing
+    return { claimed: true };
+  }
+
+  return { claimed: true };
+}
+
+/**
+ * After processing completes, persist the response so replays return it verbatim.
+ * Failures also update status so the caller can retry.
+ */
+async function finaliseIdempotencySlot(
+  supabase: ReturnType<typeof createClient>,
+  casinoId: string,
+  requestId: string,
+  responseStatus: number,
+  responseBody: string,
+  success: boolean,
+): Promise<void> {
+  await supabase
+    .from("ingest_requests")
+    .update({
+      status: success ? "completed" : "failed",
+      response_status: responseStatus,
+      response_body: responseBody,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("casino_id", casinoId)
+    .eq("request_id", requestId);
+}
+
+/**
+ * Build the idempotent replay response for a duplicate completed request.
+ * Pending/failed duplicates are retryable — we return 409 so the caller
+ * knows not to discard the retry.
+ */
+function buildIdempotentResponse(row: IngestRequest): Response {
+  if (row.status === "completed" && row.response_status && row.response_body) {
+    // Return the exact original response, plus idempotency marker
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(row.response_body);
+    } catch {
+      body = { raw: row.response_body };
+    }
+    return new Response(
+      JSON.stringify({ ...body, idempotent: true }),
+      {
+        status: row.response_status,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "X-Idempotent-Replay": "true" },
+      },
+    );
+  }
+
+  if (row.status === "pending") {
+    // Original request still in-flight (or crashed before completing).
+    // Return 409 so the casino platform can back off and retry.
+    return new Response(
+      JSON.stringify({ error: "Request is still being processed. Retry after a short delay.", request_id: row.id }),
+      { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  // status === 'failed': allow the caller to resubmit
+  // We do NOT return a cached failure — the caller should retry with the
+  // same X-Request-ID and we will re-claim the slot.
+  // (Failed rows are overwritten by a fresh insert when status = failed.)
+  return new Response(
+    JSON.stringify({ error: "Previous attempt failed. Resubmit to retry.", request_id: row.id }),
+    { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -562,10 +693,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ── Idempotency check ─────────────────────────────────────────────────────
+    // X-Request-ID is required on all mutating requests.
+    // A missing header is a client error — we reject rather than silently skip
+    // idempotency, preventing accidental duplicate ingestion on misconfigured clients.
+    const requestId = req.headers.get("X-Request-ID");
+    if (!requestId) {
+      return jsonResponse(
+        { error: "Missing required header: X-Request-ID. Each request must carry a unique idempotency key." },
+        400,
+      );
+    }
+    if (requestId.length > 128) {
+      return jsonResponse({ error: "X-Request-ID must be ≤ 128 characters." }, 400);
+    }
+
+    const idempotency = await claimIdempotencySlot(supabase, casinoId!, requestId, endpoint);
+
+    if (!idempotency.claimed) {
+      // Duplicate or in-flight request — return the appropriate idempotent response
+      return buildIdempotentResponse(idempotency.row);
+    }
+    // ── End idempotency check ─────────────────────────────────────────────────
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch (_err) {
+      // Malformed JSON: mark slot as failed so the casino can resubmit
+      await finaliseIdempotencySlot(supabase, casinoId!, requestId, 400, JSON.stringify({ error: "Invalid or missing JSON body" }), false);
       return jsonResponse({ error: "Invalid or missing JSON body" }, 400);
     }
 
@@ -588,10 +744,15 @@ Deno.serve(async (req: Request) => {
     } else if (pathname === "/api-ingest/self-exclusion") {
       result = await handleSelfExclusion(supabase, body, casinoId!);
     } else {
+      await finaliseIdempotencySlot(supabase, casinoId!, requestId, 404, JSON.stringify({ error: "Route not found" }), false);
       return jsonResponse({ error: "Route not found" }, 404);
     }
 
+    // Persist the response so replays can return it verbatim
     const resultBody = await result.text();
+    const success = result.status >= 200 && result.status < 300;
+    await finaliseIdempotencySlot(supabase, casinoId!, requestId, result.status, resultBody, success);
+
     return new Response(resultBody, {
       status: result.status,
       headers: responseHeaders,
