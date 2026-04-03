@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" style={{ backgroundColor: '#000000' }}>
+    <html lang="en">
       <body className={`${inter.className} bg-black`}>
         <AuthProvider>
           <ModuleProvider>

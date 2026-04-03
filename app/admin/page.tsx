@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
 import { SaaSWellbeingGamesManagement } from '@/components/SaaSWellbeingGamesManagement';
+import { SEVERITY_COLORS, PROVINCE_COLORS } from '@/lib/chartColors';
 
 interface PlatformStats {
   totalCasinos: number;
@@ -41,8 +42,6 @@ interface CasinoRow {
   high_risk?: number;
 }
 
-const SEVERITY_COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981'];
-const PROVINCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899'];
 
 export default function SuperAdminDashboard() {
   const { user } = useAuth();

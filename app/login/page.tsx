@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CircleAlert as AlertCircle, Copy, Check, ChevronDown, ChevronUp, Shield, Building2, MapPin } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
+import { getRedirectPath } from '@/lib/auth';
 import Link from 'next/link';
 
 interface Credential {
@@ -198,18 +199,7 @@ export default function LoginPage() {
           .then(() => {});
       }
 
-      let redirectPath = '/';
-      switch (profile?.role) {
-        case 'super_admin': redirectPath = '/admin'; break;
-        case 'casino_admin': redirectPath = '/casino/dashboard'; break;
-        case 'compliance_officer': redirectPath = '/casino/dashboard'; break;
-        case 'regulator':
-        case 'national_regulator': redirectPath = '/regulator/dashboard'; break;
-        case 'provincial_regulator': redirectPath = '/regulator/provincial-dashboard'; break;
-        case 'staff': redirectPath = '/staff/profile'; break;
-      }
-
-      router.replace(redirectPath);
+      router.replace(getRedirectPath(profile?.role ?? ''));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
       setError(msg);
@@ -261,7 +251,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-gray-500 h-10"
+                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-brand-500 h-10"
                 />
               </div>
 
@@ -276,13 +266,13 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-gray-500 h-10"
+                  className="bg-gray-950 border-gray-700 text-white placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-brand-500 h-10"
                 />
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-white hover:bg-gray-100 text-black font-semibold h-11 text-sm mt-2"
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-11 text-sm mt-2"
                 disabled={loading}
               >
                 {loading ? (
@@ -302,7 +292,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowCredentials(!showCredentials)}
-              className="w-full flex items-center justify-between px-6 py-3.5 text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 transition-colors"
+              className="w-full flex items-center justify-between px-6 py-3.5 text-sm text-gray-400 hover:text-brand-400 hover:bg-gray-800/50 transition-colors"
             >
               <span className="font-medium">Demo Credentials</span>
               <span className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -317,25 +307,25 @@ export default function LoginPage() {
                   <TabsList className="w-full bg-gray-950 border border-gray-800 h-auto flex-wrap gap-1 p-1 rounded-lg mb-3">
                     <TabsTrigger
                       value="super_admin"
-                      className="flex-1 text-[10px] data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
+                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
                     >
                       Super Admin
                     </TabsTrigger>
                     <TabsTrigger
                       value="casinos"
-                      className="flex-1 text-[10px] data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
+                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
                     >
                       Casinos
                     </TabsTrigger>
                     <TabsTrigger
                       value="national"
-                      className="flex-1 text-[10px] data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
+                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
                     >
                       National Reg
                     </TabsTrigger>
                     <TabsTrigger
                       value="provincial"
-                      className="flex-1 text-[10px] data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
+                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
                     >
                       Provincial Reg
                     </TabsTrigger>
