@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { TriangleAlert as AlertTriangle, Clock, TrendingUp, Zap, Shield } from 'lucide-react';
+import { TriangleAlert as AlertTriangle, Clock, TrendingUp, Zap, Shield, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCasinoData, LiveEvent } from '@/contexts/CasinoDataContext';
 
 const FLAG_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -113,11 +114,23 @@ export function LiveRiskOverlay() {
             <p className="text-xs text-muted-foreground">Live responsible gambling overlay</p>
           </div>
         </div>
-        {critical.length > 0 && (
-          <Badge className="bg-red-600 text-white border-0 text-xs animate-pulse">
-            {critical.length} Critical
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {critical.length > 0 && (
+            <Badge className="bg-red-600 text-white border-0 text-xs animate-pulse">
+              {critical.length} Critical
+            </Badge>
+          )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Live responsible gambling overlay showing the highest-risk players across all active sessions. Flags include loss chasing, excessive session time, bet escalation, and rapid high-stakes betting. One card per player — deduped to the latest event.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-px bg-border">

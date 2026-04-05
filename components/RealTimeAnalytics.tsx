@@ -86,7 +86,7 @@ export function RealTimeAnalytics() {
         hours.push({
           hour: hour.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false }).substring(0, 5),
           wagered: Math.floor(Math.random() * 200000) + 100000,
-          players: Math.floor(Math.random() * 20) + Math.floor(casinoData.activePlayers * 0.7),
+          players: Math.floor(Math.random() * 20) + Math.floor(casinoData.activePlayerCount * 0.7),
         });
       }
       return hours;
@@ -97,7 +97,7 @@ export function RealTimeAnalytics() {
       hourlyData: generateHourlyData(),
       totalWagered: casinoData.totalWagered,
       totalWon: casinoData.totalWon,
-      activePlayers: casinoData.activePlayers,
+      activePlayers: casinoData.activePlayerCount,
       avgBetSize: casinoData.avgBetSize,
       riskDistribution: casinoData.riskDistribution,
       gameDistribution: calculateGameDistribution(),
@@ -108,7 +108,7 @@ export function RealTimeAnalytics() {
         ...prev,
         totalWagered: casinoData.totalWagered,
         totalWon: casinoData.totalWon,
-        activePlayers: casinoData.activePlayers,
+        activePlayers: casinoData.activePlayerCount,
         avgBetSize: casinoData.avgBetSize,
         riskDistribution: casinoData.riskDistribution,
         gameDistribution: calculateGameDistribution(),

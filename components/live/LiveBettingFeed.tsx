@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Activity, TrendingUp, TrendingDown, TriangleAlert as AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, TriangleAlert as AlertTriangle, Wifi, WifiOff, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCasinoData, LiveEvent } from '@/contexts/CasinoDataContext';
 
 const RISK_CONFIG = {
@@ -171,6 +172,16 @@ export function LiveBettingFeed() {
               {criticalCount} Critical
             </Badge>
           )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Real-time stream of all betting events from active players. Each row shows the player, game, bet amount, outcome, and live risk score. Critical risk scores (≥ 80) indicate responsible gambling flags that require immediate intervention.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="flex items-center gap-1.5 text-xs">
             {data.realtimeConnected ? (
               <>

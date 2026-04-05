@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChartBar as BarChart3 } from 'lucide-react';
+import { ChartBar as BarChart3, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCasinoData } from '@/contexts/CasinoDataContext';
 
 interface HourBucket {
@@ -56,14 +57,26 @@ export function LiveActivityChart() {
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-          <BarChart3 className="h-4 w-4 text-blue-600" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <BarChart3 className="h-4 w-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Hourly Activity</h3>
+            <p className="text-xs text-muted-foreground">Wagered &amp; events per hour (rolling 12h)</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold text-sm">Hourly Activity</h3>
-          <p className="text-xs text-muted-foreground">Wagered &amp; events per hour (rolling 12h)</p>
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p>Rolling 12-hour bar chart showing total wagered (blue) and event count (amber) bucketed by hour. Hover each bar for a breakdown of wagered amount, event count, and unique players in that hour.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="p-4">

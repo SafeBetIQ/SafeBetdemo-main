@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Settings, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Building2, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Brain, Lock, Server, CircleCheck as CheckCircle, Eye, Layers, MapPin, Key, Radio, TrendingUp, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
@@ -45,10 +45,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Behavioural Intelligence',
     items: [
+      { title: 'Live Feed',                   href: '/casino/live-feed',               icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Player Risk Monitor',        href: '/casino/players',                 icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Intervention Engine',        href: '/casino/interventions',           icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Session Analytics',          href: '/behavioral-risk-intelligence',   icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
       { title: 'Nova IQ Intelligence',        href: '/casino/nova-iq-intelligence',    icon: Eye,              roles: ['casino_admin', 'super_admin'] },
+      { title: 'Revenue Intelligence',        href: '/casino/analytics/revenue',       icon: TrendingUp,       roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
     ],
   },
   {
@@ -69,9 +71,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Platform Management',
     items: [
-      { title: 'Nova IQ',        href: '/casino/wellbeing-games',         icon: Shield,           roles: ['casino_admin', 'super_admin'] },
-      { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,             roles: ['casino_admin'] },
-      { title: 'SafeBet IQ Connect (API)',    href: '/casino/safeplay-connect',        icon: Globe,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'Nova IQ',                   href: '/casino/wellbeing-games',         icon: Shield,              roles: ['casino_admin', 'super_admin'] },
+      { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,                roles: ['casino_admin'] },
+      { title: 'SafeBet IQ Connect (API)',  href: '/casino/safeplay-connect',        icon: Globe,               roles: ['casino_admin', 'super_admin'] },
+      { title: 'Intervention Settings',     href: '/casino/settings',                icon: SlidersHorizontal,   roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
     ],
   },
   {

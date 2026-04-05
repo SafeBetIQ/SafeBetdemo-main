@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { CasinoDataProvider, useCasinoData } from '@/contexts/CasinoDataContext';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { ModuleGuard } from '@/components/ModuleGuard';
 import { PageHeader } from '@/components/saas/PageHeader';
@@ -39,7 +40,6 @@ import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligenc
 import { SelfExclusionNetwork } from '@/components/SelfExclusionNetwork';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Brain, Activity, TriangleAlert as AlertTriangle, Users, Download, Eye, Zap, TrendingUp, TrendingDown, Clock, DollarSign, Target, ShieldAlert, Search, RefreshCw, Globe, ChartBar as BarChart3, Filter, CircleCheck as CheckCircle, Circle as XCircle, Network, ShieldCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -75,16 +75,16 @@ const RISK_LEVELS = [
   { key: 'low', label: 'Low (<40)' },
 ];
 
-export default function BehavioralRiskIntelligencePage() {
+// ── Inner page — has access to the shared CasinoDataContext ──────────────────
+
+function BRIPageInner() {
+  const { data, refreshData } = useCasinoData();
   const { user } = useAuth();
-  const router = useRouter();
+  const casinoId = (user as any)?.casino_id;
+
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [activeTab, setActiveTab] = useState('live-monitor');
-  const [players, setPlayers] = useState<any[]>([]);
-  const [interventions, setInterventions] = useState<any[]>([]);
   const [signalTrends, setSignalTrends] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [interventionsLoading, setInterventionsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [playerSheetOpen, setPlayerSheetOpen] = useState(false);
@@ -94,117 +94,39 @@ export default function BehavioralRiskIntelligencePage() {
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
 
-  const casinoId = (user as any)?.casino_id;
-  const userRole = (user as any)?.role || (user as any)?.user_role;
-
-  const loadPlayers = useCallback(async () => {
-    try {
-      setLoading(true);
-      let query = supabase
-        .from('gaming_sessions')
-        .select('*, players!inner(*)')
-        .eq('is_active', true)
-        .order('start_time', { ascending: false })
-        .limit(100);
-
-      if (userRole === 'casino_admin' && casinoId) {
-        query = query.eq('casino_id', casinoId);
-      }
-
-      const { data: sessionData } = await query;
-
-      if (sessionData) {
-        const playerIds = sessionData.map((s: any) => s.player_id);
-
-        let profileQuery = supabase
-          .from('behavioral_risk_profiles')
-          .select('*')
-          .in('player_id', playerIds)
-          .order('analyzed_at', { ascending: false });
-
-        if (userRole === 'casino_admin' && casinoId) {
-          profileQuery = profileQuery.eq('casino_id', casinoId);
-        }
-
-        const { data: profileData } = await profileQuery;
-        const profileMap: Record<string, any> = {};
-        if (profileData) {
-          profileData.forEach((p: any) => {
-            if (!profileMap[p.player_id]) profileMap[p.player_id] = p;
-          });
-        }
-
-        const playersWithData = sessionData.map((session: any) => ({
-          ...(session.players as any),
-          currentSession: session,
-          riskProfile: profileMap[session.player_id] || null,
-        }));
-
-        setPlayers(playersWithData);
-      }
-    } catch (e) {
-      console.error('Error loading players:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [userRole, casinoId]);
-
-  const loadInterventions = useCallback(async () => {
-    try {
-      setInterventionsLoading(true);
-      const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
-      const since = new Date();
-      since.setDate(since.getDate() - daysBack);
-
-      let query = supabase
-        .from('intervention_history')
-        .select('*, players(player_id, first_name, last_name)')
-        .gte('triggered_at', since.toISOString())
-        .order('triggered_at', { ascending: false })
-        .limit(100);
-
-      if (userRole === 'casino_admin' && casinoId) {
-        query = query.eq('casino_id', casinoId);
-      }
-
-      const { data } = await query;
-      if (data) setInterventions(data);
-    } catch (e) {
-      console.error('Error loading interventions:', e);
-    } finally {
-      setInterventionsLoading(false);
-    }
-  }, [userRole, casinoId, dateRange]);
+  // Unified player dataset — sourced from CasinoDataContext (live_events + behavioral_risk_profiles)
+  const players = data.activePlayers;
+  // Intervention history — sourced from CasinoDataContext (intervention_history)
+  const interventions = data.liveAlerts;
+  const loading = false; // data loads asynchronously; activePlayers is always defined (may be empty)
 
   const loadSignalTrends = useCallback(async () => {
+    if (!casinoId) return;
     try {
       const daysBack = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
       const since = new Date();
       since.setDate(since.getDate() - daysBack);
 
-      let query = supabase
-        .from('bri_signal_history')
-        .select('recorded_at, risk_score, session_duration_score, deposit_frequency_score, loss_escalation_score, bet_intensity_score, cross_operator_score')
-        .gte('recorded_at', since.toISOString())
-        .order('recorded_at', { ascending: true })
-        .limit(1000);
+      // Use behavioral_risk_profiles as the signal history source (bri_signal_history is unused)
+      const { data } = await supabase
+        .from('behavioral_risk_profiles')
+        .select('analyzed_at,risk_score,session_duration_score,deposit_frequency_score,loss_escalation_score,bet_intensity_score,cross_operator_score')
+        .eq('casino_id', casinoId)
+        .gte('analyzed_at', since.toISOString())
+        .order('analyzed_at', { ascending: true })
+        .limit(2000);
 
-      if (userRole === 'casino_admin' && casinoId) {
-        query = query.eq('casino_id', casinoId);
-      }
-
-      const { data } = await query;
       if (data) {
         const grouped: Record<string, any[]> = {};
         data.forEach((row: any) => {
-          const day = new Date(row.recorded_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' });
+          const day = new Date(row.analyzed_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' });
           if (!grouped[day]) grouped[day] = [];
           grouped[day].push(row);
         });
 
         const trend = Object.entries(grouped).map(([date, rows]) => {
           const avg = (field: string) =>
-            Math.round(rows.reduce((s, r) => s + (r[field] || 0), 0) / rows.length);
+            Math.round(rows.reduce((s: number, r: any) => s + (r[field] || 0), 0) / rows.length);
           return {
             date,
             risk: avg('risk_score'),
@@ -221,19 +143,17 @@ export default function BehavioralRiskIntelligencePage() {
     } catch (e) {
       console.error('Error loading signal trends:', e);
     }
-  }, [userRole, casinoId, dateRange]);
+  }, [casinoId, dateRange]);
 
   useEffect(() => {
     if (user) {
-      loadPlayers();
-      loadInterventions();
       loadSignalTrends();
     }
-  }, [user, loadPlayers, loadInterventions, loadSignalTrends]);
+  }, [user, loadSignalTrends]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadPlayers(), loadInterventions(), loadSignalTrends()]);
+    await Promise.all([refreshData(), loadSignalTrends()]);
     setRefreshing(false);
   };
 
@@ -242,13 +162,21 @@ export default function BehavioralRiskIntelligencePage() {
     setPlayerSheetOpen(true);
 
     try {
+      // Use behavioral_risk_profiles as the per-player history source
       const { data } = await supabase
-        .from('bri_signal_history')
-        .select('*')
-        .eq('player_id', player.id)
-        .order('recorded_at', { ascending: false })
+        .from('behavioral_risk_profiles')
+        .select('analyzed_at,risk_score,impulse_level,session_duration_minutes')
+        .eq('player_id', player.player_id)
+        .eq('casino_id', casinoId)
+        .order('analyzed_at', { ascending: false })
         .limit(14);
-      if (data) setPlayerSignalHistory(data.reverse());
+      const mapped = (data || []).reverse().map((r: any) => ({
+        timestamp: new Date(r.analyzed_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' }),
+        riskScore: r.risk_score || 0,
+        impulseLevel: r.impulse_level || 0,
+        fatigueIndex: Math.min(100, Math.round((r.session_duration_minutes || 0) / 1.2)),
+      }));
+      setPlayerSignalHistory(mapped);
     } catch (e) {
       setPlayerSignalHistory([]);
     }
@@ -276,7 +204,7 @@ export default function BehavioralRiskIntelligencePage() {
     : 0;
   const criticalCount = players.filter((p) => (p.risk_score || 0) >= 80).length;
   const highRiskCount = players.filter((p) => (p.risk_score || 0) >= 60).length;
-  const crossOpCount = players.filter((p) => (p.riskProfile?.cross_operator_flags || 0) > 0).length;
+  const crossOpCount = players.filter((p) => (p.cross_operator_score || 0) > 0).length;
 
   const riskDistribution = [
     { label: 'Critical', min: 80, max: 100, color: '#ef4444' },
@@ -292,11 +220,11 @@ export default function BehavioralRiskIntelligencePage() {
   }));
 
   const signalRadarData = [
-    { signal: 'Session\nDuration', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.session_duration_score || 0), 0) / Math.max(players.length, 1)) },
-    { signal: 'Deposit\nFreq', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.deposit_frequency_score || 0), 0) / Math.max(players.length, 1)) },
-    { signal: 'Loss\nEscalation', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.loss_escalation_score || 0), 0) / Math.max(players.length, 1)) },
-    { signal: 'Bet\nIntensity', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.bet_intensity_score || 0), 0) / Math.max(players.length, 1)) },
-    { signal: 'Cross\nOperator', value: Math.round(players.reduce((s, p) => s + (p.riskProfile?.cross_operator_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Session\nDuration', value: Math.round(players.reduce((s, p) => s + (p.session_duration_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Deposit\nFreq', value: Math.round(players.reduce((s, p) => s + (p.deposit_frequency_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Loss\nEscalation', value: Math.round(players.reduce((s, p) => s + (p.loss_escalation_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Bet\nIntensity', value: Math.round(players.reduce((s, p) => s + (p.bet_intensity_score || 0), 0) / Math.max(players.length, 1)) },
+    { signal: 'Cross\nOperator', value: Math.round(players.reduce((s, p) => s + (p.cross_operator_score || 0), 0) / Math.max(players.length, 1)) },
   ];
 
   const interventionSuccessRate = interventions.length > 0
@@ -548,14 +476,11 @@ export default function BehavioralRiskIntelligencePage() {
                         filteredPlayers.slice(0, 30).map((player, idx) => {
                           const score = player.risk_score || 0;
                           const riskCfg = getRiskConfig(score);
-                          const profile = player.riskProfile;
-                          const session = player.currentSession;
-                          const lossScore = profile?.loss_escalation_score ?? Math.min(score + 7, 100);
-                          const sessScore = profile?.session_duration_score ?? Math.max(score - 5, 0);
-                          const depScore = profile?.deposit_frequency_score ?? Math.max(score - 8, 0);
-                          const betScore = profile?.bet_intensity_score ?? Math.max(score - 3, 0);
-                          const crossScore = profile?.cross_operator_score ?? (score >= 70 ? 40 : 10);
-                          const crossFlags = profile?.cross_operator_flags ?? 0;
+                          const lossScore = player.loss_escalation_score ?? Math.min(score + 7, 100);
+                          const sessScore = player.session_duration_score ?? Math.max(score - 5, 0);
+                          const depScore = player.deposit_frequency_score ?? Math.max(score - 8, 0);
+                          const betScore = player.bet_intensity_score ?? Math.max(score - 3, 0);
+                          const crossScore = player.cross_operator_score ?? (score >= 70 ? 40 : 10);
 
                           const MiniBar = ({ value }: { value: number }) => {
                             const c = getRiskConfig(value);
@@ -571,7 +496,7 @@ export default function BehavioralRiskIntelligencePage() {
 
                           return (
                             <TableRow
-                              key={player.id || idx}
+                              key={player.player_id || idx}
                               className="hover:bg-muted/40 cursor-pointer"
                               onClick={() => handleViewPlayer(player)}
                             >
@@ -597,12 +522,7 @@ export default function BehavioralRiskIntelligencePage() {
                               <TableCell><MiniBar value={depScore} /></TableCell>
                               <TableCell><MiniBar value={betScore} /></TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-1.5">
-                                  <MiniBar value={crossScore} />
-                                  {crossFlags > 0 && (
-                                    <Badge variant="destructive" className="text-xs px-1 py-0">{crossFlags}</Badge>
-                                  )}
-                                </div>
+                                <MiniBar value={crossScore} />
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="gap-1 text-xs">
@@ -801,7 +721,7 @@ export default function BehavioralRiskIntelligencePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {interventionsLoading ? (
+                      {refreshing ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
                             <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2" />
@@ -816,7 +736,7 @@ export default function BehavioralRiskIntelligencePage() {
                         </TableRow>
                       ) : (
                         interventions.map((iv, idx) => {
-                          const rb = getResponseBadge(iv.player_response);
+                          const rb = getResponseBadge(iv.player_response ?? '');
                           const ivScore = iv.risk_score_at_trigger || 0;
                           const riskCfg = getRiskConfig(ivScore);
                           return (
@@ -827,14 +747,12 @@ export default function BehavioralRiskIntelligencePage() {
                                 })}
                               </TableCell>
                               <TableCell>
-                                <div className="text-sm font-medium">
-                                  {iv.players?.first_name && iv.players?.last_name
-                                    ? `${iv.players.first_name} ${iv.players.last_name}`
-                                    : '—'}
+                                <div className="font-mono text-xs text-muted-foreground">
+                                  …{(iv.player_id || '').slice(-8)}
                                 </div>
-                                {iv.players?.player_id && (
-                                  <div className="font-mono text-xs text-muted-foreground">{iv.players.player_id}</div>
-                                )}
+                                <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                  {iv.trigger_reason || '—'}
+                                </div>
                               </TableCell>
                               <TableCell className="text-sm">{formatType(iv.intervention_type || '')}</TableCell>
                               <TableCell className="capitalize text-sm text-muted-foreground">
@@ -908,7 +826,7 @@ export default function BehavioralRiskIntelligencePage() {
               } level detected during active session`}
               onSubmit={() => {
                 setInterventionModalOpen(false);
-                loadInterventions();
+                refreshData();
               }}
             />
           </>
@@ -916,5 +834,13 @@ export default function BehavioralRiskIntelligencePage() {
       </TooltipProvider>
     </DashboardLayout>
     </ModuleGuard>
+  );
+}
+
+export default function BehavioralRiskIntelligencePage() {
+  return (
+    <CasinoDataProvider>
+      <BRIPageInner />
+    </CasinoDataProvider>
   );
 }

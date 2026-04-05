@@ -1,112 +1,51 @@
+// ── bri-risk-score — READ-ONLY profile retrieval ─────────────────────────────
+//
+// GET  /bri-risk-score/{player_id}  →  returns behavioral_risk_profiles +
+//                                       bri_signal_history for that player.
+//
+// POST /bri-risk-score              →  410 Gone (retired — use risk-engine).
+//
+// All new risk scores are written by the risk-engine function.
+
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
-interface SessionSignals {
-  session_minutes: number;
-  total_bets: number;
-  total_wagered: number;
-  net_loss: number;
-  deposit_count_24h: number;
-  largest_bet: number;
-  avg_bet: number;
-  previous_bets?: number[];
-}
-
-function computeSignalScores(signals: SessionSignals) {
-  const SESSION_THRESHOLD_CRITICAL = 180;
-  const SESSION_THRESHOLD_HIGH = 120;
-  const SESSION_THRESHOLD_MODERATE = 60;
-
-  const DEPOSIT_CRITICAL = 4;
-  const DEPOSIT_HIGH = 3;
-  const DEPOSIT_MODERATE = 2;
-
-  const sessionDurationScore = Math.min(
-    signals.session_minutes >= SESSION_THRESHOLD_CRITICAL ? 85 + Math.min((signals.session_minutes - SESSION_THRESHOLD_CRITICAL) / 10, 15) :
-    signals.session_minutes >= SESSION_THRESHOLD_HIGH ? 65 + ((signals.session_minutes - SESSION_THRESHOLD_HIGH) / SESSION_THRESHOLD_CRITICAL) * 20 :
-    signals.session_minutes >= SESSION_THRESHOLD_MODERATE ? 40 + ((signals.session_minutes - SESSION_THRESHOLD_MODERATE) / SESSION_THRESHOLD_HIGH) * 25 :
-    (signals.session_minutes / SESSION_THRESHOLD_MODERATE) * 40,
-    100
-  );
-
-  const depositFrequencyScore = Math.min(
-    signals.deposit_count_24h >= DEPOSIT_CRITICAL ? 85 + Math.min((signals.deposit_count_24h - DEPOSIT_CRITICAL) * 5, 15) :
-    signals.deposit_count_24h >= DEPOSIT_HIGH ? 65 + (signals.deposit_count_24h - DEPOSIT_HIGH) * 20 :
-    signals.deposit_count_24h >= DEPOSIT_MODERATE ? 40 + (signals.deposit_count_24h - DEPOSIT_MODERATE) * 25 :
-    signals.deposit_count_24h * 20,
-    100
-  );
-
-  const lossRatio = signals.total_wagered > 0 ? signals.net_loss / signals.total_wagered : 0;
-  const betEscalation = signals.avg_bet > 0 ? signals.largest_bet / signals.avg_bet : 1;
-  const lossEscalationScore = Math.min(
-    (lossRatio >= 0.7 ? 80 : lossRatio >= 0.5 ? 60 : lossRatio >= 0.3 ? 40 : lossRatio * 100) +
-    (betEscalation >= 3 ? 20 : betEscalation >= 2 ? 10 : betEscalation >= 1.5 ? 5 : 0),
-    100
-  );
-
-  const avgBetBaseline = signals.total_wagered / Math.max(signals.total_bets, 1);
-  const intensity = avgBetBaseline > 0 ? signals.largest_bet / avgBetBaseline : 1;
-  const betIntensityScore = Math.min(
-    intensity >= 4 ? 85 + Math.min((intensity - 4) * 5, 15) :
-    intensity >= 3 ? 65 + (intensity - 3) * 20 :
-    intensity >= 2 ? 40 + (intensity - 2) * 25 :
-    (intensity - 1) * 40,
-    100
-  );
-
-  return {
-    sessionDurationScore: Math.round(Math.max(sessionDurationScore, 0)),
-    depositFrequencyScore: Math.round(Math.max(depositFrequencyScore, 0)),
-    lossEscalationScore: Math.round(Math.max(lossEscalationScore, 0)),
-    betIntensityScore: Math.round(Math.max(betIntensityScore, 0)),
-  };
-}
-
-function computeCompositeScore(scores: {
-  sessionDurationScore: number;
-  depositFrequencyScore: number;
-  lossEscalationScore: number;
-  betIntensityScore: number;
-  crossOperatorScore: number;
-}): { score: number; level: string; rationale: string } {
-  const composite = Math.round(
-    scores.lossEscalationScore * 0.30 +
-    scores.sessionDurationScore * 0.20 +
-    scores.depositFrequencyScore * 0.20 +
-    scores.betIntensityScore * 0.20 +
-    scores.crossOperatorScore * 0.10
-  );
-
-  const drivers: string[] = [];
-  if (scores.lossEscalationScore >= 60) drivers.push(`loss escalation (${scores.lossEscalationScore})`);
-  if (scores.sessionDurationScore >= 60) drivers.push(`extended session (${scores.sessionDurationScore})`);
-  if (scores.depositFrequencyScore >= 60) drivers.push(`high deposit frequency (${scores.depositFrequencyScore})`);
-  if (scores.betIntensityScore >= 60) drivers.push(`bet intensity spike (${scores.betIntensityScore})`);
-  if (scores.crossOperatorScore >= 40) drivers.push(`cross-operator activity (${scores.crossOperatorScore})`);
-
-  const level =
-    composite >= 80 ? 'critical' :
-    composite >= 60 ? 'high' :
-    composite >= 40 ? 'moderate' : 'low';
-
-  const rationale =
-    level === 'critical' ? `Critical risk: ${drivers.length > 0 ? drivers.join(', ') : 'multiple signals at high severity'}. Immediate intervention required.` :
-    level === 'high' ? `High risk: ${drivers.length > 0 ? drivers.join(', ') : 'elevated signal activity'}. Cooling-off period advised.` :
-    level === 'moderate' ? `Moderate risk: Emerging patterns — ${drivers.length > 0 ? drivers.join(', ') : 'monitor closely'}.` :
-    'Low risk: Behavioral patterns within normal parameters.';
-
-  return { score: composite, level, rationale };
-}
+// ── Deprecation notice ────────────────────────────────────────────────────────
+//
+// POST /bri-risk-score  →  DEPRECATED.  Use POST /risk-engine instead.
+//
+// The risk-engine function is the single authoritative risk scorer.  It reads
+// live_events directly, applies the same composite model, and writes to
+// behavioral_risk_profiles.  The session-summary POST path of this function
+// is retained only for backward-compatibility and now returns 410 Gone.
+//
+// GET /bri-risk-score/{player_id}  →  still active.
+// Reads behavioral_risk_profiles + bri_signal_history for a given player.
+// (risk-engine does not expose a read endpoint.)
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  // POST path retired — all scoring now goes through risk-engine
+  if (req.method === 'POST') {
+    return new Response(
+      JSON.stringify({
+        error: 'deprecated',
+        message:
+          'POST /bri-risk-score is retired. ' +
+          'Send events to POST /risk-engine instead. ' +
+          'risk-engine reads live_events, computes factor scores, and writes ' +
+          'behavioral_risk_profiles as the single source of truth.',
+      }),
+      { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 
   try {
@@ -154,123 +93,6 @@ Deno.serve(async (req: Request) => {
             crossOperator: latest.cross_operator_score || 0,
           } : null,
           rationale: latest?.risk_rationale || null,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (req.method === 'POST') {
-      const body = await req.json();
-      const {
-        player_id,
-        session_id,
-        casino_id,
-        session_minutes = 0,
-        total_bets = 0,
-        total_wagered = 0,
-        net_loss = 0,
-        deposit_count_24h = 0,
-        largest_bet = 0,
-        avg_bet = 0,
-        cross_operator_score = 0,
-        cross_operator_flags = 0,
-        impulse_level,
-        betting_velocity,
-        reaction_time_ms,
-        fatigue_index,
-        personality_shift_score,
-        emotional_state,
-        advised_break,
-        intervention_triggered,
-      } = body;
-
-      const signalScores = computeSignalScores({
-        session_minutes,
-        total_bets,
-        total_wagered,
-        net_loss,
-        deposit_count_24h,
-        largest_bet,
-        avg_bet,
-      });
-
-      const { score, level, rationale } = computeCompositeScore({
-        ...signalScores,
-        crossOperatorScore: cross_operator_score,
-      });
-
-      const { data: previousProfile } = await supabase
-        .from('behavioral_risk_profiles')
-        .select('risk_score')
-        .eq('player_id', player_id)
-        .order('analyzed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const previousScore = previousProfile?.risk_score || score;
-      const scoreDelta = score - previousScore;
-
-      const { data: newProfile, error } = await supabase
-        .from('behavioral_risk_profiles')
-        .insert({
-          player_id,
-          session_id,
-          casino_id,
-          risk_score: score,
-          risk_level: level,
-          impulse_level: impulse_level ?? signalScores.betIntensityScore,
-          betting_velocity,
-          session_duration_minutes: session_minutes,
-          reaction_time_ms,
-          fatigue_index,
-          personality_shift_score,
-          emotional_state,
-          advised_break,
-          intervention_triggered,
-          session_duration_score: signalScores.sessionDurationScore,
-          deposit_frequency_score: signalScores.depositFrequencyScore,
-          loss_escalation_score: signalScores.lossEscalationScore,
-          bet_intensity_score: signalScores.betIntensityScore,
-          cross_operator_score,
-          cross_operator_flags,
-          risk_rationale: rationale,
-          previous_risk_score: previousScore,
-          score_delta: scoreDelta,
-          signal_weights: { session_duration: 0.20, deposit_frequency: 0.20, loss_escalation: 0.30, bet_intensity: 0.20, cross_operator: 0.10 },
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await supabase.from('bri_signal_history').insert({
-        player_id,
-        casino_id,
-        risk_score: score,
-        risk_level: level,
-        session_duration_score: signalScores.sessionDurationScore,
-        deposit_frequency_score: signalScores.depositFrequencyScore,
-        loss_escalation_score: signalScores.lossEscalationScore,
-        bet_intensity_score: signalScores.betIntensityScore,
-        cross_operator_score,
-        session_minutes,
-        total_bets,
-        total_wagered,
-        net_loss,
-        deposit_count_24h,
-        largest_bet,
-        avg_bet,
-      });
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          profile: newProfile,
-          computedScore: score,
-          computedLevel: level,
-          signals: signalScores,
-          rationale,
-          scoreDelta,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

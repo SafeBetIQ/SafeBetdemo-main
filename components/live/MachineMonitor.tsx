@@ -2,7 +2,8 @@
 
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Cpu, Zap, Clock, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Cpu, Zap, Clock, TriangleAlert as AlertTriangle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCasinoData, MachineStatus } from '@/contexts/CasinoDataContext';
 
 const STATUS_CONFIG: Record<MachineStatus['status'], { dot: string; label: string; row: string }> = {
@@ -122,6 +123,16 @@ export function MachineMonitor() {
           <Badge variant="outline" className="text-xs">
             {stats.active.length} Active
           </Badge>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Real-time status of all gaming terminals. Each cell shows machine ID, type, spins per minute, risk score, and session wagered. Active machines pulse green; high-risk sessions (score ≥ 60) are highlighted with a red ring. Machines are sorted by status then risk score.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

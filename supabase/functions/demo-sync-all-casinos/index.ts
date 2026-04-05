@@ -1,138 +1,48 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.58.0';
+// ── DEPRECATED — demo-sync-all-casinos ───────────────────────────────────────
+//
+// This function previously generated synthetic demo_players and
+// demo_behavioral_insights rows using Math.random().  It has been retired
+// because:
+//
+//   1. All live data now flows through casino-simulator → live_events →
+//      CasinoDataContext (single source of truth).
+//   2. The demo_players / demo_behavioral_insights tables are no longer read
+//      by any UI component.
+//   3. The function had no effective auth guard (checked legacy RISK_ANALYST /
+//      EXECUTIVE roles that no longer exist in the auth system).
+//
+// If you need to seed demo data use `scripts/seed-players.ts` locally or
+// trigger the casino-simulator edge function (which marks events
+// `is_simulated: true`).
+//
+// This endpoint now returns 410 Gone so any stale cron/webhook that still
+// calls it fails loudly rather than silently injecting stale fake data.
+
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+Deno.serve((req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const authHeader = req.headers.get('Authorization')!;
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: userData } = await supabase
-      .from('users')
-      .select('user_role')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData || !['RISK_ANALYST', 'EXECUTIVE'].includes(userData.user_role)) {
-      return new Response(
-        JSON.stringify({ error: 'Access denied. RISK_ANALYST or EXECUTIVE role required.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: casinos } = await supabase
-      .from('casinos')
-      .select('id, name')
-      .eq('is_active', true);
-
-    if (!casinos || casinos.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No active casinos found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const demoPlayers = [];
-    const demoInsights = [];
-
-    for (const casino of casinos) {
-      const playerCount = Math.floor(Math.random() * 500) + 100;
-      const atRiskCount = Math.floor(playerCount * (Math.random() * 0.15 + 0.05));
-
-      for (let i = 0; i < Math.min(playerCount, 50); i++) {
-        const playerId = `P_${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-        const riskScore = Math.floor(Math.random() * 100);
-        const personas = ['casual', 'regular', 'high_roller', 'at_risk'];
-
-        demoPlayers.push({
-          casino_id: casino.id,
-          player_id: playerId,
-          avg_session_time: Math.floor(Math.random() * 300) + 30,
-          avg_bet_amount: Math.floor(Math.random() * 1000) + 50,
-          deposit_frequency: ['daily', 'weekly', 'monthly'][Math.floor(Math.random() * 3)],
-          win_loss_ratio: (Math.random() * 2).toFixed(2),
-          total_sessions: Math.floor(Math.random() * 100) + 1,
-          total_wagered: Math.floor(Math.random() * 100000) + 1000,
-          persona_type: personas[Math.floor(Math.random() * personas.length)],
-          risk_score: riskScore,
-          bri_score: Math.floor(Math.random() * 100),
-          first_seen: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-          last_active: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-        });
-
-        if (Math.random() > 0.7) {
-          demoInsights.push({
-            player_id: playerId,
-            casino_id: casino.id,
-            impulse_level: Math.floor(Math.random() * 100),
-            cognitive_fatigue_index: Math.floor(Math.random() * 100),
-            personality_shift: ['stable', 'minor', 'moderate', 'significant'][Math.floor(Math.random() * 4)],
-            predicted_escalation: ['low', 'medium', 'high', 'critical'][Math.floor(Math.random() * 4)],
-            session_velocity_change: (Math.random() * 200 - 100).toFixed(2),
-            loss_chasing_detected: Math.random() > 0.8,
-            impulse_vs_intent_ratio: (Math.random() * 2.5).toFixed(2),
-            reaction_time_ms: Math.floor(Math.random() * 2000) + 500,
-            decision_stability_score: Math.floor(Math.random() * 100),
-            recovery_indicator: Math.random() > 0.7,
-            next_7_day_risk_forecast: Math.floor(Math.random() * 100),
-            intervention_recommended: riskScore >= 75,
-            recommended_action: riskScore >= 75 ? 'Immediate contact recommended' : 'Continue monitoring',
-            analysis_timestamp: new Date().toISOString(),
-          });
-        }
-      }
-    }
-
-    await supabase.from('demo_players').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await supabase.from('demo_behavioral_insights').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-    const { error: playersError } = await supabase.from('demo_players').insert(demoPlayers);
-    const { error: insightsError } = await supabase.from('demo_behavioral_insights').insert(demoInsights);
-
-    if (playersError || insightsError) {
-      throw new Error(`Insert errors: ${JSON.stringify({ playersError, insightsError })}`);
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Demo data synchronized successfully',
-        stats: {
-          casinos: casinos.length,
-          players: demoPlayers.length,
-          insights: demoInsights.length,
-        },
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+  return new Response(
+    JSON.stringify({
+      error: "deprecated",
+      message:
+        "demo-sync-all-casinos has been retired. " +
+        "Live demo data is now generated by the casino-simulator function " +
+        "(events are marked is_simulated: true). " +
+        "Remove any cron schedules or webhooks pointing to this endpoint.",
+    }),
+    {
+      status: 410,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });
