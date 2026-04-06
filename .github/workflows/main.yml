@@ -8,7 +8,9 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
-
+- name: Force IPv4 priority
+  run: |
+    sudo sed -i 's/#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
     steps:
       - name: Install PostgreSQL client
         run: sudo apt-get install -y postgresql-client
@@ -28,7 +30,7 @@ jobs:
   env:
     SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
   run: |
-    pg_dump "$SUPABASE_DB_URL_DEMO" > demo-backup.sql
+    PGOPTIONS='-c inet_client_addr=0.0.0.0' pg_dump "$SUPABASE_DB_URL_DEMO" > demo-backup.sql
     gzip demo-backup.sql
 
       - name: Upload Demo to S3
@@ -40,7 +42,7 @@ jobs:
   env:
     SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
   run: |
-    pg_dump "$SUPABASE_DB_URL_PROD" > prod-backup.sql
+    PGOPTIONS='-c inet_client_addr=0.0.0.0' pg_dump "$SUPABASE_DB_URL_PROD" > prod-backup.sql
     gzip prod-backup.sql
 
       - name: Upload Production to S3
