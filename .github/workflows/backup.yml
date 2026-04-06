@@ -8,6 +8,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Force IPv4
+  run: |
+    echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
       - name: Install PostgreSQL client
         run: sudo apt-get install -y postgresql-client
 
@@ -22,22 +25,22 @@ jobs:
         run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Backup Demo DB
-        env:
-          SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
-        run: |
-          pg_dump "$SUPABASE_DB_URL_DEMO" > demo-backup.sql
-          gzip demo-backup.sql
+  env:
+    SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
+  run: |
+    pg_dump "$SUPABASE_DB_URL_DEMO" > demo-backup.sql
+    gzip demo-backup.sql
 
       - name: Upload Demo to S3
         run: |
           aws s3 cp demo-backup.sql.gz s3://safebetiq-backups/backups/demo/2026/04/demo-backup-${DATE}.sql.gz
 
       - name: Backup Production DB
-        env:
-          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
-        run: |
-          pg_dump "$SUPABASE_DB_URL_PROD" > prod-backup.sql
-          gzip prod-backup.sql
+  env:
+    SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+  run: |
+    pg_dump "$SUPABASE_DB_URL_PROD" > prod-backup.sql
+    gzip prod-backup.sql
 
       - name: Upload Production to S3
         run: |
