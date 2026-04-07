@@ -1,10 +1,13 @@
-name: Failover Restore (Secondary Region)
+name: Failover Restore (SAFE)
 
 on:
   workflow_dispatch:
     inputs:
+      confirm:
+        description: "Type CONFIRM_FAILOVER to proceed"
+        required: true
       backup_file:
-        description: "Enter backup path (e.g. backups/production/2026/04/production-backup-2026-04-07.sql.gz)"
+        description: "Backup path (e.g. backups/production/2026/04/file.sql.gz)"
         required: true
 
 jobs:
@@ -12,6 +15,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ======================
+      # SAFETY CHECK
+      # ======================
+      - name: Confirm failover
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "CONFIRM_FAILOVER" ]; then
+            echo "❌ You must type CONFIRM_FAILOVER"
+            exit 1
+          fi
+
+      # ======================
+      # INSTALL PG CLIENT
+      # ======================
       - name: Install PostgreSQL 17 client
         run: |
           sudo apt-get update
@@ -21,6 +37,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
 
+      # ======================
+      # AWS CONFIG
+      # ======================
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -29,9 +48,33 @@ jobs:
           aws-region: af-south-1
 
       # ======================
-      # DOWNLOAD FROM SECONDARY (CAPE TOWN)
+      # SET DATE
       # ======================
-      - name: Download backup from secondary region
+      - name: Set date
+        run: |
+          echo "DATE=$(date +'%Y-%m-%d-%H-%M')" >> $GITHUB_ENV
+
+      # ======================
+      # BACKUP CURRENT DB (CRITICAL 🔥)
+      # ======================
+      - name: Backup current production BEFORE restore
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          echo "📦 Creating pre-failover backup..."
+          pg_dump "$SUPABASE_DB_URL_PROD" > pre-failover-$DATE.sql
+          gzip pre-failover-$DATE.sql
+
+      - name: Upload pre-failover backup to S3
+        run: |
+          aws s3 cp pre-failover-$DATE.sql.gz \
+          s3://safebetiq-backups-secondary/backups/pre-failover/pre-failover-$DATE.sql.gz \
+          --sse AES256
+
+      # ======================
+      # DOWNLOAD BACKUP FROM SECONDARY
+      # ======================
+      - name: Download backup from secondary
         run: |
           aws s3 cp \
           s3://safebetiq-backups-secondary/${{ github.event.inputs.backup_file }} \
@@ -45,7 +88,7 @@ jobs:
           gunzip restore.sql.gz
 
       # ======================
-      # VALIDATE FILE
+      # VALIDATE
       # ======================
       - name: Validate backup
         run: |
@@ -56,11 +99,19 @@ jobs:
           head -n 20 restore.sql
 
       # ======================
-      # RESTORE TO DATABASE
+      # RESTORE (FAILOVER)
       # ======================
-      - name: Restore database (FAILOVER)
+      - name: Restore database (SAFE FAILOVER)
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           echo "⚠️ FAILOVER RESTORE STARTING..."
           psql "$SUPABASE_DB_URL_PROD" < restore.sql
+
+      # ======================
+      # SUCCESS MESSAGE
+      # ======================
+      - name: Success
+        run: |
+          echo "✅ Failover complete"
+          echo "🛡️ Pre-backup saved in S3"
