@@ -33,8 +33,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      - name: Set date
-        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Set date variables
+        run: |
+          echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "YEAR=$(date +'%Y')" >> $GITHUB_ENV
+          echo "MONTH=$(date +'%m')" >> $GITHUB_ENV
+
+      - name: Verify S3 bucket
+        run: |
+          aws s3 ls s3://safebetiq-backups-046276255259-eu-north-1-an
 
       # DEMO BACKUP
       - name: Backup Demo DB
@@ -46,7 +53,9 @@ jobs:
 
       - name: Upload Demo to S3
         run: |
-          aws s3 cp demo-backup.sql.gz s3://safebetiq-backups/backups/demo/2026/04/demo-backup-${DATE}.sql.gz
+          aws s3 cp demo-backup.sql.gz \
+          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
+          --region eu-north-1 --sse AES256
 
       # PRODUCTION BACKUP
       - name: Backup Production DB
@@ -58,4 +67,6 @@ jobs:
 
       - name: Upload Production to S3
         run: |
-          aws s3 cp prod-backup.sql.gz s3://safebetiq-backups/backups/production/2026/04/production-backup-${DATE}.sql.gz
+          aws s3 cp prod-backup.sql.gz \
+          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
+          --region eu-north-1 --sse AES256
