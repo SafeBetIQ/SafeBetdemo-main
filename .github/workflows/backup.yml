@@ -40,7 +40,7 @@ jobs:
       # Verify S3 bucket exists
       - name: Verify S3 bucket
         run: |
-          aws s3 ls s3://safebetiq-backups-046276255259-eu-north-1-an
+          safebetiq-backups-046276255259-eu-north-1-an
 
       # ======================
       # DEMO BACKUP
