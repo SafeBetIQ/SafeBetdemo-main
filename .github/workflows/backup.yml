@@ -30,7 +30,7 @@ jobs:
           /usr/lib/postgresql/17/bin/pg_dump --version
           which pg_dump
 
-      # Configure AWS credentials (UPDATED)
+      # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -115,3 +115,28 @@ jobs:
       - name: Cleanup files
         run: |
           rm -f demo-backup.sql.gz prod-backup.sql.gz restore-test.sql
+
+      # ======================
+      # EMAIL ALERTS (ON FAILURE)
+      # ======================
+      - name: Send email if backup fails
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: mail.safebetiq.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 SafeBet IQ Backup FAILED"
+          to: alerts@safebetiq.com
+          from: SafeBet IQ Alerts <alerts@safebetiq.com>
+          body: |
+            ❌ Backup job failed.
+
+            Repo: ${{ github.repository }}
+            Workflow: ${{ github.workflow }}
+            Run: ${{ github.run_number }}
+
+            Check logs immediately:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
