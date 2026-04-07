@@ -35,11 +35,10 @@ jobs:
           aws-region: eu-north-1
 
       # ======================
-      # VERIFY AWS (CRITICAL)
+      # VERIFY AWS
       # ======================
       - name: Verify AWS credentials
         run: |
-          echo "Testing AWS identity..."
           aws sts get-caller-identity
 
       # ======================
@@ -49,18 +48,14 @@ jobs:
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
-          echo "Checking database connection..."
-
           if timeout 10 psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
             echo "DB_OK=true" >> $GITHUB_ENV
-            echo "Database is UP"
           else
             echo "DB_OK=false" >> $GITHUB_ENV
-            echo "Database is DOWN"
           fi
 
       # ======================
-      # SEND LOGS TO CLOUDWATCH
+      # SEND LOGS TO CLOUDWATCH (FORCE METRIC)
       # ======================
       - name: Send logs to CloudWatch
         if: always()
@@ -73,11 +68,7 @@ jobs:
             --log-group-name safebet-backups \
             --log-stream-name $LOG_STREAM || true
 
-          if [ "${DB_OK}" = "true" ]; then
-            MESSAGE="Database healthy"
-          else
-            MESSAGE="FAILOVER TRIGGERED"
-          fi
+          MESSAGE="FAILOVER TEST EVENT"
 
           aws logs put-log-events \
             --region eu-north-1 \
