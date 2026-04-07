@@ -12,9 +12,17 @@ jobs:
         run: |
           echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get install -y postgresql-client
+      # ✅ Install PostgreSQL 17 (FIXES mismatch)
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          echo "deb http://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
 
+      # ✅ AWS CONFIG
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -22,9 +30,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      - name: Set date
-        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      # ✅ Dynamic date structure (NO HARDCODING)
+      - name: Set date variables
+        run: |
+          echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "YEAR=$(date +'%Y')" >> $GITHUB_ENV
+          echo "MONTH=$(date +'%m')" >> $GITHUB_ENV
 
+      # ✅ Ensure bucket exists (FIXES your error)
+      - name: Ensure S3 bucket exists
+        run: |
+          aws s3 ls s3://safebetiq-backups || aws s3 mb s3://safebetiq-backups --region eu-north-1
+
+      # ======================
+      # DEMO BACKUP
+      # ======================
       - name: Backup Demo DB
         env:
           SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
@@ -34,8 +54,13 @@ jobs:
 
       - name: Upload Demo to S3
         run: |
-          aws s3 cp demo-backup.sql.gz s3://safebetiq-backups/backups/demo/2026/04/demo-backup-${DATE}.sql.gz --region eu-north-1
+          aws s3 cp demo-backup.sql.gz \
+          s3://safebetiq-backups/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
+          --region eu-north-1 --sse AES256
 
+      # ======================
+      # PRODUCTION BACKUP
+      # ======================
       - name: Backup Production DB
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
@@ -45,4 +70,6 @@ jobs:
 
       - name: Upload Production to S3
         run: |
-          aws s3 cp prod-backup.sql.gz s3://safebetiq-backups/backups/production/2026/04/production-backup-${DATE}.sql.gz --region eu-north-1
+          aws s3 cp prod-backup.sql.gz \
+          s3://safebetiq-backups/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
+          --region eu-north-1 --sse AES256
