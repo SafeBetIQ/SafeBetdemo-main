@@ -12,7 +12,7 @@ jobs:
         run: |
           echo "precedence ::ffff:0:0/96  100" | sudo tee -a /etc/gai.conf
 
-      # ✅ Install PostgreSQL 17 (FIXES mismatch)
+      # Install PostgreSQL 17 client (fixes version mismatch)
       - name: Install PostgreSQL 17 client
         run: |
           sudo apt-get update
@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
 
-      # ✅ AWS CONFIG
+      # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -30,17 +30,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # ✅ Dynamic date structure (NO HARDCODING)
+      # Set dynamic date variables
       - name: Set date variables
         run: |
           echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
           echo "YEAR=$(date +'%Y')" >> $GITHUB_ENV
           echo "MONTH=$(date +'%m')" >> $GITHUB_ENV
 
-      # ✅ Ensure bucket exists (FIXES your error)
-      - name: Ensure S3 bucket exists
+      # Verify S3 bucket exists
+      - name: Verify S3 bucket
         run: |
-          aws s3 ls s3://safebetiq-backups || aws s3 mb s3://safebetiq-backups --region eu-north-1
+          aws s3 ls s3://safebetiq-backups-046276255259-eu-north-1-an
 
       # ======================
       # DEMO BACKUP
@@ -55,7 +55,7 @@ jobs:
       - name: Upload Demo to S3
         run: |
           aws s3 cp demo-backup.sql.gz \
-          s3://safebetiq-backups/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
+          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
           --region eu-north-1 --sse AES256
 
       # ======================
@@ -71,5 +71,5 @@ jobs:
       - name: Upload Production to S3
         run: |
           aws s3 cp prod-backup.sql.gz \
-          s3://safebetiq-backups/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
+          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
           --region eu-north-1 --sse AES256
