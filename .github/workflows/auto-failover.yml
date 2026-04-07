@@ -48,14 +48,18 @@ jobs:
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
+          echo "Checking database..."
+
           if timeout 10 psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
             echo "DB_OK=true" >> $GITHUB_ENV
+            echo "Database is healthy"
           else
             echo "DB_OK=false" >> $GITHUB_ENV
+            echo "Database is DOWN"
           fi
 
       # ======================
-      # SEND LOGS TO CLOUDWATCH (FORCE METRIC)
+      # SEND LOGS TO CLOUDWATCH (REAL LOGIC)
       # ======================
       - name: Send logs to CloudWatch
         if: always()
@@ -68,7 +72,11 @@ jobs:
             --log-group-name safebet-backups \
             --log-stream-name $LOG_STREAM || true
 
-          MESSAGE="FAILOVER TEST EVENT"
+          if [ "${DB_OK}" = "true" ]; then
+            MESSAGE="Database healthy"
+          else
+            MESSAGE="FAILOVER TRIGGERED"
+          fi
 
           aws logs put-log-events \
             --region eu-north-1 \
