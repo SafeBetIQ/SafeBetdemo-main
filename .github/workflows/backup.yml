@@ -120,7 +120,7 @@ jobs:
       # EMAIL ALERTS (ON FAILURE)
       # ======================
       - name: Send email if backup fails
-        if: failure()
+        if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: mail.safebetiq.com
