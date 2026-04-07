@@ -1,0 +1,66 @@
+name: Failover Restore (Secondary Region)
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_file:
+        description: "Enter backup path (e.g. backups/production/2026/04/production-backup-2026-04-07.sql.gz)"
+        required: true
+
+jobs:
+  failover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/postgresql.asc
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: af-south-1
+
+      # ======================
+      # DOWNLOAD FROM SECONDARY (CAPE TOWN)
+      # ======================
+      - name: Download backup from secondary region
+        run: |
+          aws s3 cp \
+          s3://safebetiq-backups-secondary/${{ github.event.inputs.backup_file }} \
+          restore.sql.gz
+
+      # ======================
+      # UNZIP
+      # ======================
+      - name: Unzip backup
+        run: |
+          gunzip restore.sql.gz
+
+      # ======================
+      # VALIDATE FILE
+      # ======================
+      - name: Validate backup
+        run: |
+          if [ ! -s restore.sql ]; then
+            echo "❌ Backup file is empty!"
+            exit 1
+          fi
+          head -n 20 restore.sql
+
+      # ======================
+      # RESTORE TO DATABASE
+      # ======================
+      - name: Restore database (FAILOVER)
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          echo "⚠️ FAILOVER RESTORE STARTING..."
+          psql "$SUPABASE_DB_URL_PROD" < restore.sql
