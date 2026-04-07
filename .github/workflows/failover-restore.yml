@@ -38,6 +38,14 @@ jobs:
           sudo apt-get install -y postgresql-client-17
 
       # ======================
+      # VERIFY VERSION (DEBUG)
+      # ======================
+      - name: Verify PostgreSQL version
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          /usr/lib/postgresql/17/bin/psql --version
+
+      # ======================
       # AWS CONFIG
       # ======================
       - name: Configure AWS credentials
@@ -55,14 +63,14 @@ jobs:
           echo "DATE=$(date +'%Y-%m-%d-%H-%M')" >> $GITHUB_ENV
 
       # ======================
-      # BACKUP CURRENT DB (CRITICAL 🔥)
+      # BACKUP CURRENT DB (FIXED 🔥)
       # ======================
       - name: Backup current production BEFORE restore
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           echo "📦 Creating pre-failover backup..."
-          pg_dump "$SUPABASE_DB_URL_PROD" > pre-failover-$DATE.sql
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL_PROD" > pre-failover-$DATE.sql
           gzip pre-failover-$DATE.sql
 
       - name: Upload pre-failover backup to S3
@@ -72,7 +80,7 @@ jobs:
           --sse AES256
 
       # ======================
-      # DOWNLOAD BACKUP FROM SECONDARY
+      # DOWNLOAD BACKUP
       # ======================
       - name: Download backup from secondary
         run: |
@@ -99,17 +107,17 @@ jobs:
           head -n 20 restore.sql
 
       # ======================
-      # RESTORE (FAILOVER)
+      # RESTORE (FIXED 🔥)
       # ======================
       - name: Restore database (SAFE FAILOVER)
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           echo "⚠️ FAILOVER RESTORE STARTING..."
-          psql "$SUPABASE_DB_URL_PROD" < restore.sql
+          /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" < restore.sql
 
       # ======================
-      # SUCCESS MESSAGE
+      # SUCCESS
       # ======================
       - name: Success
         run: |
