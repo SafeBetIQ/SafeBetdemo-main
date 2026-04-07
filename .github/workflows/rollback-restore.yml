@@ -1,0 +1,112 @@
+name: Rollback Restore (SAFE)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type CONFIRM_ROLLBACK to proceed"
+        required: true
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ======================
+      # SAFETY CHECK
+      # ======================
+      - name: Confirm rollback
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "CONFIRM_ROLLBACK" ]; then
+            echo "❌ You must type CONFIRM_ROLLBACK"
+            exit 1
+          fi
+
+      # ======================
+      # INSTALL POSTGRES 17
+      # ======================
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/postgresql.asc
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      # ======================
+      # VERIFY VERSION
+      # ======================
+      - name: Verify PostgreSQL version
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          /usr/lib/postgresql/17/bin/psql --version
+
+      # ======================
+      # AWS CONFIG
+      # ======================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: af-south-1
+
+      # ======================
+      # FIND LATEST BACKUP 🔥
+      # ======================
+      - name: Get latest pre-failover backup
+        id: latest
+        run: |
+          FILE=$(aws s3 ls s3://safebetiq-backups-secondary/backups/pre-failover/ \
+            | sort \
+            | tail -n 1 \
+            | awk '{print $4}')
+          
+          echo "LATEST_FILE=$FILE" >> $GITHUB_ENV
+          echo "Latest backup: $FILE"
+
+      # ======================
+      # DOWNLOAD BACKUP
+      # ======================
+      - name: Download latest backup
+        run: |
+          aws s3 cp \
+          s3://safebetiq-backups-secondary/backups/pre-failover/$LATEST_FILE \
+          rollback.sql.gz
+
+      # ======================
+      # UNZIP
+      # ======================
+      - name: Unzip backup
+        run: |
+          gunzip rollback.sql.gz
+
+      # ======================
+      # VALIDATE
+      # ======================
+      - name: Validate backup
+        run: |
+          if [ ! -s rollback.sql ]; then
+            echo "❌ Backup file is empty!"
+            exit 1
+          fi
+          head -n 20 rollback.sql
+
+      # ======================
+      # RESTORE DATABASE 🔥
+      # ======================
+      - name: Restore database (ROLLBACK)
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          echo "🔄 ROLLBACK STARTING..."
+          /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" < rollback.sql
+
+      # ======================
+      # SUCCESS
+      # ======================
+      - name: Success
+        run: |
+          echo "✅ Rollback completed successfully"
+          echo "🛡️ System restored to previous state"
