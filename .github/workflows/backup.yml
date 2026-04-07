@@ -3,7 +3,7 @@ name: Daily Backup to S3
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *'  # Runs daily at 2AM South Africa time
 
 jobs:
   backup:
@@ -30,7 +30,7 @@ jobs:
           /usr/lib/postgresql/17/bin/pg_dump --version
           which pg_dump
 
-      # Configure AWS credentials
+      # Configure AWS credentials (UPDATED)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -38,7 +38,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      # Set date variables (UPDATED)
+      # Set date variables
       - name: Set date variables
         run: |
           echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
@@ -89,7 +89,7 @@ jobs:
           --region eu-north-1 --sse AES256
 
       # ======================
-      # RESTORE TEST (VERIFY BACKUP)
+      # RESTORE TEST
       # ======================
       - name: Download latest backup
         run: |
@@ -103,4 +103,15 @@ jobs:
 
       - name: Validate backup
         run: |
+          if [ ! -s restore-test.sql ]; then
+            echo "❌ Backup file is empty!"
+            exit 1
+          fi
           head -n 20 restore-test.sql
+
+      # ======================
+      # CLEANUP
+      # ======================
+      - name: Cleanup files
+        run: |
+          rm -f demo-backup.sql.gz prod-backup.sql.gz restore-test.sql
