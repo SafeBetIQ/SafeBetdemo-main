@@ -2,7 +2,7 @@ name: Auto Failover Detection
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # Runs every 5 minutes
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       # ======================
-      # INSTALL POSTGRES CLIENT (FOR HEALTH CHECK)
+      # INSTALL POSTGRES CLIENT
       # ======================
       - name: Install PostgreSQL client
         run: |
@@ -19,7 +19,7 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       # ======================
-      # CONFIGURE AWS (REQUIRED FOR S3 ACCESS)
+      # CONFIGURE AWS
       # ======================
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -47,11 +47,10 @@ jobs:
           fi
 
       # ======================
-      # GET LATEST BACKUP FROM S3
+      # GET LATEST BACKUP
       # ======================
       - name: Get latest production backup
         if: env.DB_OK == 'false'
-        id: latest
         run: |
           echo "📦 Finding latest backup..."
 
@@ -67,7 +66,7 @@ jobs:
           echo "Latest backup: $FILE"
 
       # ======================
-      # TRIGGER FAILOVER WORKFLOW
+      # TRIGGER FAILOVER
       # ======================
       - name: Trigger failover restore
         if: env.DB_OK == 'false'
@@ -89,7 +88,34 @@ jobs:
             });
 
       # ======================
-      # LOG SUCCESS
+      # ALERT EMAIL 🔥
+      # ======================
+      - name: Send alert email
+        if: env.DB_OK == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: mail.safebetiq.com
+          server_port: 587
+          secure: false
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 SafeBet IQ AUTO FAILOVER TRIGGERED"
+          to: alerts@safebetiq.com
+          from: alerts@safebetiq.com
+          body: |
+            🚨 AUTO FAILOVER ACTIVATED
+
+            Database is DOWN and failover has been triggered.
+
+            Repository: ${{ github.repository }}
+            Workflow: ${{ github.workflow }}
+            Run ID: ${{ github.run_id }}
+
+            Check logs:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # ======================
+      # STATUS
       # ======================
       - name: Status
         run: |
