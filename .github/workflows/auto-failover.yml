@@ -35,14 +35,14 @@ jobs:
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
-          echo "🔍 Checking database connection..."
+          echo "Checking database connection..."
 
           if timeout 10 psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
             echo "DB_OK=true" >> $GITHUB_ENV
-            echo "✅ Database is UP"
+            echo "Database is UP"
           else
             echo "DB_OK=false" >> $GITHUB_ENV
-            echo "❌ Database is DOWN"
+            echo "Database is DOWN"
           fi
 
       # ======================
@@ -51,13 +51,13 @@ jobs:
       - name: Get latest production backup
         if: env.DB_OK == 'false'
         run: |
-          echo "📦 Finding latest backup..."
+          echo "Finding latest backup..."
 
           FILE=$(aws s3 ls s3://safebetiq-backups-secondary/backups/production/ \
             --recursive | sort | tail -n 1 | awk '{print $4}')
 
           if [ -z "$FILE" ]; then
-            echo "❌ No backup found!"
+            echo "No backup found!"
             exit 1
           fi
 
@@ -73,7 +73,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            console.log("🚨 AUTO FAILOVER TRIGGERED");
+            console.log("AUTO FAILOVER TRIGGERED");
 
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
@@ -98,11 +98,11 @@ jobs:
           secure: false
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🚨 SafeBet IQ AUTO FAILOVER TRIGGERED"
+          subject: "SafeBet IQ AUTO FAILOVER TRIGGERED"
           to: alerts@safebetiq.com
           from: alerts@safebetiq.com
           body: |
-            🚨 AUTO FAILOVER ACTIVATED
+            AUTO FAILOVER ACTIVATED
 
             Database is DOWN and failover has been triggered.
 
@@ -122,11 +122,11 @@ jobs:
           curl -X POST https://api.twilio.com/2010-04-01/Accounts/${{ secrets.TWILIO_ACCOUNT_SID }}/Messages.json \
           --data-urlencode "To=${{ secrets.TWILIO_WHATSAPP_TO }}" \
           --data-urlencode "From=${{ secrets.TWILIO_WHATSAPP_FROM }}" \
-          --data-urlencode "Body=🚨 SafeBet IQ AUTO FAILOVER TRIGGERED. Database DOWN. Recovery started." \
+          --data-urlencode "Body=SafeBet IQ AUTO FAILOVER TRIGGERED. Database DOWN. Recovery started." \
           -u "${{ secrets.TWILIO_ACCOUNT_SID }}:${{ secrets.TWILIO_AUTH_TOKEN }}"
 
       # ======================
-      # SEND LOGS TO CLOUDWATCH (SUCCESS / FAIL)
+      # SEND LOGS TO CLOUDWATCH
       # ======================
       - name: Send logs to CloudWatch
         if: always()
@@ -135,19 +135,21 @@ jobs:
           LOG_STREAM="failover-$(date +%s)"
 
           aws logs create-log-stream \
+            --region eu-north-1 \
             --log-group-name safebet-backups \
             --log-stream-name $LOG_STREAM || true
 
           if [ "${DB_OK}" = "true" ]; then
-            MESSAGE="✅ Database healthy - no failover required"
+            MESSAGE="Database healthy - no failover required"
           else
-            MESSAGE="🚨 FAILOVER TRIGGERED - Database down"
+            MESSAGE="FAILOVER TRIGGERED - Database down"
           fi
 
           aws logs put-log-events \
+            --region eu-north-1 \
             --log-group-name safebet-backups \
             --log-stream-name $LOG_STREAM \
-            --log-events timestamp=$TIMESTAMP,message="$MESSAGE"
+            --log-events "timestamp=$TIMESTAMP,message=$MESSAGE"
 
       # ======================
       # STATUS
