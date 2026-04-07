@@ -32,7 +32,6 @@ jobs:
       # CHECK DATABASE HEALTH
       # ======================
       - name: Check database connection
-        id: dbcheck
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
@@ -88,7 +87,7 @@ jobs:
             });
 
       # ======================
-      # ALERT EMAIL 🔥
+      # EMAIL ALERT
       # ======================
       - name: Send alert email
         if: env.DB_OK == 'false'
@@ -113,6 +112,18 @@ jobs:
 
             Check logs:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # ======================
+      # WHATSAPP ALERT
+      # ======================
+      - name: Send WhatsApp alert
+        if: env.DB_OK == 'false'
+        run: |
+          curl -X POST https://api.twilio.com/2010-04-01/Accounts/${{ secrets.TWILIO_ACCOUNT_SID }}/Messages.json \
+          --data-urlencode "To=${{ secrets.TWILIO_WHATSAPP_TO }}" \
+          --data-urlencode "From=${{ secrets.TWILIO_WHATSAPP_FROM }}" \
+          --data-urlencode "Body=🚨 SafeBet IQ AUTO FAILOVER TRIGGERED. Database DOWN. Recovery started." \
+          -u "${{ secrets.TWILIO_ACCOUNT_SID }}:${{ secrets.TWILIO_AUTH_TOKEN }}"
 
       # ======================
       # STATUS
