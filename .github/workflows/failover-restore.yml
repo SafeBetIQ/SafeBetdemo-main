@@ -117,9 +117,49 @@ jobs:
           /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" < restore.sql
 
       # ======================
+      # POST-RESTORE VALIDATION
+      # ======================
+      - name: Validate restore success
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          echo "🔍 Verifying database is responding post-restore..."
+          if timeout 15 /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
+            echo "✅ Database is responding after failover restore"
+          else
+            echo "❌ Database NOT responding after restore - investigate immediately!"
+            exit 1
+          fi
+
+      # ======================
+      # CLOUDWATCH: FAILOVER AUDIT LOG
+      # ======================
+      - name: Audit log failover to CloudWatch
+        if: always()
+        run: |
+          LOG_STREAM="failover-events-$(date +%Y-%m-%d)"
+          TIMESTAMP=$(date +%s000)
+
+          aws logs create-log-stream \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" || true
+
+          MESSAGE=$(printf '{"event":"failover-restore","status":"%s","operator":"%s","backup_file":"%s","run_id":"%s","timestamp":"%s"}' \
+            "${{ job.status }}" "${{ github.actor }}" "${{ github.event.inputs.backup_file }}" \
+            "${{ github.run_id }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+
+          aws logs put-log-events \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "timestamp=$TIMESTAMP,message=$MESSAGE"
+
+      # ======================
       # SUCCESS
       # ======================
       - name: Success
         run: |
-          echo "✅ Failover complete"
+          echo "✅ Failover complete and database validated"
           echo "🛡️ Pre-backup saved in S3"
+          echo "📋 Audit log written to CloudWatch: safebet-backups/failover-events-$(date +%Y-%m-%d)"
