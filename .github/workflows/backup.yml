@@ -156,11 +156,12 @@ jobs:
           MESSAGE=$(printf '{"event":"daily-backup","status":"%s","run_id":"%s","actor":"%s","timestamp":"%s"}' \
             "$JOB_STATUS" "${{ github.run_id }}" "${{ github.actor }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
 
+          LOG_EVENTS=$(jq -n --argjson ts "$TIMESTAMP" --arg msg "$MESSAGE" '[{"timestamp":$ts,"message":$msg}]')
           aws logs put-log-events \
             --region eu-north-1 \
             --log-group-name safebet-backups \
             --log-stream-name "$LOG_STREAM" \
-            --log-events "timestamp=$TIMESTAMP,message=$MESSAGE"
+            --log-events "$LOG_EVENTS"
 
           aws cloudwatch put-metric-data \
             --namespace "SafeBetIQ/Backups" \
