@@ -134,7 +134,32 @@ jobs:
           rm -f demo-backup.sql.gz prod-backup.sql.gz restore-test.sql
 
       # ======================
-      # CLOUDWATCH: BACKUP AUDIT LOG + METRIC
+      # CLOUDWATCH METRIC: BackupSuccess
+      # ======================
+      - name: Metric - BackupSuccess (success)
+        if: success()
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "SafeBetIQ/Backups" \
+            --metric-name "BackupSuccess" \
+            --value 1 \
+            --unit Count \
+            --region eu-north-1
+          echo "✅ BackupSuccess metric sent: 1"
+
+      - name: Metric - BackupSuccess (failure)
+        if: failure()
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "SafeBetIQ/Backups" \
+            --metric-name "BackupSuccess" \
+            --value 0 \
+            --unit Count \
+            --region eu-north-1
+          echo "❌ BackupSuccess metric sent: 0"
+
+      # ======================
+      # CLOUDWATCH: BACKUP AUDIT LOG
       # ======================
       - name: Send backup result to CloudWatch
         if: always()
@@ -148,10 +173,6 @@ jobs:
             --log-stream-name "$LOG_STREAM" 2>/dev/null || true
 
           JOB_STATUS="${{ job.status }}"
-          METRIC_VALUE=1
-          if [ "$JOB_STATUS" != "success" ]; then
-            METRIC_VALUE=0
-          fi
 
           MESSAGE=$(printf '{"event":"daily-backup","status":"%s","run_id":"%s","actor":"%s","timestamp":"%s"}' \
             "$JOB_STATUS" "${{ github.run_id }}" "${{ github.actor }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
@@ -162,12 +183,5 @@ jobs:
             --log-group-name safebet-backups \
             --log-stream-name "$LOG_STREAM" \
             --log-events "$LOG_EVENTS"
-
-          aws cloudwatch put-metric-data \
-            --namespace "SafeBetIQ/Backups" \
-            --metric-name "BackupSuccess" \
-            --value $METRIC_VALUE \
-            --unit Count \
-            --region eu-north-1
 
           echo "📋 Audit log written to CloudWatch stream: $LOG_STREAM"
