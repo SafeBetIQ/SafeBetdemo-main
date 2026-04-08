@@ -143,7 +143,7 @@ jobs:
           aws logs create-log-stream \
             --region eu-north-1 \
             --log-group-name safebet-backups \
-            --log-stream-name "$LOG_STREAM" || true
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
 
           MESSAGE=$(printf '{"event":"failover-restore","status":"%s","operator":"%s","backup_file":"%s","run_id":"%s","timestamp":"%s"}' \
             "${{ job.status }}" "${{ github.actor }}" "${{ github.event.inputs.backup_file }}" \

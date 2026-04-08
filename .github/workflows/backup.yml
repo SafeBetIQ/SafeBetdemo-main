@@ -145,7 +145,7 @@ jobs:
           aws logs create-log-stream \
             --region eu-north-1 \
             --log-group-name safebet-backups \
-            --log-stream-name "$LOG_STREAM" || true
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
 
           JOB_STATUS="${{ job.status }}"
           METRIC_VALUE=1
