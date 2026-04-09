@@ -37,3 +37,7 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Lambda build artifacts — never commit
+lambda/**/package/
+lambda/**/function.zip
