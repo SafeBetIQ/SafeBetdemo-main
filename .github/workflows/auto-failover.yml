@@ -42,51 +42,76 @@ jobs:
           aws sts get-caller-identity
 
       # ======================
-      # CHECK DATABASE HEALTH
+      # CHECK DATABASE HEALTH (3-attempt retry)
       # ======================
       - name: Check database connection
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
-          echo "Checking database..."
+          echo "Checking database (3 attempts)..."
+          DB_OK=false
 
-          if timeout 10 psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
-            echo "DB_OK=true" >> $GITHUB_ENV
-            echo "Database is healthy"
-          else
-            echo "DB_OK=false" >> $GITHUB_ENV
-            echo "Database is DOWN"
+          for i in 1 2 3; do
+            if timeout 10 psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
+              DB_OK=true
+              echo "✅ Database is healthy (attempt $i)"
+              break
+            fi
+            echo "⚠️ Attempt $i failed"
+            [ $i -lt 3 ] && sleep 5
+          done
+
+          echo "DB_OK=$DB_OK" >> $GITHUB_ENV
+          if [ "$DB_OK" = "false" ]; then
+            echo "❌ Database unhealthy after 3 attempts"
           fi
 
       # ======================
-      # SEND LOGS TO CLOUDWATCH (REAL LOGIC)
+      # CLOUDWATCH: STRUCTURED LOG + DatabaseHealthy METRIC
       # ======================
-      - name: Send logs to CloudWatch
+      - name: Send health check to CloudWatch
         if: always()
         run: |
           TIMESTAMP=$(date +%s000)
-          LOG_STREAM="failover-$(date +%s)"
+          LOG_STREAM="health-check-$(date +%Y-%m-%d)"
 
           aws logs create-log-stream \
             --region eu-north-1 \
             --log-group-name safebet-backups \
-            --log-stream-name $LOG_STREAM || true
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
 
           if [ "${DB_OK}" = "true" ]; then
-            MESSAGE="Database healthy"
+            STATUS="HEALTHY"
+            METRIC_VALUE=1
           else
-            MESSAGE="FAILOVER TRIGGERED"
+            STATUS="UNHEALTHY - Manual failover required"
+            METRIC_VALUE=0
           fi
 
+          MESSAGE=$(printf '{"event":"db-health-check","status":"%s","run_id":"%s","actor":"%s","timestamp":"%s"}' \
+            "$STATUS" "${{ github.run_id }}" "${{ github.actor }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+
+          LOG_EVENTS=$(jq -n --argjson ts "$TIMESTAMP" --arg msg "$MESSAGE" '[{"timestamp":$ts,"message":$msg}]')
           aws logs put-log-events \
             --region eu-north-1 \
             --log-group-name safebet-backups \
-            --log-stream-name $LOG_STREAM \
-            --log-events "timestamp=$TIMESTAMP,message=$MESSAGE"
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "$LOG_EVENTS"
+
+          aws cloudwatch put-metric-data \
+            --namespace "SafeBetIQ/DR" \
+            --metric-name "DatabaseHealthy" \
+            --value $METRIC_VALUE \
+            --unit Count \
+            --region eu-north-1
 
       # ======================
       # STATUS
       # ======================
       - name: Status
         run: |
-          echo "Auto failover check complete"
+          echo "Health check complete. DB_OK=${DB_OK}"
+          if [ "${DB_OK}" = "false" ]; then
+            echo "ACTION REQUIRED: Database is unhealthy. Trigger failover-restore.yml manually."
+            exit 1
+          fi

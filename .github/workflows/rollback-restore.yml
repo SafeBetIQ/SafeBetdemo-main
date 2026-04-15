@@ -62,7 +62,12 @@ jobs:
             | sort \
             | tail -n 1 \
             | awk '{print $4}')
-          
+
+          if [ -z "$FILE" ]; then
+            echo "❌ No pre-failover backup found in S3! Cannot rollback safely."
+            exit 1
+          fi
+
           echo "LATEST_FILE=$FILE" >> $GITHUB_ENV
           echo "Latest backup: $FILE"
 
@@ -104,9 +109,50 @@ jobs:
           /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" < rollback.sql
 
       # ======================
+      # POST-ROLLBACK VALIDATION
+      # ======================
+      - name: Validate rollback success
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          echo "🔍 Verifying database is responding post-rollback..."
+          if timeout 15 /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL_PROD" -c "SELECT 1;" > /dev/null 2>&1; then
+            echo "✅ Database is responding after rollback"
+          else
+            echo "❌ Database NOT responding after rollback - investigate immediately!"
+            exit 1
+          fi
+
+      # ======================
+      # CLOUDWATCH: ROLLBACK AUDIT LOG
+      # ======================
+      - name: Audit log rollback to CloudWatch
+        if: always()
+        run: |
+          LOG_STREAM="rollback-events-$(date +%Y-%m-%d)"
+          TIMESTAMP=$(date +%s000)
+
+          aws logs create-log-stream \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
+
+          MESSAGE=$(printf '{"event":"rollback-restore","status":"%s","operator":"%s","restored_file":"%s","run_id":"%s","timestamp":"%s"}' \
+            "${{ job.status }}" "${{ github.actor }}" "$LATEST_FILE" \
+            "${{ github.run_id }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+
+          LOG_EVENTS=$(jq -n --argjson ts "$TIMESTAMP" --arg msg "$MESSAGE" '[{"timestamp":$ts,"message":$msg}]')
+          aws logs put-log-events \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "$LOG_EVENTS"
+
+      # ======================
       # SUCCESS
       # ======================
       - name: Success
         run: |
-          echo "✅ Rollback completed successfully"
-          echo "🛡️ System restored to previous state"
+          echo "✅ Rollback completed and database validated"
+          echo "🛡️ System restored to: $LATEST_FILE"
+          echo "📋 Audit log written to CloudWatch: safebet-backups/rollback-events-$(date +%Y-%m-%d)"

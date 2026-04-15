@@ -1,0 +1,11 @@
+# SafeBet IQ — safebet-auto-failover Lambda dependencies
+#
+# Build on Amazon Linux 2023 (same as Lambda Python 3.12 runtime):
+#   pip install -r requirements.txt -t ./package --platform mlinux2_x86_64 \
+#               --implementation cp --python-version 3.12 \
+#               --only-binary=:all:
+#
+# psycopg2-binary ships its own libpq — no Lambda Layer needed.
+# Do NOT use plain psycopg2 in Lambda (requires libpq on the host).
+
+psycopg2-binary==2.9.9

@@ -63,6 +63,23 @@ jobs:
           --region eu-north-1 --sse AES256
 
       # ======================
+      # VALIDATE DEMO BACKUP
+      # ======================
+      - name: Validate Demo backup
+        run: |
+          if [ ! -s demo-backup.sql.gz ]; then
+            echo "❌ Demo backup is empty!"
+            exit 1
+          fi
+          DEMO_SIZE=$(stat -c%s demo-backup.sql.gz)
+          echo "Demo backup size: ${DEMO_SIZE} bytes"
+          if [ "$DEMO_SIZE" -lt 512 ]; then
+            echo "❌ Demo backup suspiciously small (<512 bytes)!"
+            exit 1
+          fi
+          echo "✅ Demo backup validated"
+
+      # ======================
       # PRODUCTION BACKUP
       # ======================
       - name: Backup Production DB
@@ -115,3 +132,56 @@ jobs:
       - name: Cleanup files
         run: |
           rm -f demo-backup.sql.gz prod-backup.sql.gz restore-test.sql
+
+      # ======================
+      # CLOUDWATCH METRIC: BackupSuccess
+      # ======================
+      - name: Metric - BackupSuccess (success)
+        if: success()
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "SafeBetIQ/Backups" \
+            --metric-name "BackupSuccess" \
+            --value 1 \
+            --unit Count \
+            --region eu-north-1
+          echo "✅ BackupSuccess metric sent: 1"
+
+      - name: Metric - BackupSuccess (failure)
+        if: failure()
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace "SafeBetIQ/Backups" \
+            --metric-name "BackupSuccess" \
+            --value 0 \
+            --unit Count \
+            --region eu-north-1
+          echo "❌ BackupSuccess metric sent: 0"
+
+      # ======================
+      # CLOUDWATCH: BACKUP AUDIT LOG
+      # ======================
+      - name: Send backup result to CloudWatch
+        if: always()
+        run: |
+          LOG_STREAM="daily-backup-$(date +%Y-%m-%d)"
+          TIMESTAMP=$(date +%s000)
+
+          aws logs create-log-stream \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
+
+          JOB_STATUS="${{ job.status }}"
+
+          MESSAGE=$(printf '{"event":"daily-backup","status":"%s","run_id":"%s","actor":"%s","timestamp":"%s"}' \
+            "$JOB_STATUS" "${{ github.run_id }}" "${{ github.actor }}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+
+          LOG_EVENTS=$(jq -n --argjson ts "$TIMESTAMP" --arg msg "$MESSAGE" '[{"timestamp":$ts,"message":$msg}]')
+          aws logs put-log-events \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "$LOG_EVENTS"
+
+          echo "📋 Audit log written to CloudWatch stream: $LOG_STREAM"

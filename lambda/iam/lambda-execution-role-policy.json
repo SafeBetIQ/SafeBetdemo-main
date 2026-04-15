@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3BackupReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1-an",
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1-an/backups/production/*"
+      ]
+    },
+    {
+      "Sid": "S3RestoreMarkerWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1-an",
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1-an/restore-complete/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:x-amz-server-side-encryption": "AES256"
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogsAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:eu-north-1:*:log-group:safebet-backups:*",
+        "arn:aws:logs:eu-north-1:*:log-group:/aws/lambda/safebet-auto-failover:*"
+      ]
+    },
+    {
+      "Sid": "CloudWatchLogsCreateGroup",
+      "Effect": "Allow",
+      "Action": "logs:CreateLogGroup",
+      "Resource": "arn:aws:logs:eu-north-1:*:*"
+    },
+    {
+      "Sid": "CloudWatchMetricsDR",
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricData",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": "SafeBetIQ/DR"
+        }
+      }
+    }
+  ]
+}
