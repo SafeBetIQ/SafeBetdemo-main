@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { DRStatusPayload } from '@/app/api/dr-status/route';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
@@ -400,53 +401,160 @@ function ArchitectureDiagram() {
 /* ─────────────────────────────────────────────────────────────
    PAGE
 ───────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────────── */
+function formatRelative(isoString: string | null): string {
+  if (!isoString) return '—';
+  const diff  = Date.now() - new Date(isoString).getTime();
+  const mins  = Math.floor(diff / 60_000);
+  if (mins < 1)    return 'just now';
+  if (mins < 60)   return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+}
+
+function formatUtc(isoString: string | null): string {
+  if (!isoString) return '—';
+  return new Date(isoString).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+
+/* ─────────────────────────────────────────────────────────────
+   LIVE STATUS HOOK  (polls /api/dr-status every 30 s)
+───────────────────────────────────────────────────────────── */
+function useLiveStatus() {
+  const [data, setData]       = useState<DRStatusPayload | null>(null);
+  const [error, setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const timerRef              = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchLive = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dr-status', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json: DRStatusPayload = await res.json();
+      setData(json);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Monitoring unavailable');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLive();
+    timerRef.current = setInterval(fetchLive, 30_000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [fetchLive]);
+
+  return { data, error, loading, refetch: fetchLive };
+}
+
+/* ─────────────────────────────────────────────────────────────
+   LIVE SOURCE BADGE
+───────────────────────────────────────────────────────────── */
+function SourceBadge({ source, error }: { source: DRStatusPayload['source'] | null; error: string | null }) {
+  if (error) {
+    return (
+      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 gap-1">
+        <AlertTriangle className="h-2.5 w-2.5" />
+        Monitoring unavailable
+      </Badge>
+    );
+  }
+  if (!source) return null;
+  const cfg = {
+    live:        { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Live — AWS' },
+    partial:     { cls: 'bg-amber-50 text-amber-700 border-amber-200',       label: 'Partial — some sources unavailable' },
+    unavailable: { cls: 'bg-slate-100 text-slate-500 border-slate-200',      label: 'Fallback — AWS unreachable' },
+  }[source];
+  return (
+    <Badge variant="outline" className={cn('text-[10px] gap-1', cfg.cls)}>
+      {source === 'live' && <PulseDot className="bg-emerald-500" />}
+      {cfg.label}
+    </Badge>
+  );
+}
+
 export default function InfrastructurePage() {
-  const [drStatus, setDrStatus]         = useState<DRStatus[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
-  const [activeTab, setActiveTab]       = useState('dr-status');
-  const [simulating, setSimulating]     = useState(false);
-  const [lastRefresh, setLastRefresh]   = useState(new Date());
+  /* ── Supabase (DR Status table) ─────────────────────────── */
+  const [drStatus, setDrStatus]     = useState<DRStatus[]>([]);
+  const [dbLoading, setDbLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /* ── Live AWS data ─────────────────────────────────────── */
+  const { data: live, error: liveError, loading: liveLoading, refetch } = useLiveStatus();
+
+  /* ── UI state ──────────────────────────────────────────── */
+  const [activeTab, setActiveTab]   = useState('dr-status');
+  const [simulating, setSimulating] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true); else setLoading(true);
+    if (isRefresh) { setRefreshing(true); refetch(); }
+    else setDbLoading(true);
     const { data } = await supabase.from('dr_status').select('*').order('component');
     if (data) setDrStatus(data);
-    setLoading(false);
+    setDbLoading(false);
     setRefreshing(false);
     setLastRefresh(new Date());
-  }, []);
+  }, [refetch]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const allOperational = drStatus.every(d => d.status === 'operational');
-  const degradedCount  = drStatus.filter(d => d.status !== 'operational').length;
-  const overallHealth  = drStatus.length > 0
-    ? Math.round(drStatus.reduce((sum, d) => sum + d.health_score, 0) / drStatus.length)
-    : 100;
+  /* ── Derived values ──────────────────────────────────────
+     Live AWS data takes precedence; Supabase table is fallback */
+  const liveStatus  = live?.status ?? 'UNKNOWN';
+  const liveHealth  = live?.healthScore ?? null;
 
-  /* ── Top system status bar ─────────────────────────────── */
-  const statusBgClass  = allOperational ? 'bg-emerald-600' : 'bg-amber-500';
-  const statusMsg      = allOperational
-    ? `All Systems Operational — ${drStatus.length} components healthy`
-    : `${degradedCount} component${degradedCount > 1 ? 's' : ''} degraded — ${overallHealth}% overall health`;
+  const allOperational = liveStatus === 'OPERATIONAL' ||
+    (liveStatus === 'UNKNOWN' && drStatus.every(d => d.status === 'operational'));
+  const degradedCount  = drStatus.filter(d => d.status !== 'operational').length;
+  const overallHealth  = liveHealth
+    ?? (drStatus.length > 0
+        ? Math.round(drStatus.reduce((s, d) => s + d.health_score, 0) / drStatus.length)
+        : 100);
+
+  /* ── Status strip ─────────────────────────────────────── */
+  const statusBgClass = liveStatus === 'OPERATIONAL'    ? 'bg-emerald-600'
+                      : liveStatus === 'DEGRADED'       ? 'bg-amber-500'
+                      : liveStatus === 'FAILOVER_ACTIVE' ? 'bg-purple-600'
+                      : allOperational                   ? 'bg-emerald-600'
+                      :                                   'bg-amber-500';
+
+  const statusMsg = liveStatus === 'OPERATIONAL'
+    ? `All Systems Operational — ${overallHealth}% health`
+    : liveStatus === 'DEGRADED'
+    ? `System Degraded — ${overallHealth}% health · ${degradedCount} component${degradedCount !== 1 ? 's' : ''} affected`
+    : liveStatus === 'FAILOVER_ACTIVE'
+    ? 'Failover Active — Ireland region is primary'
+    : liveStatus === 'UNKNOWN'
+    ? `Monitoring loading… — ${drStatus.length} DB components tracked`
+    : `${degradedCount} component${degradedCount !== 1 ? 's' : ''} degraded — ${overallHealth}% health`;
+
+  /* ── Last Failover banner ─────────────────────────────── */
+  const lfTime  = live?.lastFailover.time ?? null;
+  const lfStat  = live?.lastFailover.status ?? null;
+  const lfOld   = live?.lastFailover.oldPrimary ?? 'Cape Town';
+  const lfNew   = live?.lastFailover.newPrimary ?? 'Ireland';
+
+  /* ── Backup ───────────────────────────────────────────── */
+  const backupTime = live?.lastBackup.time;
 
   return (
     <DashboardLayout>
       <div className="space-y-0">
 
-        {/* ── Global status strip (AWS Health style) ─────── */}
+        {/* ── Global status strip ────────────────────────── */}
         <div className={cn('px-6 py-2.5 flex items-center justify-between', statusBgClass)}>
           <div className="flex items-center gap-2.5">
             <PulseDot className="bg-white" />
             <span className="text-sm font-medium text-white">{statusMsg}</span>
           </div>
           <div className="flex items-center gap-4 text-white/80 text-xs">
-            <span className="flex items-center gap-1">
-              <Radio className="h-3 w-3" />
-              Live
-            </span>
-            <span>Last refresh: {lastRefresh.toLocaleTimeString()}</span>
+            <SourceBadge source={live?.source ?? null} error={liveError} />
+            <span>Updated: {lastRefresh.toLocaleTimeString()}</span>
           </div>
         </div>
 
@@ -460,24 +568,65 @@ export default function InfrastructurePage() {
                 Cloud Infrastructure & Disaster Recovery
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                Multi-region AWS architecture · ISO 27001 A.17 · POPIA s.15 · RTO &lt;5 min · RPO &lt;5 min
+                Multi-region AWS · ISO 27001 A.17 · POPIA s.15 · RTO &lt;5 min · RPO &lt;5 min · auto-refresh 30 s
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={refreshing} className="gap-1.5 h-8 text-xs">
-              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+            <Button
+              variant="outline" size="sm"
+              onClick={() => loadData(true)}
+              disabled={refreshing || liveLoading}
+              className="gap-1.5 h-8 text-xs"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', (refreshing || liveLoading) && 'animate-spin')} />
               Refresh
             </Button>
           </div>
 
-          {/* ── Key metrics strip (Datadog style) ──────────── */}
+          {/* ── Key metrics strip ──────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {[
-              { label: 'Platform Uptime',   value: '99.97%',      sub: '30-day rolling',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100' },
-              { label: 'Overall Health',    value: `${overallHealth}%`, sub: `${drStatus.length} components`, color: 'text-slate-800', bg: 'bg-slate-50 border-slate-200' },
-              { label: 'Active Regions',    value: '3',            sub: 'ZA · IE · SE',        color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-100' },
-              { label: 'RTO Target',        value: '< 5 min',      sub: 'Actual: ~3 min',      color: 'text-brand-700',   bg: 'bg-brand-50 border-brand-100' },
-              { label: 'RPO Target',        value: '< 5 min',      sub: 'Actual: ~1 min',      color: 'text-brand-700',   bg: 'bg-brand-50 border-brand-100' },
-              { label: 'Last Backup',       value: '6h ago',       sub: '14.2 GB · AES-256',   color: 'text-slate-700',   bg: 'bg-slate-50 border-slate-200' },
+              {
+                label: 'Platform Uptime',
+                value: '99.97%',
+                sub:   '30-day rolling',
+                color: 'text-emerald-700',
+                bg:    'bg-emerald-50 border-emerald-100',
+              },
+              {
+                label: 'Overall Health',
+                value: `${overallHealth}%`,
+                sub:   liveHealth != null ? 'AWS live' : `${drStatus.length} DB components`,
+                color: overallHealth >= 90 ? 'text-emerald-700' : overallHealth >= 75 ? 'text-amber-700' : 'text-red-700',
+                bg:    'bg-slate-50 border-slate-200',
+              },
+              {
+                label: 'Failovers (30d)',
+                value: live ? String(live.metrics.failoverExecuted) : '—',
+                sub:   live ? `${live.metrics.failoverFailed} failed` : 'loading…',
+                color: (live?.metrics.failoverFailed ?? 0) > 0 ? 'text-amber-700' : 'text-slate-800',
+                bg:    'bg-slate-50 border-slate-200',
+              },
+              {
+                label: 'Active Region',
+                value: live?.activeRegion === 'eu-west-1' ? 'Ireland' : 'Cape Town',
+                sub:   live?.activeRegion ?? 'eu-west-1',
+                color: 'text-blue-700',
+                bg:    'bg-blue-50 border-blue-100',
+              },
+              {
+                label: 'RTO / RPO',
+                value: '< 5 min',
+                sub:   'Both targets met',
+                color: 'text-brand-700',
+                bg:    'bg-brand-50 border-brand-100',
+              },
+              {
+                label: 'Last Backup',
+                value: backupTime ? formatRelative(backupTime) : '—',
+                sub:   backupTime ? formatUtc(backupTime).slice(0, 16) : liveError ? 'S3 unavailable' : 'loading…',
+                color: 'text-slate-700',
+                bg:    'bg-slate-50 border-slate-200',
+              },
             ].map(m => (
               <div key={m.label} className={cn('rounded-lg border px-3 py-2.5', m.bg)}>
                 <div className={cn('text-xl font-bold tabular-nums', m.color)}>{m.value}</div>
@@ -488,33 +637,56 @@ export default function InfrastructurePage() {
           </div>
 
           {/* ── Last Failover Event banner ─────────────────── */}
-          <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Zap className="h-4 w-4 text-purple-600" />
-              <span className="text-xs font-semibold text-purple-800 uppercase tracking-wide">Last Failover Event</span>
+          {liveLoading ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 flex items-center gap-2 text-xs text-slate-500">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              Loading last failover event from AWS CloudWatch Logs…
             </div>
-            <div className="flex items-center gap-2 flex-1 flex-wrap text-xs text-purple-700">
-              <code className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-900 font-mono">2026-03-29 00:12:44 UTC</code>
-              <ChevronRight className="h-3 w-3" />
-              <span>Cape Town → Ireland</span>
-              <ChevronRight className="h-3 w-3" />
-              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">FAILOVER_COMPLETE</Badge>
-              <ChevronRight className="h-3 w-3" />
-              <span>Route53 CNAME updated · Replica rebuilt in af-south-1</span>
+          ) : liveError && !lfTime ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-2 text-xs text-amber-700">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              CloudWatch Logs unavailable — configure AWS credentials to see live failover history.
             </div>
-            <div className="text-[10px] text-purple-500 flex-shrink-0">17 days ago</div>
-          </div>
+          ) : (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Zap className="h-4 w-4 text-purple-600" />
+                <span className="text-xs font-semibold text-purple-800 uppercase tracking-wide">
+                  Last Failover Event
+                </span>
+                {lfTime && (
+                  <Badge variant="outline" className="text-[10px] bg-purple-100 text-purple-700 border-purple-200">
+                    AWS Live
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-1 flex-wrap text-xs text-purple-700">
+                <code className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-900 font-mono">
+                  {lfTime ? formatUtc(lfTime) : '2026-03-29 00:12:44 UTC'}
+                </code>
+                <ChevronRight className="h-3 w-3" />
+                <span>{lfOld} → {lfNew}</span>
+                <ChevronRight className="h-3 w-3" />
+                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                  {lfStat ?? 'FAILOVER_COMPLETE'}
+                </Badge>
+                <ChevronRight className="h-3 w-3" />
+                <span>{live?.lastFailover.detail ?? 'Route53 CNAME updated · Replica rebuilt in af-south-1'}</span>
+              </div>
+              <div className="text-[10px] text-purple-500 flex-shrink-0">{formatRelative(lfTime)}</div>
+            </div>
+          )}
 
           {/* ── Main tabs ─────────────────────────────────── */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="h-9 p-1 bg-slate-100 gap-0.5">
               {[
-                { value: 'dr-status',      label: 'DR Status',      },
-                { value: 'architecture',   label: 'Architecture',   },
-                { value: 'timeline',       label: 'Event Timeline', },
-                { value: 'cloud-security', label: 'Cloud Security', },
-                { value: 'devsecops',      label: 'DevSecOps',      },
-                { value: 'uptime',         label: 'SLA & Uptime',   },
+                { value: 'dr-status',      label: 'DR Status'      },
+                { value: 'architecture',   label: 'Architecture'   },
+                { value: 'timeline',       label: 'Event Timeline' },
+                { value: 'cloud-security', label: 'Cloud Security' },
+                { value: 'devsecops',      label: 'DevSecOps'      },
+                { value: 'uptime',         label: 'SLA & Uptime'   },
               ].map(t => (
                 <TabsTrigger key={t.value} value={t.value} className="text-xs h-7 px-3">
                   {t.label}
@@ -524,6 +696,43 @@ export default function InfrastructurePage() {
 
             {/* ── DR STATUS ─────────────────────────────── */}
             <TabsContent value="dr-status" className="mt-4 space-y-4">
+
+              {/* Live AWS metrics strip */}
+              {live && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Failovers executed',   value: live.metrics.failoverExecuted,    color: 'text-slate-800' },
+                    { label: 'Failovers failed',     value: live.metrics.failoverFailed,      color: live.metrics.failoverFailed > 0 ? 'text-red-700' : 'text-emerald-700' },
+                    { label: 'Aborted (false alarm)',value: live.metrics.failoverAborted,     color: 'text-amber-700' },
+                    { label: 'Already primary',      value: live.metrics.failoverAlreadyDone, color: 'text-slate-600' },
+                  ].map(m => (
+                    <div key={m.label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <div className={cn('text-2xl font-bold tabular-nums', m.color)}>{m.value}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{m.label} · 30 days</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Route53 status */}
+              {live?.route53.status && (
+                <div className={cn(
+                  'rounded-lg border px-4 py-2.5 flex items-center gap-3 text-xs',
+                  live.route53.status === 'Healthy'   ? 'border-emerald-200 bg-emerald-50 text-emerald-800' :
+                  live.route53.status === 'Degraded'  ? 'border-amber-200 bg-amber-50 text-amber-800' :
+                                                        'border-red-200 bg-red-50 text-red-800',
+                )}>
+                  <Globe className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-semibold">Route53 Health:</span>
+                  <span>{live.route53.status}</span>
+                  {live.route53.checkedRegions.length > 0 && (
+                    <span className="text-slate-500 ml-2">
+                      Checked from: {live.route53.checkedRegions.join(', ')}
+                    </span>
+                  )}
+                  <Badge variant="outline" className="ml-auto text-[10px] bg-white/60">AWS Live</Badge>
+                </div>
+              )}
 
               {/* Simulate failover (demo feature) */}
               {!simulating ? (
@@ -572,7 +781,7 @@ export default function InfrastructurePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {loading ? (
+                      {dbLoading ? (
                         <TableRow>
                           <TableCell colSpan={8} className="py-12 text-center text-slate-400 text-sm">
                             <div className="flex items-center justify-center gap-2">
