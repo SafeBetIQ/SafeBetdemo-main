@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RDSDescribeBothRegions",
+      "Effect": "Allow",
+      "Action": "rds:DescribeDBInstances",
+      "Resource": [
+        "arn:aws:rds:af-south-1:046276255259:db:safebet-primary-capetown",
+        "arn:aws:rds:eu-west-1:046276255259:db:safebet-replica-ireland"
+      ]
+    },
+    {
+      "Sid": "RDSPromoteReplica",
+      "Effect": "Allow",
+      "Action": "rds:PromoteReadReplica",
+      "Resource": "arn:aws:rds:eu-west-1:046276255259:db:safebet-replica-ireland"
+    },
+    {
+      "Sid": "Route53FailoverSwitch",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets"
+      ],
+      "Resource": "arn:aws:route53:::hostedzone/*"
+    },
+    {
+      "Sid": "CloudWatchMetricsDR",
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricData",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": "SafeBetIQ/DR"
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogsAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:eu-west-1:*:log-group:/aws/lambda/safebet-rds-failover:*"
+    },
+    {
+      "Sid": "CloudWatchLogsCreateGroup",
+      "Effect": "Allow",
+      "Action": "logs:CreateLogGroup",
+      "Resource": "arn:aws:logs:eu-west-1:*:*"
+    }
+  ]
+}
