@@ -8,18 +8,19 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-
     "db:push:demo": "supabase db push --project-ref uexdjngogzunjxkpxwll",
     "db:push:prod": "supabase db push --project-ref REPLACE_WITH_PROD_PROJECT_REF",
-
     "db:diff:demo": "supabase db diff --project-ref uexdjngogzunjxkpxwll",
     "db:diff:prod": "supabase db diff --project-ref REPLACE_WITH_PROD_PROJECT_REF",
-
     "db:reset:local": "supabase db reset",
-
     "migration:new": "supabase migration new"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1030.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1030.0",
+    "@aws-sdk/client-lambda": "^3.1030.0",
+    "@aws-sdk/client-route-53": "^3.1030.0",
+    "@aws-sdk/client-s3": "^3.1030.0",
     "@hookform/resolvers": "^3.9.0",
     "@netlify/plugin-nextjs": "^5.15.2",
     "@next/swc-wasm-nodejs": "13.5.1",
