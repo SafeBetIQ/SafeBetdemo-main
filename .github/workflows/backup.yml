@@ -1,13 +1,27 @@
 name: Daily Backup to S3
 
+# ─────────────────────────────────────────────────────────────────────
+# BUCKET: safebetiq-backups-{ACCOUNT_ID}-eu-north-1
+#   Provisioned by CDK (SafeBetDRTrigger stack).
+#   Set the S3_BUCKET_NAME secret in GitHub to the CDK output value.
+#   This is the single canonical bucket used by all backup + restore
+#   workflows — fixing the previous mismatch between backup.yml and
+#   failover-restore.yml.
+# ─────────────────────────────────────────────────────────────────────
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # Runs daily at 2AM South Africa time
+    - cron: '0 0 * * *'  # Runs daily at 2AM South Africa time (midnight UTC)
 
 jobs:
   backup:
     runs-on: ubuntu-latest
+
+    env:
+      # Single source of truth for the S3 bucket — set this GitHub secret
+      # to the CDK output: SafeBetDRTrigger.BackupBucketName
+      S3_BUCKET: ${{ secrets.S3_BUCKET_NAME }}
 
     steps:
       - name: Force IPv4
@@ -59,7 +73,7 @@ jobs:
       - name: Upload Demo to S3
         run: |
           aws s3 cp demo-backup.sql.gz \
-          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
+          s3://$S3_BUCKET/backups/demo/$YEAR/$MONTH/demo-backup-$DATE.sql.gz \
           --region eu-north-1 --sse AES256
 
       # ======================
@@ -92,7 +106,7 @@ jobs:
       - name: Upload Production to S3
         run: |
           aws s3 cp prod-backup.sql.gz \
-          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
+          s3://$S3_BUCKET/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
           --region eu-north-1 --sse AES256
 
       # ======================
@@ -102,7 +116,7 @@ jobs:
         if: env.DAY == '01'
         run: |
           aws s3 cp prod-backup.sql.gz \
-          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/monthly/$YEAR/$MONTH/monthly-backup-$DATE.sql.gz \
+          s3://$S3_BUCKET/backups/monthly/$YEAR/$MONTH/monthly-backup-$DATE.sql.gz \
           --region eu-north-1 --sse AES256
 
       # ======================
@@ -111,7 +125,7 @@ jobs:
       - name: Download latest backup
         run: |
           aws s3 cp \
-          s3://safebetiq-backups-046276255259-eu-north-1-an/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
+          s3://$S3_BUCKET/backups/production/$YEAR/$MONTH/production-backup-$DATE.sql.gz \
           restore-test.sql.gz
 
       - name: Unzip backup

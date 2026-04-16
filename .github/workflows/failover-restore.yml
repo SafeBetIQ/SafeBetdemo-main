@@ -14,6 +14,11 @@ jobs:
   failover:
     runs-on: ubuntu-latest
 
+    env:
+      # Canonical S3 bucket — set this GitHub secret to the CDK output:
+      # SafeBetDRTrigger.BackupBucketName  (e.g. safebetiq-backups-046276255259-eu-north-1)
+      S3_BUCKET: ${{ secrets.S3_BUCKET_NAME }}
+
     steps:
       # ======================
       # SAFETY CHECK
@@ -76,7 +81,7 @@ jobs:
       - name: Upload pre-failover backup to S3
         run: |
           aws s3 cp pre-failover-$DATE.sql.gz \
-          s3://safebetiq-backups-secondary/backups/pre-failover/pre-failover-$DATE.sql.gz \
+          s3://$S3_BUCKET/backups/pre-failover/pre-failover-$DATE.sql.gz \
           --sse AES256
 
       # ======================
@@ -85,7 +90,7 @@ jobs:
       - name: Download backup from secondary
         run: |
           aws s3 cp \
-          s3://safebetiq-backups-secondary/${{ github.event.inputs.backup_file }} \
+          s3://$S3_BUCKET/${{ github.event.inputs.backup_file }} \
           restore.sql.gz
 
       # ======================

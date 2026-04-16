@@ -1,0 +1,57 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/safebet.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "yarn.lock",
+      "node_modules",
+      "dist",
+      "cdk.out"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-lambda:recognizeLayerVersion":              true,
+    "@aws-cdk/core:checkSecretUsage":                        true,
+    "@aws-cdk/core:target-partitions":                       ["aws"],
+    "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
+    "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName":             true,
+    "@aws-cdk/aws-ecs:arnFormatIncludesClusterName":         true,
+    "@aws-cdk/aws-iam:minimizePolicies":                     true,
+    "@aws-cdk/core:validateSnapshotRemovalPolicy":           true,
+    "@aws-cdk/aws-codepipeline:crossAccountKeyAliasStackSafeResourceName": true,
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy":            true,
+    "@aws-cdk/aws-sns-subscriptions:restrictSqsDescryption": true,
+    "@aws-cdk/aws-apigateway:disableCloudWatchRole":         true,
+    "@aws-cdk/core:enablePartitionLiterals":                 true,
+    "@aws-cdk/aws-events:eventsTargetQueueSameAccount":      true,
+    "@aws-cdk/aws-iam:standardizedServicePrincipals":        true,
+    "@aws-cdk/aws-ecs:disableExplicitDeploymentControllerForCircuitBreaker": true,
+    "@aws-cdk/aws-iam:importedRoleStackSafeDefaultPolicyName": true,
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy":       true,
+    "@aws-cdk/customresources:installLatestAwsSdkDefault":   false,
+
+    "// hostedZoneName":   "Domain for Route53 failover DNS — e.g. safebetiq.com",
+    "hostedZoneName":      "safebetiq.com",
+
+    "// account":          "AWS account ID — required for all deployments",
+    "// account-example":  "cdk deploy --context account=046276255259",
+
+    "// supabaseDbHost":   "Supabase pooler host for auto-failover Lambda",
+    "supabaseDbHost":      "aws-0-eu-west-1.pooler.supabase.com",
+
+    "// supabaseDbPort":   "Supabase pooler port",
+    "supabaseDbPort":      "6543",
+
+    "// supabaseDbName":   "Supabase database name",
+    "supabaseDbName":      "postgres",
+
+    "// supabaseDbUser":   "Set via --context supabaseDbUser=postgres.PROJECTREF",
+    "// supabaseDbPassword": "Set via --context supabaseDbPassword=SECRET — never commit"
+  }
+}

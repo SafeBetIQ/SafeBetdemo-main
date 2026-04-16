@@ -11,6 +11,11 @@ jobs:
   rollback:
     runs-on: ubuntu-latest
 
+    env:
+      # Canonical S3 bucket — set this GitHub secret to the CDK output:
+      # SafeBetDRTrigger.BackupBucketName  (e.g. safebetiq-backups-046276255259-eu-north-1)
+      S3_BUCKET: ${{ secrets.S3_BUCKET_NAME }}
+
     steps:
       # ======================
       # SAFETY CHECK
@@ -58,7 +63,7 @@ jobs:
       - name: Get latest pre-failover backup
         id: latest
         run: |
-          FILE=$(aws s3 ls s3://safebetiq-backups-secondary/backups/pre-failover/ \
+          FILE=$(aws s3 ls s3://$S3_BUCKET/backups/pre-failover/ \
             | sort \
             | tail -n 1 \
             | awk '{print $4}')
@@ -77,7 +82,7 @@ jobs:
       - name: Download latest backup
         run: |
           aws s3 cp \
-          s3://safebetiq-backups-secondary/backups/pre-failover/$LATEST_FILE \
+          s3://$S3_BUCKET/backups/pre-failover/$LATEST_FILE \
           rollback.sql.gz
 
       # ======================

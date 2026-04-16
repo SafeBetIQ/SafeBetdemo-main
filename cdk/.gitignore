@@ -1,0 +1,11 @@
+# CDK output — generated artifacts, never commit
+cdk.out/
+
+# TypeScript compiled output
+dist/
+
+# Node modules
+node_modules/
+
+# CDK context cache (can contain account IDs resolved from AWS)
+# cdk.context.json  ← keep this if you want to pin resolved values

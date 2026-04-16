@@ -1,0 +1,9 @@
+# SafeBet IQ — safebet-rds-failover Lambda dependencies
+#
+# boto3 is pre-installed in the Lambda Python 3.12 runtime — no additional
+# packages required.  This file exists so CDK's fromAsset() bundling step
+# has a consistent entrypoint across all Lambda directories.
+#
+# If you add dependencies in future:
+#   pip install <package> -t ./package --platform manylinux2014_x86_64 \
+#     --only-binary=:all: --implementation cp --python-version 3.12
