@@ -16,7 +16,9 @@ export const CONFIG = {
   /* ── Regions ─────────────────────────────────────────────────────────── */
   PRIMARY_REGION:  'af-south-1',   // Cape Town   — primary RDS, auto-failover Lambda
   REPLICA_REGION:  'eu-west-1',    // Ireland     — RDS replica, rds-failover Lambda, Route53
-  TRIGGER_REGION:  'eu-north-1',   // Stockholm   — dr-trigger Lambda, S3 backup bucket, CloudWatch alarm
+  TRIGGER_REGION:  'eu-north-1',   // Stockholm   — dr-trigger Lambda, S3 backup bucket, CW alarm (SNS chain)
+  ALARM_REGION:    'us-east-1',    // N. Virginia — CloudWatch alarm for Route53 health check ONLY
+                                   //   Route53 CloudWatch metric health checks REQUIRE us-east-1
 
   /* ── RDS instance identifiers ────────────────────────────────────────── */
   PRIMARY_DB_ID:   'safebet-primary-capetown',

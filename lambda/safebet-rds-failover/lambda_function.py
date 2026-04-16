@@ -200,11 +200,11 @@ def lambda_handler(event, context):
 
     if already_primary:
         print(f'[DR] {replica_id} has no replication source — already a primary. '
-              f'Skipping promotion.')
+              f'Skipping promotion, proceeding directly to DNS update.')
     else:
         print(f'[DR] Promoting replica: {replica_id} (source={source})')
 
-        # ── Promote replica  (UNCHANGED) ─────────────────────────────────
+        # ── Promote replica ───────────────────────────────────────────────
         try:
             rds.promote_read_replica(DBInstanceIdentifier=replica_id)
             print(f'[DR] promote_read_replica accepted for {replica_id}.')
@@ -215,46 +215,80 @@ def lambda_handler(event, context):
                 print(f'[ERROR] promote_read_replica failed: {exc}')
                 raise
 
-        # ── Wait for available  (UNCHANGED) ──────────────────────────────
-        print(f'[DR] Waiting for {replica_id} to reach available status...')
+        # ── Wait for available — dynamic budget based on remaining Lambda time ─
+        # Lambda timeout is 15 min.  Reserve DNS_BUFFER_SEC for the Route53 update,
+        # S3 state write, and overhead after the waiter.  Cap at 16 attempts (8 min)
+        # regardless of remaining time to avoid eating the entire clock on the waiter.
+        #
+        # If the waiter times out / fails we do NOT re-raise — the DNS update must
+        # still run.  A second Lambda invocation (retryAttempts=1 in CDK) will pick
+        # up with already_primary=True and re-confirm DNS once the instance is ready.
+        WAITER_DELAY_SEC = 30
+        DNS_BUFFER_SEC   = 90
+        remaining_sec    = context.get_remaining_time_in_millis() / 1000
+        max_wait_sec     = max(0, remaining_sec - DNS_BUFFER_SEC)
+        max_attempts     = max(1, min(16, int(max_wait_sec / WAITER_DELAY_SEC)))
+
+        print(
+            f'[DR] Waiting for {replica_id} to reach available status '
+            f'({remaining_sec:.0f}s Lambda time remaining, '
+            f'waiter budget: {max_attempts} attempts × {WAITER_DELAY_SEC}s = '
+            f'{max_attempts * WAITER_DELAY_SEC}s max)...'
+        )
         try:
             waiter = rds.get_waiter('db_instance_available')
             waiter.wait(
                 DBInstanceIdentifier=replica_id,
-                WaiterConfig={'Delay': 30, 'MaxAttempts': 24},  # up to 12 minutes
+                WaiterConfig={'Delay': WAITER_DELAY_SEC, 'MaxAttempts': max_attempts},
             )
+            print(f'[DR] {replica_id} is now available.')
         except Exception as exc:
-            print(f'[ERROR] Waiter failed or timed out: {exc}')
-            raise
-
-        print(f'[DR] {replica_id} is now available.')
-
-    # ── Update Route53 CNAME (skipped when already primary — DNS is correct) ─
-    if not already_primary:
-        print(f'[DR] Updating DNS: {r53_record_name} → {replica_endpoint}')
-        try:
-            r53.change_resource_record_sets(
-                HostedZoneId = r53_zone_id,
-                ChangeBatch  = {
-                    'Changes': [{
-                        'Action': 'UPSERT',
-                        'ResourceRecordSet': {
-                            'Name': r53_record_name,
-                            'Type': 'CNAME',
-                            'TTL':  60,
-                            'ResourceRecords': [{'Value': replica_endpoint}],
-                        },
-                    }],
-                },
+            # Waiter budget exhausted or waiter error — do NOT re-raise.
+            # The instance is still promoting; we proceed with the DNS update
+            # so clients can connect as soon as the promotion completes.
+            # The Lambda retry (retryAttempts=1) will re-run and re-verify DNS.
+            print(
+                f'[DR] WARNING: Waiter did not complete: {exc}  '
+                f'Proceeding with DNS update — instance may still be in modifying state. '
+                f'Lambda retry will confirm availability.'
             )
-            print(f'[DR] DNS updated successfully.')
-        except ClientError as exc:
-            print(f'[ERROR] Route53 update failed: {exc}')
-            raise
-    else:
-        print('[DR] DNS update skipped — instance was already primary.')
-        print('[DR] Skipping Route53 — assuming DNS already points to primary')
-        print(json.dumps({'event': 'route53_skipped', 'reason': 'already_primary', 'assumption': 'dns_correct'}))
+
+    # ── Update Route53 SECONDARY failover record ──────────────────────────
+    # ALWAYS runs regardless of already_primary or waiter outcome.
+    #
+    # Why always? If a previous Lambda invocation timed out between promotion
+    # and this line, the retry sees already_primary=True and must still update
+    # DNS. Skipping DNS when already_primary=True was the original bug: the
+    # retry silently succeeded without ever switching the Route53 record.
+    #
+    # Route53 format: must match the FAILOVER routing policy records that CDK
+    # created (SetIdentifier + Failover attributes). A plain CNAME UPSERT without
+    # these attributes conflicts with failover-policy records on the same name and
+    # returns InvalidChangeBatch from Route53.
+    print(f'[DR] Updating Route53 SECONDARY failover record: {r53_record_name} → {replica_endpoint}')
+    try:
+        r53.change_resource_record_sets(
+            HostedZoneId = r53_zone_id,
+            ChangeBatch  = {
+                'Changes': [{
+                    'Action': 'UPSERT',
+                    'ResourceRecordSet': {
+                        'Name':          r53_record_name,
+                        'Type':          'CNAME',
+                        'TTL':           60,
+                        # SetIdentifier + Failover REQUIRED — must match the routing
+                        # policy records created by CDK (CfnRecordSet in replica stack).
+                        'SetIdentifier': 'secondary-ireland',
+                        'Failover':      'SECONDARY',
+                        'ResourceRecords': [{'Value': replica_endpoint}],
+                    },
+                }],
+            },
+        )
+        print(f'[DR] DNS SECONDARY record updated: {r53_record_name} → {replica_endpoint}')
+    except ClientError as exc:
+        print(f'[ERROR] Route53 update failed: {exc}')
+        raise
 
     # ── Persist state + audit log ─────────────────────────────────────────
     failover_ts = time.time()

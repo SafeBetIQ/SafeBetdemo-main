@@ -37,11 +37,21 @@ import { CONFIG }        from './shared-config';
 
 /* ── Stack props ─────────────────────────────────────────────────────── */
 export interface SafeBetDRReplicaProps extends cdk.StackProps {
-  account:        string;
-  bucketName:     string;
-  hostedZoneName: string;  // e.g. "safebetiq.com"
-  primaryDbId:    string;  // CONFIG.PRIMARY_DB_ID
-  primaryRegion:  string;  // CONFIG.PRIMARY_REGION
+  account:            string;
+  bucketName:         string;
+  hostedZoneName:     string;  // e.g. "safebetiq.com"
+  primaryDbId:        string;  // CONFIG.PRIMARY_DB_ID
+  primaryRegion:      string;  // CONFIG.PRIMARY_REGION
+  /**
+   * RDS primary endpoint address (e.g. "safebet-primary-capetown.xyz.af-south-1.rds.amazonaws.com").
+   * Passed from bin/safebet.ts via primaryStack.primaryDb.dbInstanceEndpointAddress.
+   * CDK resolves this cross-region reference via SSM Parameter Store when
+   * crossRegionReferences: true is set on both stacks.
+   *
+   * Used for the Route53 PRIMARY failover record so clients resolve to the
+   * Cape Town primary until a failover event occurs.
+   */
+  primaryDbEndpoint:  string;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -153,20 +163,26 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
     });
 
     /* ── 6. Route53 — CloudWatch metric health check ─────────────────── */
-    // Monitors the SafeBetIQ/DR/DatabaseHealthy CloudWatch metric in eu-north-1.
-    // When metric = 0 (unhealthy), Route53 marks the PRIMARY record as unhealthy
-    // and routes all traffic to the SECONDARY (Ireland replica) record.
+    // Monitors the SafeBetIQ/DR/DatabaseHealthy CloudWatch alarm in us-east-1.
+    // When the alarm enters ALARM state, Route53 marks the PRIMARY record as
+    // unhealthy and routes all traffic to the SECONDARY (Ireland replica) record.
     //
-    // The alarm that feeds this health check is created in SafeBetDRTriggerStack.
-    // Route53 health checks that use CloudWatch alarms MUST be in us-east-1.
+    // ⚠️  IMPORTANT: Route53 CloudWatch metric health checks REQUIRE the alarm
+    //     to be in us-east-1.  Any other region is silently ignored (the health
+    //     check never transitions out of INSUFFICIENT_DATA).
+    //
+    // The alarm 'SafeBetDatabaseHealthyAlarm' is created in SafeBetDRAlarmStack
+    // (us-east-1).  The health-check.yml GitHub Actions workflow publishes the
+    // DatabaseHealthy metric to us-east-1 every 5 minutes.
     this.healthCheck = new route53.CfnHealthCheck(this, 'DbHealthCheck', {
       healthCheckConfig: {
-        type:                  'CLOUDWATCH_METRIC',
-        // These reference the alarm created in the trigger stack (eu-north-1).
-        // CloudWatch metric health checks evaluate the alarm state directly.
+        type: 'CLOUDWATCH_METRIC',
+        // References the alarm in SafeBetDRAlarmStack (us-east-1).
+        // SafeBetDRReplica depends on SafeBetDRAlarm so the alarm exists
+        // before this health check is created.
         alarmIdentifier: {
-          region:    CONFIG.TRIGGER_REGION,
-          name:      'SafeBetDatabaseHealthyAlarm',
+          region: CONFIG.ALARM_REGION,   // 'us-east-1' — required by Route53
+          name:   'SafeBetDatabaseHealthyAlarm',
         },
         insufficientDataHealthStatus: 'Unhealthy',  // treat missing data as unhealthy
       },
@@ -193,18 +209,19 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
     const dbRecordName = `${CONFIG.DB_RECORD_PREFIX}.${props.hostedZoneName}`;
 
     // PRIMARY failover record → Cape Town endpoint
+    // props.primaryDbEndpoint is resolved cross-region by CDK via SSM Parameter
+    // Store (crossRegionReferences: true on both stacks in bin/safebet.ts).
+    // This replaces the broken Fn.importValue('SafeBetPrimaryDbEndpoint') which
+    // does not work across AWS regions in CloudFormation.
     new route53.CfnRecordSet(this, 'PrimaryFailoverRecord', {
-      hostedZoneId:   this.hostedZone.hostedZoneId,
-      name:           dbRecordName,
-      type:           'CNAME',
-      ttl:            String(CONFIG.DNS_TTL_SECONDS),
-      // Placeholder: after deploying primary stack, replace with actual endpoint
-      resourceRecords: [
-        cdk.Fn.importValue('SafeBetPrimaryDbEndpoint'),
-      ],
-      setIdentifier:  'primary-capetown',
-      failover:       'PRIMARY',
-      healthCheckId:  this.healthCheck.attrHealthCheckId,
+      hostedZoneId:    this.hostedZone.hostedZoneId,
+      name:            dbRecordName,
+      type:            'CNAME',
+      ttl:             String(CONFIG.DNS_TTL_SECONDS),
+      resourceRecords: [props.primaryDbEndpoint],
+      setIdentifier:   'primary-capetown',
+      failover:        'PRIMARY',
+      healthCheckId:   this.healthCheck.attrHealthCheckId,
     });
 
     // SECONDARY failover record → Ireland replica endpoint
@@ -346,7 +363,11 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
         S3_BUCKET:               props.bucketName,
       },
 
-      retryAttempts: 0,  // no retry — failover must not run twice
+      // retryAttempts: 1 — if the Lambda times out during the RDS waiter,
+      // the retry invocation will see the instance already promoted
+      // (already_primary=True) and still execute the Route53 DNS update.
+      // The S3-backed cooldown in the Lambda prevents double-promotion.
+      retryAttempts: 1,
     });
 
     /* ── 11. Stack outputs ───────────────────────────────────────────── */

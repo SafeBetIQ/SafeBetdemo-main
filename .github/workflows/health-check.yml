@@ -1,0 +1,179 @@
+name: DR Health Check — DatabaseHealthy Metric
+
+# ─────────────────────────────────────────────────────────────────────
+# PURPOSE
+#   Publishes SafeBetIQ/DR/DatabaseHealthy (value 1 = healthy, 0 = unhealthy)
+#   to CloudWatch every 5 minutes in TWO regions:
+#
+#     us-east-1   → feeds SafeBetDRAlarm stack alarm
+#                   → Route53 health check evaluates this alarm state
+#                   → DNS routes to Ireland replica when alarm = ALARM
+#
+#     eu-north-1  → feeds SafeBetDRTrigger stack alarm
+#                   → SNS → safebet-dr-trigger Lambda → safebet-rds-failover
+#                   → promotes Ireland RDS replica + updates Route53 CNAME
+#
+# HEALTH CHECK LOGIC
+#   Calls aws rds describe-db-instances for the Cape Town primary.
+#   If status = 'available'  → metric value = 1 (healthy)
+#   Any other status or API error → metric value = 0 (unhealthy)
+#   Two consecutive 0-values (10 minutes) trigger the CloudWatch alarm.
+#
+# REQUIRED IAM PERMISSIONS (attach to the GitHub Actions IAM user)
+#   rds:DescribeDBInstances
+#     Resource: arn:aws:rds:af-south-1:ACCOUNT:db:safebet-primary-capetown
+#
+#   cloudwatch:PutMetricData
+#     Condition: StringEquals cloudwatch:namespace = SafeBetIQ/DR
+#     Region: us-east-1 AND eu-north-1
+#
+# REQUIRED GITHUB SECRETS (same as other DR workflows)
+#   AWS_ACCESS_KEY_ID       — IAM user key with above permissions
+#   AWS_SECRET_ACCESS_KEY   — IAM user secret
+# ─────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Every 5 minutes — matches the CloudWatch alarm evaluation period.
+    # Two consecutive failures (10 minutes) are required to trigger failover,
+    # preventing false positives from transient API hiccups.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_unhealthy:
+        description: "Set to 'true' to publish value=0 (simulate outage — TEST USE ONLY)"
+        required: false
+        default: 'false'
+
+jobs:
+  health-check:
+    name: Check primary RDS + publish metric
+    runs-on: ubuntu-latest
+
+    env:
+      PRIMARY_DB_ID:      safebet-primary-capetown
+      PRIMARY_DB_REGION:  af-south-1
+      METRIC_NAMESPACE:   SafeBetIQ/DR
+      METRIC_NAME:        DatabaseHealthy
+
+    steps:
+      # ────────────────────────────────────────────
+      # AWS CREDENTIALS
+      # Configure with us-east-1 as the default region
+      # (first put-metric-data call uses this region directly).
+      # ────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            us-east-1
+
+      # ────────────────────────────────────────────
+      # HEALTH CHECK — describe primary RDS instance
+      # ────────────────────────────────────────────
+      - name: Check primary RDS status
+        id: rds-check
+        run: |
+          echo "🔍 Querying RDS instance: $PRIMARY_DB_ID in $PRIMARY_DB_REGION"
+
+          STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier "$PRIMARY_DB_ID" \
+            --region "$PRIMARY_DB_REGION" \
+            --query 'DBInstances[0].DBInstanceStatus' \
+            --output text 2>&1) || STATUS="api_error"
+
+          echo "RDS status: $STATUS"
+
+          # Force-unhealthy mode for manual DR testing (workflow_dispatch only)
+          if [ "${{ github.event.inputs.force_unhealthy }}" = "true" ]; then
+            echo "⚠️  FORCE_UNHEALTHY=true — publishing 0 for testing purposes"
+            METRIC_VALUE=0
+          elif [ "$STATUS" = "available" ]; then
+            METRIC_VALUE=1
+            echo "✅ Primary RDS is HEALTHY (status=available)"
+          else
+            METRIC_VALUE=0
+            echo "❌ Primary RDS is UNHEALTHY (status=$STATUS)"
+            echo "   Two consecutive unhealthy readings (10 min) will trigger failover."
+          fi
+
+          echo "METRIC_VALUE=$METRIC_VALUE" >> "$GITHUB_ENV"
+          echo "RDS_STATUS=$STATUS"         >> "$GITHUB_ENV"
+
+      # ────────────────────────────────────────────
+      # PUBLISH TO us-east-1
+      # Feeds SafeBetDRAlarm → Route53 health check → DNS failover
+      # ────────────────────────────────────────────
+      - name: Publish metric to us-east-1 (Route53 health check alarm)
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace  "$METRIC_NAMESPACE" \
+            --metric-name "$METRIC_NAME" \
+            --value      "$METRIC_VALUE" \
+            --unit        Count \
+            --region      us-east-1
+
+          echo "📊 Published $METRIC_NAME=$METRIC_VALUE to us-east-1 (Route53 path)"
+
+      # ────────────────────────────────────────────
+      # PUBLISH TO eu-north-1
+      # Feeds SafeBetDRTrigger alarm → SNS → dr-trigger → rds-failover → DNS
+      # ────────────────────────────────────────────
+      - name: Publish metric to eu-north-1 (dr-trigger alarm)
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace   "$METRIC_NAMESPACE" \
+            --metric-name "$METRIC_NAME" \
+            --value       "$METRIC_VALUE" \
+            --unit         Count \
+            --region       eu-north-1
+
+          echo "📊 Published $METRIC_NAME=$METRIC_VALUE to eu-north-1 (Lambda path)"
+
+      # ────────────────────────────────────────────
+      # AUDIT LOG → CloudWatch Logs (eu-north-1)
+      # ────────────────────────────────────────────
+      - name: Audit log to CloudWatch Logs
+        if: always()
+        run: |
+          LOG_STREAM="health-check-$(date +%Y-%m-%d)"
+          TIMESTAMP=$(date +%s000)
+
+          aws logs create-log-stream \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" 2>/dev/null || true
+
+          MESSAGE=$(printf \
+            '{"event":"health-check","metric_value":%s,"rds_status":"%s","run_id":"%s","actor":"%s","timestamp":"%s"}' \
+            "$METRIC_VALUE" "$RDS_STATUS" \
+            "${{ github.run_id }}" "${{ github.actor }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+
+          LOG_EVENTS=$(jq -n \
+            --argjson ts  "$TIMESTAMP" \
+            --arg     msg "$MESSAGE" \
+            '[{"timestamp":$ts,"message":$msg}]')
+
+          aws logs put-log-events \
+            --region eu-north-1 \
+            --log-group-name safebet-backups \
+            --log-stream-name "$LOG_STREAM" \
+            --log-events "$LOG_EVENTS"
+
+          echo "📋 Audit log written to CloudWatch: safebet-backups/$LOG_STREAM"
+
+      # ────────────────────────────────────────────
+      # SUMMARY
+      # ────────────────────────────────────────────
+      - name: Summary
+        if: always()
+        run: |
+          if [ "$METRIC_VALUE" = "1" ]; then
+            echo "✅ Health check PASSED — primary RDS is available"
+          else
+            echo "❌ Health check FAILED — primary RDS status: $RDS_STATUS"
+            echo "   Check CloudWatch alarm SafeBetDatabaseHealthyAlarm in us-east-1 and eu-north-1"
+            echo "   Two consecutive failures will trigger automated DR failover"
+          fi
