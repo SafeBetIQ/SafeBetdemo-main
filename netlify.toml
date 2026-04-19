@@ -1,5 +1,6 @@
 [build]
-command = "npx next build"
+base    = "frontend"
+command = "npm run build"
 publish = ".next"
 
 [build.environment]

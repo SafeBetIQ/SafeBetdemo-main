@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules
+frontend/node_modules
 .pnp
 .pnp.js
 
@@ -10,6 +11,7 @@ coverage
 
 # next.js
 .next/
+frontend/.next/
 out/
 
 # production
@@ -41,3 +43,9 @@ next-env.d.ts
 # Lambda build artifacts — never commit
 lambda/**/package/
 lambda/**/function.zip
+infrastructure/lambda/**/package/
+infrastructure/lambda/**/function.zip
+
+# CDK
+infrastructure/cdk.out/
+infrastructure/dist/

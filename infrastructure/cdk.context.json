@@ -1,0 +1,38 @@
+{
+  "availability-zones:account=046276255259:region=af-south-1": [
+    "af-south-1a",
+    "af-south-1b",
+    "af-south-1c"
+  ],
+  "availability-zones:account=046276255259:region=eu-west-1": [
+    "eu-west-1a",
+    "eu-west-1b",
+    "eu-west-1c"
+  ],
+  "vpc-provider:account=046276255259:filter.tag:Name=safebet-dr-primary-vpc:region=af-south-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0a458e16ceeec01ab",
+    "vpcCidrBlock": "10.10.0.0/16",
+    "ownerAccountId": "046276255259",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "DrIsolated",
+        "type": "Isolated",
+        "subnets": [
+          {
+            "subnetId": "subnet-041dab47e31a72882",
+            "cidr": "10.10.0.0/24",
+            "availabilityZone": "af-south-1a",
+            "routeTableId": "rtb-0b7e7b8735cdf631e"
+          },
+          {
+            "subnetId": "subnet-05747e8d3b38fec4f",
+            "cidr": "10.10.1.0/24",
+            "availabilityZone": "af-south-1b",
+            "routeTableId": "rtb-08327c15f90e022e6"
+          }
+        ]
+      }
+    ]
+  }
+}
