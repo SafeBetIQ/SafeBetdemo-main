@@ -4,13 +4,18 @@
   "private": true,
   "description": "SafeBet IQ — root workspace scripts",
   "scripts": {
-    "dev":              "cd frontend && npm run dev",
-    "build:frontend":   "cd frontend && npm run build",
-    "start:frontend":   "cd frontend && npm run start",
-    "lint:frontend":    "cd frontend && npm run lint",
-    "typecheck":        "cd frontend && npm run typecheck",
-    "deploy:infra":     "cd infrastructure && npx cdk deploy",
-    "deploy:backend":   "cd infrastructure && npm run deploy:backend",
-    "install:all":      "cd frontend && npm install"
+    "dev": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "start:frontend": "cd frontend && npm run start",
+    "lint:frontend": "cd frontend && npm run lint",
+    "typecheck": "cd frontend && npm run typecheck",
+    "deploy:infra": "cd infrastructure && npx cdk deploy",
+    "deploy:backend": "cd infrastructure && npm run deploy:backend",
+    "install:all": "cd frontend && npm install"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-amplify-alpha": "^2.250.0-alpha.0",
+    "aws-cdk-lib": "^2.250.0",
+    "constructs": "^10.6.0"
   }
 }

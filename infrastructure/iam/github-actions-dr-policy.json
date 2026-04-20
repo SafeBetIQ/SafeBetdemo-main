@@ -1,0 +1,73 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RDSHealthCheck",
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBInstances"
+      ],
+      "Resource": [
+        "arn:aws:rds:af-south-1:046276255259:db:safebet-primary-capetown"
+      ]
+    },
+    {
+      "Sid": "CloudWatchMetricPublish",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": "SafeBetIQ/DR"
+        }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogsAudit",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": [
+        "arn:aws:logs:eu-north-1:046276255259:log-group:safebet-backups:*"
+      ]
+    },
+    {
+      "Sid": "S3BackupWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:PutObjectAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1/backups/*"
+      ]
+    },
+    {
+      "Sid": "S3BackupRead",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1",
+        "arn:aws:s3:::safebetiq-backups-046276255259-eu-north-1/*"
+      ]
+    },
+    {
+      "Sid": "STSIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -4,16 +4,54 @@ applications:
       phases:
         preBuild:
           commands:
-            - cd frontend
+            # ── Environment isolation ────────────────────────────────────────
+            # Detect branch and create .env.local from the branch-specific
+            # env file committed to the repo (values are placeholders only).
+            # Real secrets are injected by Amplify Console as environment
+            # variables and override any file-based values at build time.
+            - |
+              echo "Branch: $AWS_BRANCH"
+              cd frontend
+              if [ "$AWS_BRANCH" = "production" ]; then
+                echo "Loading production environment baseline"
+                cp .env.production .env.local
+                echo "NEXT_PUBLIC_ENV=production" >> .env.local
+              elif [ "$AWS_BRANCH" = "demo" ]; then
+                echo "Loading demo environment baseline"
+                cp .env.demo .env.local
+                echo "NEXT_PUBLIC_ENV=demo" >> .env.local
+              else
+                echo "Unknown branch ($AWS_BRANCH) — using demo baseline as fallback"
+                cp .env.demo .env.local
+                echo "NEXT_PUBLIC_ENV=demo" >> .env.local
+              fi
+            # ── Dependency installation ──────────────────────────────────────
             - npm ci
+
         build:
           commands:
+            # Amplify Console environment variables (set per-branch in Console)
+            # are automatically available here and override .env.local values.
             - npm run build
+
+        postBuild:
+          commands:
+            # Emit which environment was built — safe info only, no secrets
+            - |
+              echo "==================================================="
+              echo "Build complete"
+              echo "Branch:      $AWS_BRANCH"
+              echo "Environment: $NEXT_PUBLIC_ENV"
+              echo "App:         $NEXT_PUBLIC_APP_NAME"
+              echo "==================================================="
+
       artifacts:
         baseDirectory: frontend/.next
         files:
           - '**/*'
+
       cache:
         paths:
           - frontend/node_modules/**/*
+
     appRoot: frontend

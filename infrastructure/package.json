@@ -12,6 +12,9 @@
     "deploy:replica":  "cdk deploy SafeBetDRReplica --require-approval never",
     "deploy:trigger":  "cdk deploy SafeBetDRTrigger --require-approval never",
     "deploy:backend":  "cdk deploy SafeBetBackend --app \"npx ts-node --prefer-ts-exts bin/safebet-backend.ts\" --require-approval never",
+    "deploy:amplify":  "cdk deploy SafeBetAmplify --app \"npx ts-node --prefer-ts-exts bin/safebet-amplify.ts\" --require-approval never",
+    "synth:amplify":   "cdk synth SafeBetAmplify  --app \"npx ts-node --prefer-ts-exts bin/safebet-amplify.ts\"",
+    "diff:amplify":    "cdk diff  SafeBetAmplify  --app \"npx ts-node --prefer-ts-exts bin/safebet-amplify.ts\"",
     "destroy:all":     "cdk destroy --all",
     "diff":            "cdk diff --all",
     "synth":           "cdk synth"

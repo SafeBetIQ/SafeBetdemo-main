@@ -149,9 +149,17 @@ IGNORABLE_PG_CODES = {
 # ============================================================
 # AWS CLIENTS — module-level for warm-start reuse
 # ============================================================
-s3         = boto3.client('s3',         region_name=REGION)
-cloudwatch = boto3.client('cloudwatch', region_name=REGION)
-logs_cl    = boto3.client('logs',       region_name=REGION)
+s3         = boto3.client('s3',              region_name=REGION)
+cloudwatch = boto3.client('cloudwatch',      region_name=REGION)
+logs_cl    = boto3.client('logs',            region_name=REGION)
+secretsmgr = boto3.client('secretsmanager',  region_name=REGION)
+
+# Cache for Secrets Manager result — refreshed on each Lambda cold start.
+# A warm invocation reuses the cached value to avoid extra API calls.
+# Acceptable TTL: Lambda cold starts are infrequent; a stale cache here
+# would only matter if the secret was rotated mid-warm-invocation, which
+# Secrets Manager handles by rotating without immediate revocation.
+_cached_db_creds: dict | None = None
 
 
 # ============================================================
@@ -348,21 +356,106 @@ def download_and_stream(s3_key: str) -> tuple[io.TextIOWrapper, int]:
 # DATABASE CONNECTION
 # ============================================================
 
+def _load_db_creds_from_secrets_manager() -> dict:
+    """
+    Fetch and parse Supabase credentials from AWS Secrets Manager.
+    Expected secret JSON format:
+      {
+        "host":     "aws-0-eu-west-1.pooler.supabase.com",
+        "port":     "6543",
+        "dbname":   "postgres",
+        "username": "postgres.PROJECTREF",
+        "password": "SECRET"
+      }
+    Falls back to env vars if any required key is missing from the secret.
+    """
+    global _cached_db_creds
+
+    if _cached_db_creds is not None:
+        logger.debug('[DB-CREDS] Using cached Secrets Manager credentials')
+        return _cached_db_creds
+
+    secret_arn = os.environ.get('SUPABASE_SECRET_ARN', '').strip()
+    if not secret_arn:
+        logger.warning('[DB-CREDS] SUPABASE_SECRET_ARN not set — falling back to env vars')
+        return {}
+
+    try:
+        logger.info(f'[DB-CREDS] Fetching credentials from Secrets Manager: {secret_arn}')
+        resp   = secretsmgr.get_secret_value(SecretId=secret_arn)
+        secret = json.loads(resp.get('SecretString', '{}'))
+
+        creds = {
+            'host':     secret.get('host',     ''),
+            'port':     int(secret.get('port',  6543)),
+            'dbname':   secret.get('dbname',   'postgres'),
+            'user':     secret.get('username', secret.get('user', '')),
+            'password': secret.get('password', ''),
+        }
+
+        if not creds['host'] or not creds['password']:
+            raise ValueError('Secret is missing required host or password fields')
+
+        logger.info(
+            f'[DB-CREDS] Loaded from Secrets Manager — '
+            f'host={creds["host"]} port={creds["port"]} '
+            f'user={creds["user"]} dbname={creds["dbname"]}'
+        )
+        _cached_db_creds = creds
+        return creds
+
+    except Exception as exc:
+        logger.error(f'[DB-CREDS] Secrets Manager fetch failed: {exc} — falling back to env vars')
+        return {}
+
+
 def get_db_conn_params() -> dict:
     """
-    Build psycopg2 connection params from explicit env vars.
-    Explicit vars prevent breakage when passwords contain special chars
-    that confuse urlparse.
+    Build psycopg2 connection params.
+
+    Priority:
+      1. AWS Secrets Manager (SUPABASE_SECRET_ARN env var must be set)
+      2. Explicit env vars (DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD)
+         — fallback for backward compatibility or if secret fetch fails
+
+    Explicit env vars prevent breakage when passwords contain special chars
+    that confuse urlparse-based connection string parsers.
     """
-    params = {
-        'host':            os.environ['DB_HOST'],
-        'port':            int(os.environ['DB_PORT']),
-        'dbname':          os.environ['DB_NAME'],
-        'user':            os.environ['DB_USER'],
-        'password':        os.environ['DB_PASSWORD'],
-        'sslmode':         'require',
-        'connect_timeout': CONNECT_TIMEOUT,
-    }
+    # Try Secrets Manager first
+    sm_creds = _load_db_creds_from_secrets_manager()
+
+    if sm_creds:
+        params = {
+            'host':            sm_creds['host'],
+            'port':            sm_creds['port'],
+            'dbname':          sm_creds['dbname'],
+            'user':            sm_creds['user'],
+            'password':        sm_creds['password'],
+            'sslmode':         'require',
+            'connect_timeout': CONNECT_TIMEOUT,
+        }
+    else:
+        # Fallback: explicit env vars
+        # This path is used when SUPABASE_SECRET_ARN is not set or secret fetch fails.
+        # DB_PASSWORD in env vars is a security risk — Secrets Manager is preferred.
+        logger.warning('[DB-CREDS] Using env var credentials — Secrets Manager preferred for production')
+        params = {
+            'host':            os.environ.get('DB_HOST', ''),
+            'port':            int(os.environ.get('DB_PORT', '6543')),
+            'dbname':          os.environ.get('DB_NAME', 'postgres'),
+            'user':            os.environ.get('DB_USER', ''),
+            'password':        os.environ.get('DB_PASSWORD', ''),
+            'sslmode':         'require',
+            'connect_timeout': CONNECT_TIMEOUT,
+        }
+        if not params['host'] or not params['password']:
+            raise RuntimeError(
+                '[DB-CREDS] No credentials available: '
+                'SUPABASE_SECRET_ARN is not set or failed, '
+                'and DB_HOST/DB_PASSWORD env vars are missing. '
+                'Configure SUPABASE_SECRET_ARN in Lambda environment variables.'
+            )
+
     logger.info(
         f'[DB-CONNECT] host={params["host"]} port={params["port"]} '
         f'user={params["user"]} dbname={params["dbname"]}'
@@ -1294,11 +1387,13 @@ def lambda_handler(event, context):
       • _CopyBlockReader gives copy_expert() a zero-buffer streaming source (O(1 row) RAM).
       • finally block closes the TextIOWrapper, releasing the S3 HTTP connection.
     """
-    # ── BUILD STAMP — first thing printed on every invocation ────────────
-    # If this line does not appear in CloudWatch Logs, the deployed zip does
-    # not contain this file.  Fix the deployment pipeline, not the code.
-    # Remove this block once deployment is confirmed.
-    BUILD_STAMP = 'safebet-dr-v3-2026-04-12'
+    # ── Reset credentials cache on every invocation ───────────────────────
+    # Ensures rotated secrets take effect within one invocation cycle rather
+    # than waiting for a Lambda cold start.
+    global _cached_db_creds
+    _cached_db_creds = None
+
+    BUILD_STAMP = 'safebet-dr-v4-2026-04-19'
     print(f'[BUILD] {BUILD_STAMP} | request={context.aws_request_id}')
 
     # ── STEP 0: Read env vars — must be first, read on every invocation ─────

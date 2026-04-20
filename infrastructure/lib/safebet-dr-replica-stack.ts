@@ -4,24 +4,26 @@
  * Provisions the SECONDARY side of the DR system:
  *
  *   • VPC           — isolated subnets for RDS replica
- *   • RDS Replica   — cross-region PostgreSQL read replica from Cape Town
+ *   • RDS Replica   — cross-region PostgreSQL 15 read replica from Cape Town
  *                     (uses L1 CfnDBInstance — L2 does not support cross-region)
  *   • Lambda        — safebet-rds-failover (promote replica + update Route53)
  *   • IAM role      — least-privilege role for rds-failover Lambda
- *   • Route53       — hosted zone, health check, failover CNAME records
- *   • CloudWatch    — log group
+ *   • Route53       — hosted zone (import or create), health check, failover CNAME records
+ *   • CloudWatch    — log group, Lambda error alarm
  *
- * DEPLOYMENT ORDER:
- *   This stack MUST be deployed after SafeBetDRPrimary because the RDS
- *   replica depends on the primary instance existing and having backups.
- *   CDK enforces this via `replicaStack.addDependency(primaryStack)`.
+ * HOSTED ZONE STRATEGY:
+ *   If props.hostedZoneId is provided (non-empty), the existing hosted zone is
+ *   imported — no zone is created and NS delegation is already in place.
+ *   If hostedZoneId is empty, a new public hosted zone is created and the
+ *   NameServers output MUST be copied to the domain registrar NS records.
  *
  * OUTPUTS (copy to Amplify / Lambda env vars):
  *   ReplicaDbEndpoint         — replica CNAME endpoint
  *   RdsFailoverLambdaArn      — Lambda ARN
  *   HostedZoneId              — Route53 zone ID
- *   DbHealthCheckId           — Route53 health check ID  → DR_ROUTE53_HEALTH_CHECK_ID
- *   DbDnsCname                — db.{hostedZoneName} CNAME
+ *   DbHealthCheckId           — Route53 health check ID → DR_ROUTE53_HEALTH_CHECK_ID
+ *   DbDnsCname                — db.{hostedZoneName}
+ *   NameServers               — ONLY populated for new zones; register at domain registrar
  */
 
 import * as cdk          from 'aws-cdk-lib';
@@ -31,37 +33,32 @@ import * as lambda       from 'aws-cdk-lib/aws-lambda';
 import * as iam          from 'aws-cdk-lib/aws-iam';
 import * as route53      from 'aws-cdk-lib/aws-route53';
 import * as logs         from 'aws-cdk-lib/aws-logs';
+import * as cloudwatch   from 'aws-cdk-lib/aws-cloudwatch';
+import * as cw_actions   from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns          from 'aws-cdk-lib/aws-sns';
+import * as sns_subs     from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as path         from 'path';
 import { Construct }     from 'constructs';
 import { CONFIG }        from './shared-config';
 
 /* ── Stack props ─────────────────────────────────────────────────────── */
 export interface SafeBetDRReplicaProps extends cdk.StackProps {
-  account:            string;
-  bucketName:         string;
-  hostedZoneName:     string;  // e.g. "safebetiq.com"
-  primaryDbId:        string;  // CONFIG.PRIMARY_DB_ID
-  primaryRegion:      string;  // CONFIG.PRIMARY_REGION
+  account:           string;
+  bucketName:        string;
+  hostedZoneName:    string;
   /**
-   * RDS primary endpoint address (e.g. "safebet-primary-capetown.xyz.af-south-1.rds.amazonaws.com").
-   * Passed from bin/safebet.ts via primaryStack.primaryDb.dbInstanceEndpointAddress.
-   * CDK resolves this cross-region reference via SSM Parameter Store when
-   * crossRegionReferences: true is set on both stacks.
+   * If non-empty, the existing Route53 hosted zone with this ID is imported.
+   * If empty, a new public hosted zone is created and the NameServers stack
+   * output MUST be registered at the domain registrar.
    *
-   * Used for the Route53 PRIMARY failover record so clients resolve to the
-   * Cape Town primary until a failover event occurs.
+   * Pass via: --context hostedZoneId=ZXXXXXXXXXX
    */
-  primaryDbEndpoint:  string;
-  /**
-   * Route53 health check ID created in SafeBetDRAlarmStack (us-east-1).
-   * Passed from bin/safebet.ts via alarmStack.dbHealthCheck.attrHealthCheckId.
-   * CDK resolves this cross-region reference via SSM Parameter Store when
-   * crossRegionReferences: true is set on both stacks.
-   *
-   * Used for the Route53 PRIMARY failover record's healthCheckId so Route53
-   * marks the primary as unhealthy when the CloudWatch alarm fires.
-   */
-  healthCheckId:      string;
+  hostedZoneId:      string;
+  alertEmail:        string;
+  primaryDbId:       string;
+  primaryRegion:     string;
+  primaryDbEndpoint: string;
+  healthCheckId:     string;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -69,9 +66,9 @@ export interface SafeBetDRReplicaProps extends cdk.StackProps {
    ═══════════════════════════════════════════════════════════════════ */
 export class SafeBetDRReplicaStack extends cdk.Stack {
 
-  public readonly replicaDb:        rds.CfnDBInstance;
-  public readonly rdsFailoverFn:    lambda.Function;
-  public readonly hostedZone:       route53.HostedZone;
+  public readonly replicaDb:     rds.CfnDBInstance;
+  public readonly rdsFailoverFn: lambda.Function;
+  public readonly hostedZone:    route53.IHostedZone;
 
   constructor(scope: Construct, id: string, props: SafeBetDRReplicaProps) {
     super(scope, id, props);
@@ -107,8 +104,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
     );
 
     /* ── 3. RDS Subnet Group ─────────────────────────────────────────── */
-    // L1 CfnDBSubnetGroup needed because L2 replica creation doesn't have
-    // a dedicated cross-region factory method.
     const subnetGroup = new rds.CfnDBSubnetGroup(this, 'ReplicaSubnetGroup', {
       dbSubnetGroupName:        'safebet-replica-subnet-group',
       dbSubnetGroupDescription: 'SafeBet DR replica subnet group (eu-west-1)',
@@ -116,14 +111,13 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
     });
 
     /* ── 4. RDS Read Replica — cross-region from Cape Town ───────────── */
-    // Uses L1 CfnDBInstance because CDK L2 (DatabaseInstanceReadReplica)
-    // does not support cross-region replication.
+    // Uses L1 CfnDBInstance — CDK L2 DatabaseInstanceReadReplica does not
+    // support cross-region replication.
+    // The SourceRegion parameter causes CloudFormation to auto-generate a
+    // pre-signed URL for cross-region replication auth.
     //
-    // The SourceRegion parameter causes CDK/CloudFormation to generate a
-    // pre-signed URL for cross-region replication auth automatically.
-    //
-    // IMPORTANT: The primary instance MUST have backupRetentionPeriod > 0
-    //            (set to 7 days in the primary stack).
+    // PostgreSQL 15 allows backupRetentionPeriod > 0 on read replicas,
+    // enabling point-in-time recovery on the replica itself.
     const sourceDbArn =
       `arn:aws:rds:${props.primaryRegion}:${props.account}:db:${props.primaryDbId}`;
 
@@ -131,71 +125,67 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       dbInstanceIdentifier:      CONFIG.REPLICA_DB_ID,
       dbInstanceClass:           CONFIG.RDS_INSTANCE_CLASS,
 
-      // These are inherited from source but must be set for L1:
-      engine:                    'postgres',
-      engineVersion:             '13',
+      engine:        'postgres',
+      engineVersion: '15',   // must match primary; PG15 allows backup on replica
 
       sourceDbInstanceIdentifier: sourceDbArn,
       sourceRegion:              props.primaryRegion,
 
-      dbSubnetGroupName:         subnetGroup.dbSubnetGroupName,
-      vpcSecurityGroups:         [rdsSg.securityGroupId],
+      dbSubnetGroupName:  subnetGroup.dbSubnetGroupName,
+      vpcSecurityGroups:  [rdsSg.securityGroupId],
 
-      publiclyAccessible:        false,
-      multiAz:                   false,
-      storageType:               'gp3',
-      storageEncrypted:          true,
-      // Cross-region encrypted replicas require an explicit KMS key in the
-      // destination region. Without this, CloudFormation omits the key and
-      // AWS rejects the request with "Cannot create a cross region unencrypted
-      // read replica from encrypted source" even though storageEncrypted=true.
+      publiclyAccessible: false,
+      multiAz:            false,   // replica itself has no HA; the primary does
+      storageType:        'gp3',
+      storageEncrypted:   true,
+      // Explicit KMS key required for cross-region encrypted replica
       kmsKeyId: `arn:aws:kms:${this.region}:${props.account}:alias/aws/rds`,
 
-      // Automated backups are not supported for read replicas on PostgreSQL < 14.
-      backupRetentionPeriod:     0,
+      // PG15 read replicas support automated backups — enables PITR on replica
+      backupRetentionPeriod: 1,
 
-      // Tags
+      deletionProtection: true,
+
       tags: [
         { key: 'Project',     value: CONFIG.PROJECT_TAG },
-        { key: 'Environment', value: CONFIG.ENV_TAG },
         { key: 'Role',        value: 'DR-Replica' },
         { key: 'ManagedBy',   value: 'CDK' },
       ],
     });
 
-    // The CfnDBInstance has an implicit dependency on the subnet group
     this.replicaDb.addDependency(subnetGroup);
 
     /* ── 5. Route53 — Hosted Zone ────────────────────────────────────── */
-    // Creates a NEW public hosted zone for props.hostedZoneName.
-    // If your domain is already managed in Route53, replace this with:
-    //   route53.HostedZone.fromLookup(this, 'Zone', { domainName: props.hostedZoneName })
-    // Note: fromLookup requires `env.account` and `env.region` to be set (they are).
-    this.hostedZone = new route53.HostedZone(this, 'DrHostedZone', {
-      zoneName: props.hostedZoneName,
-      comment:  'SafeBet IQ DR failover zone — managed by CDK',
-    });
+    // Import existing zone if hostedZoneId is provided; otherwise create new.
+    // CRITICAL: if creating a new zone, copy NameServers output to your
+    // domain registrar before failover will work.
+    if (props.hostedZoneId) {
+      this.hostedZone = route53.HostedZone.fromHostedZoneAttributes(
+        this, 'DrHostedZone', {
+          hostedZoneId: props.hostedZoneId,
+          zoneName:     props.hostedZoneName,
+        }
+      );
+      new cdk.CfnOutput(this, 'HostedZoneImported', {
+        value:       props.hostedZoneId,
+        description: 'Imported existing Route53 hosted zone ID',
+      });
+    } else {
+      const newZone = new route53.HostedZone(this, 'DrHostedZone', {
+        zoneName: props.hostedZoneName,
+        comment:  'SafeBet IQ DR failover zone — managed by CDK',
+      });
+      this.hostedZone = newZone;
+      new cdk.CfnOutput(this, 'NameServers', {
+        value:       cdk.Fn.join(', ', newZone.hostedZoneNameServers ?? []),
+        description: '⚠️  NEW ZONE: Copy these NS records to your domain registrar immediately',
+      });
+    }
 
     /* ── 6. Route53 — Failover DNS records ──────────────────────────── */
-    // db.{hostedZoneName} — PRIMARY record (Cape Town)
-    //   → points to primary RDS CNAME endpoint
-    //   → associated with health check
-    //   → if unhealthy, traffic falls over to SECONDARY
-    //
-    // db.{hostedZoneName} — SECONDARY record (Ireland)
-    //   → points to replica RDS CNAME endpoint
-    //   → promoted on failover via safebet-rds-failover Lambda
-    //
-    // The rds-failover Lambda updates the SECONDARY record to point to the
-    // newly-promoted primary endpoint via Route53 change_resource_record_sets.
-
     const dbRecordName = `${CONFIG.DB_RECORD_PREFIX}.${props.hostedZoneName}`;
 
     // PRIMARY failover record → Cape Town endpoint
-    // props.primaryDbEndpoint is resolved cross-region by CDK via SSM Parameter
-    // Store (crossRegionReferences: true on both stacks in bin/safebet.ts).
-    // This replaces the broken Fn.importValue('SafeBetPrimaryDbEndpoint') which
-    // does not work across AWS regions in CloudFormation.
     new route53.CfnRecordSet(this, 'PrimaryFailoverRecord', {
       hostedZoneId:    this.hostedZone.hostedZoneId,
       name:            dbRecordName,
@@ -204,24 +194,31 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       resourceRecords: [props.primaryDbEndpoint],
       setIdentifier:   'primary-capetown',
       failover:        'PRIMARY',
-      // props.healthCheckId is the Route53 health check created in SafeBetDRAlarmStack
-      // (us-east-1) and passed cross-region via CDK SSM Parameter Store bridge.
       healthCheckId:   props.healthCheckId,
     });
 
     // SECONDARY failover record → Ireland replica endpoint
-    // This record is updated by safebet-rds-failover Lambda during failover
+    // Updated by safebet-rds-failover Lambda on failover
     new route53.CfnRecordSet(this, 'SecondaryFailoverRecord', {
-      hostedZoneId:   this.hostedZone.hostedZoneId,
-      name:           dbRecordName,
-      type:           'CNAME',
-      ttl:            String(CONFIG.DNS_TTL_SECONDS),
-      resourceRecords: [
-        this.replicaDb.attrEndpointAddress,
-      ],
-      setIdentifier:  'secondary-ireland',
-      failover:       'SECONDARY',
+      hostedZoneId:    this.hostedZone.hostedZoneId,
+      name:            dbRecordName,
+      type:            'CNAME',
+      ttl:             String(CONFIG.DNS_TTL_SECONDS),
+      resourceRecords: [this.replicaDb.attrEndpointAddress],
+      setIdentifier:   'secondary-ireland',
+      failover:        'SECONDARY',
     });
+
+    /* ── 7. SNS topic for replica-side alerts ────────────────────────── */
+    const replicaAlertsTopic = new sns.Topic(this, 'ReplicaAlertsTopic', {
+      topicName:   'safebet-dr-replica-alerts',
+      displayName: 'SafeBet IQ — DR Replica Alerts (Ireland)',
+    });
+    if (props.alertEmail) {
+      replicaAlertsTopic.addSubscription(
+        new sns_subs.EmailSubscription(props.alertEmail)
+      );
+    }
 
     /* ── 8. IAM role for safebet-rds-failover Lambda ─────────────────── */
     const rdsFailoverRole = new iam.Role(this, 'RdsFailoverRole', {
@@ -235,7 +232,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       ],
     });
 
-    // RDS: describe both primary and replica; promote replica only
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'RDSDescribeBothRegions',
       effect:  iam.Effect.ALLOW,
@@ -257,10 +253,8 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       sid:     'RDSCreateReadReplica',
       effect:  iam.Effect.ALLOW,
       actions: ['rds:CreateDBInstanceReadReplica'],
-      resources: ['*'],   // cross-region replica requires '*'
+      resources: ['*'],
     }));
-
-    // Route53: update DNS failover records
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'Route53FailoverSwitch',
       effect:  iam.Effect.ALLOW,
@@ -269,8 +263,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
         `arn:aws:route53:::hostedzone/${this.hostedZone.hostedZoneId}`,
       ],
     }));
-
-    // CloudWatch: emit failover metrics
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'CloudWatchMetrics',
       effect:  iam.Effect.ALLOW,
@@ -280,8 +272,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
         StringEquals: { 'cloudwatch:namespace': CONFIG.CW_NAMESPACE },
       },
     }));
-
-    // CloudWatch Logs
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'CloudWatchLogs',
       effect:  iam.Effect.ALLOW,
@@ -290,8 +280,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
         `arn:aws:logs:${this.region}:${props.account}:log-group:/aws/lambda/${CONFIG.RDS_FAILOVER_FN}:*`,
       ],
     }));
-
-    // S3: read/write DR state file (persistent cooldown)
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'S3DrState',
       effect:  iam.Effect.ALLOW,
@@ -301,8 +289,6 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
         `arn:aws:s3:::${props.bucketName}/${CONFIG.S3_DR_STATE_KEY}`,
       ],
     }));
-
-    // STS: get caller identity (needed for cross-region replica ARN construction)
     rdsFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'StsCallerIdentity',
       effect:  iam.Effect.ALLOW,
@@ -310,15 +296,14 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       resources: ['*'],
     }));
 
-    /* ── 9. CloudWatch Log Group for rds-failover Lambda ─────────────── */
+    /* ── 9. CloudWatch Log Group ─────────────────────────────────────── */
     const rdsFailoverLogGroup = new logs.LogGroup(this, 'RdsFailoverLogGroup', {
       logGroupName:  `/aws/lambda/${CONFIG.RDS_FAILOVER_FN}`,
       retention:     logs.RetentionDays.THREE_MONTHS,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     /* ── 10. Lambda — safebet-rds-failover ───────────────────────────── */
-    // No external pip dependencies — boto3 is pre-installed in Lambda runtime.
     this.rdsFailoverFn = new lambda.Function(this, 'RdsFailoverFn', {
       functionName:  CONFIG.RDS_FAILOVER_FN,
       description:   'DR: promote RDS replica → update Route53 CNAME on failover',
@@ -330,65 +315,69 @@ export class SafeBetDRReplicaStack extends cdk.Stack {
       memorySize:    CONFIG.LAMBDA_MEMORY_MB,
       logGroup:      rdsFailoverLogGroup,
 
-      // No bundling needed — boto3 is built into the Python 3.12 Lambda runtime
       code: lambda.Code.fromAsset(
         path.join(__dirname, '../../lambda/safebet-rds-failover'),
       ),
 
       environment: {
-        REPLICA_DB:              CONFIG.REPLICA_DB_ID,
-        REPLICA_DB_REGION:       this.region,
-        REPLICA_DB_ENDPOINT:     this.replicaDb.attrEndpointAddress,
-        ROUTE53_HOSTED_ZONE_ID:  this.hostedZone.hostedZoneId,
-        ROUTE53_RECORD_NAME:     dbRecordName,
-        PRIMARY_DB:              props.primaryDbId,
-        PRIMARY_DB_REGION:       props.primaryRegion,
-        AUTO_REBUILD:            'true',
-        FAILOVER_COOLDOWN:       '600',
-        S3_BUCKET:               props.bucketName,
+        REPLICA_DB:             CONFIG.REPLICA_DB_ID,
+        REPLICA_DB_REGION:      this.region,
+        REPLICA_DB_ENDPOINT:    this.replicaDb.attrEndpointAddress,
+        ROUTE53_HOSTED_ZONE_ID: this.hostedZone.hostedZoneId,
+        ROUTE53_RECORD_NAME:    dbRecordName,
+        PRIMARY_DB:             props.primaryDbId,
+        PRIMARY_DB_REGION:      props.primaryRegion,
+        AUTO_REBUILD:           'true',
+        FAILOVER_COOLDOWN:      '600',
+        S3_BUCKET:              props.bucketName,
       },
 
-      // retryAttempts: 1 — if the Lambda times out during the RDS waiter,
-      // the retry invocation will see the instance already promoted
-      // (already_primary=True) and still execute the Route53 DNS update.
-      // The S3-backed cooldown in the Lambda prevents double-promotion.
       retryAttempts: 1,
     });
 
-    /* ── 11. Stack outputs ───────────────────────────────────────────── */
+    /* ── 11. Lambda error alarm → SNS ───────────────────────────────── */
+    const rdsFailoverErrors = this.rdsFailoverFn.metricErrors({
+      period:    cdk.Duration.minutes(5),
+      statistic: 'Sum',
+    });
+    const rdsFailoverErrorAlarm = new cloudwatch.Alarm(this, 'RdsFailoverErrorAlarm', {
+      alarmName:          'SafeBetRdsFailoverErrors',
+      alarmDescription:   'safebet-rds-failover Lambda errors — failover execution broken',
+      metric:             rdsFailoverErrors,
+      threshold:          1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods:  1,
+      treatMissingData:   cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    rdsFailoverErrorAlarm.addAlarmAction(
+      new cw_actions.SnsAction(replicaAlertsTopic)
+    );
+
+    /* ── 12. Stack outputs ───────────────────────────────────────────── */
     new cdk.CfnOutput(this, 'ReplicaDbEndpoint', {
       value:       this.replicaDb.attrEndpointAddress,
       description: 'RDS Ireland replica endpoint',
       exportName:  'SafeBetReplicaDbEndpoint',
     });
-
     new cdk.CfnOutput(this, 'RdsFailoverLambdaArn', {
       value:       this.rdsFailoverFn.functionArn,
       description: 'safebet-rds-failover Lambda ARN',
       exportName:  'SafeBetRdsFailoverArn',
     });
-
     new cdk.CfnOutput(this, 'HostedZoneId', {
       value:       this.hostedZone.hostedZoneId,
       description: 'Route53 hosted zone ID',
       exportName:  'SafeBetHostedZoneId',
     });
-
     new cdk.CfnOutput(this, 'DbHealthCheckId', {
       value:       props.healthCheckId,
-      description: 'Route53 health check ID (from SafeBetDRAlarm) → set as DR_ROUTE53_HEALTH_CHECK_ID in Amplify',
+      description: 'Route53 health check ID → set as DR_ROUTE53_HEALTH_CHECK_ID in Amplify',
       exportName:  'SafeBetDbHealthCheckId',
     });
-
     new cdk.CfnOutput(this, 'DbDnsCname', {
       value:       dbRecordName,
-      description: 'Failover DNS record (primary → Cape Town, secondary → Ireland)',
+      description: 'Failover DNS CNAME (primary=Cape Town, secondary=Ireland)',
       exportName:  'SafeBetDbDnsCname',
-    });
-
-    new cdk.CfnOutput(this, 'NameServers', {
-      value:       cdk.Fn.join(', ', this.hostedZone.hostedZoneNameServers ?? []),
-      description: 'Route53 name servers — add these NS records to your domain registrar',
     });
   }
 }

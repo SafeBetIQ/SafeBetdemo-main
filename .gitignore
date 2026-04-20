@@ -26,12 +26,23 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files — never commit real credentials
+# ── Env files — NEVER commit real credentials ───────────────────────────────
+# Block all .env variants by default
 .env
-.env*.local
+.env.*
+# Allow only the placeholder/template file
+!.env.example
+!frontend/.env.example
+# Explicit safety net for sensitive named files
+.env.local
 .env.demo
 .env.production
-# .env.example is the ONLY env file that should be committed (contains placeholders)
+.env.staging
+frontend/.env.local
+frontend/.env.demo
+frontend/.env.production
+frontend/.env.staging
+# ─────────────────────────────────────────────────────────────────────────────
 
 # local supabase
 .supabase

@@ -2,31 +2,96 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Footer } from '@/components/Footer';
-import { Mail, Phone, MapPin, Send, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Mail, Phone, MapPin, Send, Menu, X, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+
+// Cloudflare Turnstile widget type (injected by the Turnstile script)
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+      reset:  (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+      getResponse: (widgetId: string) => string | undefined;
+    };
+  }
+}
 
 export default function ContactPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    company: '',
-    phone: '',
-    userType: '',
-    message: ''
+    name: '', email: '', company: '', phone: '', userType: '', message: '',
   });
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted,  setSubmitted]  = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const turnstileRef  = useRef<HTMLDivElement>(null);
+  const widgetIdRef   = useRef<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Called once the Turnstile script has loaded
+  const onTurnstileLoad = () => {
+    if (!turnstileRef.current || !window.turnstile) return;
+    widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '',
+      theme:   'dark',
+      size:    'normal',
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 5000);
+    setError(null);
+
+    // Get Turnstile token
+    const token = widgetIdRef.current
+      ? window.turnstile?.getResponse(widgetIdRef.current)
+      : undefined;
+
+    if (!token) {
+      setError('Please complete the CAPTCHA verification.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name:             formData.name,
+          email:            formData.email,
+          company:          formData.company   || undefined,
+          phone:            formData.phone     || undefined,
+          user_type:        formData.userType  || undefined,
+          message:          formData.message,
+          turnstile_token:  token,
+        }),
+      });
+
+      const json = await res.json() as { success?: boolean; error?: string };
+
+      if (!res.ok || !json.success) {
+        // Reset Turnstile so user can try again
+        if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
+        setError(json.error ?? 'Submission failed — please try again.');
+        return;
+      }
+
+      setSubmitted(true);
+      setFormData({ name: '', email: '', company: '', phone: '', userType: '', message: '' });
+    } catch {
+      if (widgetIdRef.current) window.turnstile?.reset(widgetIdRef.current);
+      setError('Network error — please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -213,9 +278,23 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <Button type="submit" size="lg" className="w-full bg-brand-400 hover:bg-brand-500 text-black font-semibold py-6 text-lg">
-                      Submit Request
-                      <Send className="ml-2 h-5 w-5" />
+                    {/* Cloudflare Turnstile CAPTCHA */}
+                    <div ref={turnstileRef} className="flex justify-center" />
+
+                    {error && (
+                      <p className="text-red-400 text-sm text-center" role="alert">{error}</p>
+                    )}
+
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={loading}
+                      className="w-full bg-brand-400 hover:bg-brand-500 text-black font-semibold py-6 text-lg disabled:opacity-60"
+                    >
+                      {loading
+                        ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Submitting…</>
+                        : <><Send className="mr-2 h-5 w-5" />Submit Request</>
+                      }
                     </Button>
                   </form>
                 )}
@@ -226,6 +305,13 @@ export default function ContactPage() {
       </section>
 
       <Footer />
+
+      {/* Turnstile script — loads async, calls onTurnstileLoad when ready */}
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="lazyOnload"
+        onLoad={onTurnstileLoad}
+      />
     </div>
   );
 }

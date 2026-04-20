@@ -2,7 +2,7 @@
  * SafeBet IQ — Shared CDK Configuration
  * =======================================
  * Single source of truth for all resource identifiers, region names,
- * and naming conventions used across the three DR stacks.
+ * and naming conventions used across the DR stacks.
  *
  * HOW TO USE:
  *   import { CONFIG } from './shared-config';
@@ -16,7 +16,7 @@ export const CONFIG = {
   /* ── Regions ─────────────────────────────────────────────────────────── */
   PRIMARY_REGION:  'af-south-1',   // Cape Town   — primary RDS, auto-failover Lambda
   REPLICA_REGION:  'eu-west-1',    // Ireland     — RDS replica, rds-failover Lambda, Route53
-  TRIGGER_REGION:  'eu-north-1',   // Stockholm   — dr-trigger Lambda, S3 backup bucket, CW alarm (SNS chain)
+  TRIGGER_REGION:  'eu-north-1',   // Stockholm   — dr-trigger Lambda, S3 backup bucket, CW alarm
   ALARM_REGION:    'us-east-1',    // N. Virginia — CloudWatch alarm for Route53 health check ONLY
                                    //   Route53 CloudWatch metric health checks REQUIRE us-east-1
 
@@ -32,14 +32,6 @@ export const CONFIG = {
   DR_TRIGGER_FN:     'safebet-dr-trigger',      // eu-north-1: relay SNS → rds-failover
 
   /* ── S3 ──────────────────────────────────────────────────────────────── */
-  /**
-   * Canonical bucket name — fixes the mismatch between:
-   *   OLD (backup.yml):           safebetiq-backups-046276255259-eu-north-1-an
-   *   OLD (failover-restore.yml): safebetiq-backups-secondary
-   *   NEW (everywhere):           safebetiq-backups-{account}-eu-north-1
-   *
-   * All GitHub Actions workflows are updated to use this name.
-   */
   s3BucketName(account: string): string {
     return `safebetiq-backups-${account}-eu-north-1`;
   },
@@ -67,13 +59,13 @@ export const CONFIG = {
 
   /* ── Tagging ─────────────────────────────────────────────────────────── */
   PROJECT_TAG:  'SafeBetIQ',
-  ENV_TAG:      'Demo',
+  // ENV_TAG is now derived per deployment via getEnvTag() — never hardcoded.
 
-  /* ── Cost-control defaults (demo tier) ───────────────────────────────── */
-  RDS_INSTANCE_CLASS:    'db.t4g.micro',    // Graviton ARM — cheapest RDS option
-  RDS_STORAGE_GB:        20,               // Minimum storage
-  RDS_MAX_STORAGE_GB:    100,              // Autoscaling upper limit
-  RDS_BACKUP_DAYS:       7,               // Min required for cross-region replica
+  /* ── Cost-control defaults ───────────────────────────────────────────── */
+  RDS_INSTANCE_CLASS:    'db.t4g.micro',
+  RDS_STORAGE_GB:        20,
+  RDS_MAX_STORAGE_GB:    100,
+  RDS_BACKUP_DAYS:       7,
   LAMBDA_MEMORY_MB:      256,
   LAMBDA_TIMEOUT_MIN:    15,
   LOG_RETENTION_DAYS:    30,
@@ -86,8 +78,27 @@ export const REGION_SHORT: Record<string, string> = {
   'eu-north-1':  'sto',   // Stockholm
 };
 
+/**
+ * Derive the environment tag from a CDK context value.
+ * Pass --context env=production for production deployments.
+ * Defaults to 'Demo' to prevent accidental production tags.
+ */
+export function getEnvTag(ctxEnv?: string): string {
+  const valid = ['Demo', 'Production', 'Staging'];
+  const raw   = ctxEnv ?? 'Demo';
+  // Capitalise first letter for consistency with AWS tagging conventions
+  const normalised = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  if (!valid.includes(normalised)) {
+    console.warn(
+      `[SafeBet CDK] Unknown --context env="${raw}" — valid values: ${valid.join(', ')}. Defaulting to "Demo".`
+    );
+    return 'Demo';
+  }
+  return normalised;
+}
+
 /** Standard tags applied to every resource in every stack */
-export function commonTags(env: string = CONFIG.ENV_TAG): Record<string, string> {
+export function commonTags(env: string): Record<string, string> {
   return {
     Project:     CONFIG.PROJECT_TAG,
     Environment: env,

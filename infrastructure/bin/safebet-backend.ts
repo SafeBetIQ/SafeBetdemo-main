@@ -28,7 +28,7 @@
 import 'source-map-support/register';
 import * as cdk                  from 'aws-cdk-lib';
 import { SafeBetBackendStack }   from '../lib/safebet-backend-stack';
-import { CONFIG, commonTags }    from '../lib/shared-config';
+import { CONFIG, commonTags, getEnvTag } from '../lib/shared-config';
 
 const app = new cdk.App();
 
@@ -66,7 +66,7 @@ new SafeBetBackendStack(app, 'SafeBetBackend', {
   },
   description:           'SafeBet IQ - Backend API (Lambda + API Gateway)',
   terminationProtection: false,
-  tags:                  commonTags(CONFIG.ENV_TAG),
+  tags:                  commonTags(getEnvTag(app.node.tryGetContext('env') as string | undefined)),
 
   account,
   cognitoUserPoolId,
@@ -78,4 +78,4 @@ new SafeBetBackendStack(app, 'SafeBetBackend', {
 /* ── Global tags ──────────────────────────────────────────────────── */
 cdk.Tags.of(app).add('Project',     CONFIG.PROJECT_TAG);
 cdk.Tags.of(app).add('ManagedBy',   'CDK');
-cdk.Tags.of(app).add('Environment', CONFIG.ENV_TAG);
+cdk.Tags.of(app).add('Environment', getEnvTag(app.node.tryGetContext('env') as string | undefined));

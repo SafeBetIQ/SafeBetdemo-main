@@ -35,26 +35,27 @@ import {
   Route53Client,
   GetHealthCheckStatusCommand,
 } from '@aws-sdk/client-route-53';
+import { serverEnv } from '@/config/env';
 
 export const runtime  = 'nodejs';
 export const dynamic  = 'force-dynamic';
 export const revalidate = 0;
 
 /* ─────────────────────────────────────────────────────────────
-   CONFIG
+   CONFIG — sourced from validated serverEnv, never raw process.env
 ───────────────────────────────────────────────────────────── */
-const DR_REGION   = process.env.DR_AWS_REGION   ?? 'eu-west-1';
-const S3_REGION   = process.env.DR_S3_REGION    ?? 'eu-north-1';
-const S3_BUCKET   = process.env.DR_S3_BUCKET    ?? '';
-const S3_PREFIX   = process.env.DR_S3_PREFIX    ?? 'backups/production/';
-const LOG_GROUP   = process.env.DR_LOG_GROUP    ?? '/aws/lambda/safebet-rds-failover';
-const CW_NS       = process.env.DR_CW_NAMESPACE ?? 'SafeBetIQ/DR';
-const R53_HCID    = process.env.DR_ROUTE53_HEALTH_CHECK_ID ?? '';
+const DR_REGION   = serverEnv.DR_AWS_REGION;
+const S3_REGION   = serverEnv.DR_S3_REGION;
+const S3_BUCKET   = serverEnv.DR_S3_BUCKET;
+const S3_PREFIX   = serverEnv.DR_S3_PREFIX;
+const LOG_GROUP   = serverEnv.DR_LOG_GROUP;
+const CW_NS       = serverEnv.DR_CW_NAMESPACE;
+const R53_HCID    = serverEnv.DR_ROUTE53_HEALTH_CHECK_ID;
 
 /** Build AWS credential config — omit if running under Amplify IAM role */
 function awsCreds(region: string) {
-  const keyId = process.env.AWS_ACCESS_KEY_ID;
-  const secret = process.env.AWS_SECRET_ACCESS_KEY;
+  const keyId  = serverEnv.AWS_ACCESS_KEY_ID;
+  const secret = serverEnv.AWS_SECRET_ACCESS_KEY;
   return {
     region,
     ...(keyId && secret ? { credentials: { accessKeyId: keyId, secretAccessKey: secret } } : {}),

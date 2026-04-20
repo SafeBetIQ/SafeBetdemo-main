@@ -5,11 +5,17 @@
  *
  *   • VPC           — isolated subnets for RDS (no NAT, no cost)
  *   • RDS           — PostgreSQL 15 t4g.micro primary instance
- *   • Secrets Mgr   — auto-rotated DB credentials (never in plaintext)
+ *                     Multi-AZ enabled for HA within Cape Town
+ *   • Secrets Mgr   — imported RDS + Supabase credentials (no plaintext)
  *   • Lambda        — safebet-auto-failover (S3 → Supabase restore)
  *   • IAM role      — least-privilege role for auto-failover Lambda
  *   • CloudWatch    — Log group for Lambda execution
- *   • SNS           — DR alert topic (subscribed by dr-trigger in eu-north-1)
+ *   • SNS           — DR alert topic
+ *
+ * SECURITY:
+ *   Supabase credentials are stored in Secrets Manager under
+ *   CONFIG.SECRET_SUPABASE_CREDS and read by the Lambda at runtime
+ *   via GetSecretValue.  They are NEVER present as plaintext env vars.
  *
  * OUTPUTS (copy to Amplify env vars after deploy):
  *   PrimaryDbEndpoint   — RDS writer endpoint
@@ -24,6 +30,7 @@ import * as rds          from 'aws-cdk-lib/aws-rds';
 import * as lambda       from 'aws-cdk-lib/aws-lambda';
 import * as iam          from 'aws-cdk-lib/aws-iam';
 import * as sns          from 'aws-cdk-lib/aws-sns';
+import * as sns_subs     from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as logs         from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as path         from 'path';
@@ -33,13 +40,9 @@ import { CONFIG }        from './shared-config';
 
 /* ── Stack props ─────────────────────────────────────────────────────── */
 export interface SafeBetDRPrimaryProps extends cdk.StackProps {
-  account:             string;
-  bucketName:          string;
-  supabaseDbHost:      string;
-  supabaseDbPort:      string;
-  supabaseDbName:      string;
-  supabaseDbUser:      string;
-  supabaseDbPassword:  string;
+  account:    string;
+  bucketName: string;
+  alertEmail: string;   // SNS email subscription (empty = no subscription)
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -47,29 +50,25 @@ export interface SafeBetDRPrimaryProps extends cdk.StackProps {
    ═══════════════════════════════════════════════════════════════════ */
 export class SafeBetDRPrimaryStack extends cdk.Stack {
 
-  /** Expose for cross-stack references within the CDK app */
-  public readonly primaryDb:          rds.DatabaseInstance;
-  public readonly dbSecret:           secretsmanager.ISecret;
-  public readonly autoFailoverFn:     lambda.Function;
-  public readonly drAlertsTopic:      sns.Topic;
+  public readonly primaryDb:      rds.DatabaseInstance;
+  public readonly dbSecret:       secretsmanager.ISecret;
+  public readonly autoFailoverFn: lambda.Function;
+  public readonly drAlertsTopic:  sns.Topic;
 
   constructor(scope: Construct, id: string, props: SafeBetDRPrimaryProps) {
     super(scope, id, props);
 
     /* ── 1. VPC — isolated subnets only (no NAT = no cost) ─────────── */
-    // Lambda functions are deployed OUTSIDE the VPC — they use public AWS
-    // API endpoints (boto3) and the public Supabase pooler.  The VPC exists
-    // solely to keep the RDS instance off the public internet.
     const vpc = new ec2.Vpc(this, 'DrPrimaryVpc', {
       vpcName:     'safebet-dr-primary-vpc',
       ipAddresses: ec2.IpAddresses.cidr('10.10.0.0/16'),
       maxAzs:      2,
-      natGateways: 0,   // ← saves ~$32/month; Lambda does not need VPC
+      natGateways: 0,
       subnetConfiguration: [
         {
-          name:           'DrIsolated',
-          subnetType:     ec2.SubnetType.PRIVATE_ISOLATED,
-          cidrMask:       24,
+          name:       'DrIsolated',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+          cidrMask:   24,
         },
       ],
       enableDnsHostnames: true,
@@ -89,59 +88,61 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       'PostgreSQL from VPC CIDR',
     );
 
-    /* ── 3. Secrets Manager — import existing RDS credentials ──────────── */
-    // Secret already exists in AWS — importing instead of creating to avoid
-    // AlreadyExists errors. Use fromSecretNameV2 for path-style secret names.
+    /* ── 3. Secrets Manager — import existing RDS credentials ──────── */
     this.dbSecret = secretsmanager.Secret.fromSecretNameV2(
       this, 'PrimaryDbSecret', CONFIG.SECRET_RDS_CREDS,
     );
 
     /* ── 4. Supabase credentials secret (for auto-failover Lambda) ─── */
-    // Secret already exists in AWS — importing instead of creating to avoid
-    // AlreadyExists errors. The Lambda reads credentials from env vars directly;
-    // the secret ARN is passed as SUPABASE_SECRET_ARN for future GetSecretValue use.
+    // Credentials are stored in Secrets Manager and read by the Lambda
+    // at runtime via GetSecretValue — never passed as plaintext env vars.
     const supabaseSecret = secretsmanager.Secret.fromSecretNameV2(
       this, 'SupabaseSecret', CONFIG.SECRET_SUPABASE_CREDS,
     );
 
-    /* ── 5. RDS — PostgreSQL 15, t4g.micro, no Multi-AZ (demo) ──────── */
+    /* ── 5. RDS — PostgreSQL 15, Multi-AZ, deletion-protected ───────── */
     this.primaryDb = new rds.DatabaseInstance(this, 'PrimaryDb', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_13,
+        version: rds.PostgresEngineVersion.VER_15,
       }),
-      instanceType:       ec2.InstanceType.of(
-                            ec2.InstanceClass.T4G,
-                            ec2.InstanceSize.MICRO,
-                          ),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T4G,
+        ec2.InstanceSize.MICRO,
+      ),
       instanceIdentifier: CONFIG.PRIMARY_DB_ID,
       databaseName:       CONFIG.DB_NAME,
 
       vpc,
-      vpcSubnets:         { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups:     [rdsSg],
+      vpcSubnets:     { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [rdsSg],
 
-      credentials:        rds.Credentials.fromSecret(this.dbSecret),
+      credentials: rds.Credentials.fromSecret(this.dbSecret),
 
-      // Backup retention >= 1 day is REQUIRED to create a cross-region replica
-      backupRetention:    cdk.Duration.days(CONFIG.RDS_BACKUP_DAYS),
-      preferredBackupWindow: '02:00-03:00',     // 2 AM UTC (4 AM SAST)
+      // Backup retention >= 1 day is REQUIRED for cross-region replica
+      backupRetention:          cdk.Duration.days(CONFIG.RDS_BACKUP_DAYS),
+      preferredBackupWindow:    '02:00-03:00',
       preferredMaintenanceWindow: 'Mon:03:00-Mon:04:00',
 
-      allocatedStorage:   CONFIG.RDS_STORAGE_GB,
+      allocatedStorage:    CONFIG.RDS_STORAGE_GB,
       maxAllocatedStorage: CONFIG.RDS_MAX_STORAGE_GB,
-      storageType:        rds.StorageType.GP3,
-      storageEncrypted:   true,
+      storageType:         rds.StorageType.GP3,
+      storageEncrypted:    true,
 
-      multiAz:            false,   // single-AZ for demo cost
+      // Multi-AZ: synchronous standby in a second AZ within Cape Town.
+      // Eliminates single-AZ failure as a DR gap. Adds ~$50/month for t4g.micro.
+      multiAz:            true,
       publiclyAccessible: false,
 
-      // Enable enhanced monitoring (free tier: 60s interval)
+      // Enhanced monitoring: free at 60s interval
       monitoringInterval: cdk.Duration.seconds(60),
 
-      enablePerformanceInsights: false,  // free tier only 7 days; skip for demo
+      // Performance Insights: free tier (7 days retention)
+      enablePerformanceInsights:      true,
+      performanceInsightRetention:    rds.PerformanceInsightRetention.DEFAULT,
 
-      deletionProtection: false,    // set true for production
-      removalPolicy:      cdk.RemovalPolicy.DESTROY,
+      // Production hardening
+      deletionProtection: true,
+      removalPolicy:      cdk.RemovalPolicy.RETAIN,
 
       cloudwatchLogsExports:   ['postgresql', 'upgrade'],
       cloudwatchLogsRetention: logs.RetentionDays.ONE_MONTH,
@@ -159,7 +160,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       ],
     });
 
-    // S3: read backups + write restore marker
     autoFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'S3BackupRead',
       effect:  iam.Effect.ALLOW,
@@ -178,8 +178,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
         StringEquals: { 's3:x-amz-server-side-encryption': 'AES256' },
       },
     }));
-
-    // CloudWatch: emit DR metrics
     autoFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'CloudWatchMetrics',
       effect:  iam.Effect.ALLOW,
@@ -189,8 +187,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
         StringEquals: { 'cloudwatch:namespace': CONFIG.CW_NAMESPACE },
       },
     }));
-
-    // CloudWatch Logs: write to log group
     autoFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'CloudWatchLogs',
       effect:  iam.Effect.ALLOW,
@@ -199,8 +195,7 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
         `arn:aws:logs:${this.region}:${props.account}:log-group:/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}:*`,
       ],
     }));
-
-    // Secrets Manager: read Supabase credentials
+    // Secrets Manager: read Supabase credentials — eliminates plaintext password
     autoFailoverRole.addToPolicy(new iam.PolicyStatement({
       sid:     'ReadSupabaseSecret',
       effect:  iam.Effect.ALLOW,
@@ -210,19 +205,12 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
 
     /* ── 7. CloudWatch Log Group for Lambda ─────────────────────────── */
     const autoFailoverLogGroup = new logs.LogGroup(this, 'AutoFailoverLogGroup', {
-      logGroupName:    `/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}`,
-      retention:       logs.RetentionDays.ONE_MONTH,
-      removalPolicy:   cdk.RemovalPolicy.DESTROY,
+      logGroupName:  `/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}`,
+      retention:     logs.RetentionDays.THREE_MONTHS,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     /* ── 8. Lambda — safebet-auto-failover ───────────────────────────── */
-    // Bundling strategy (tried in order):
-    //   LOCAL  — copies the pre-built package/ dir; no Docker required.
-    //            Rebuild with: cd lambda/safebet-auto-failover &&
-    //              pip install -r requirements.txt -t package \
-    //                --platform manylinux2014_x86_64 --only-binary=:all: \
-    //                --implementation cp --python-version 3.12
-    //   DOCKER — clean build via Docker (requires Docker Desktop).
     const lambdaSrcDir = path.join(__dirname, '../../lambda/safebet-auto-failover');
 
     this.autoFailoverFn = new lambda.Function(this, 'AutoFailoverFn', {
@@ -241,13 +229,12 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
           image:    lambda.Runtime.PYTHON_3_12.bundlingImage,
           platform: 'linux/amd64',
 
-          // ── Local bundler: uses pre-built package/ dir (no Docker) ──
           local: {
             tryBundle(outputDir: string): boolean {
               const packageDir = path.join(lambdaSrcDir, 'package');
               const pyFile     = path.join(lambdaSrcDir, 'lambda_function.py');
               if (!fs.existsSync(packageDir) || !fs.existsSync(pyFile)) {
-                return false;  // fall through to Docker
+                return false;
               }
               try {
                 fs.cpSync(packageDir, outputDir, { recursive: true });
@@ -257,7 +244,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
             },
           },
 
-          // ── Docker fallback: clean build from PyPI ───────────────────
           command: [
             'bash', '-c',
             [
@@ -274,63 +260,76 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       }),
 
       environment: {
-        S3_BUCKET:       props.bucketName,
-        S3_PREFIX:       CONFIG.S3_BACKUP_PREFIX,
-        MARKER_PREFIX:   CONFIG.S3_MARKER_PREFIX,
-        CRITICAL_TABLES: 'users,bets,payments',
-        // Supabase credentials — passed as env vars for compatibility with
-        // existing Lambda code.  For production: update Lambda to call
-        // secretsmanager:GetSecretValue using SUPABASE_SECRET_ARN below.
-        DB_HOST:         props.supabaseDbHost,
-        DB_PORT:         props.supabaseDbPort,
-        DB_NAME:         props.supabaseDbName,
-        DB_USER:         props.supabaseDbUser,
-        DB_PASSWORD:     props.supabaseDbPassword,
-        SUPABASE_SECRET_ARN: supabaseSecret.secretArn,  // future use
+        S3_BUCKET:           props.bucketName,
+        S3_PREFIX:           CONFIG.S3_BACKUP_PREFIX,
+        MARKER_PREFIX:       CONFIG.S3_MARKER_PREFIX,
+        CRITICAL_TABLES:     'users,bets,payments',
+        // SECURITY: No DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD here.
+        // The Lambda reads all Supabase credentials from Secrets Manager at
+        // runtime using SUPABASE_SECRET_ARN (see get_db_conn_params in Lambda code).
+        SUPABASE_SECRET_ARN: supabaseSecret.secretArn,
       },
 
-      retryAttempts: 0,   // no retry — failover must not be attempted twice
+      retryAttempts: 0,
     });
 
-    /* ── 9. SNS topic — DR alerts ────────────────────────────────────── */
-    // The dr-trigger Lambda in eu-north-1 subscribes to this topic.
-    // Note: SNS cross-region subscriptions are not supported — the alarm
-    // in eu-north-1 will fire the dr-trigger Lambda directly in that region.
-    // This topic is available for optional email/Slack alerting.
+    /* ── 9. CloudWatch alarm — Lambda errors ────────────────────────── */
+    const autoFailoverErrors = this.autoFailoverFn.metricErrors({
+      period:    cdk.Duration.minutes(5),
+      statistic: 'Sum',
+    });
+    new cdk.aws_cloudwatch.Alarm(this, 'AutoFailoverErrorAlarm', {
+      alarmName:          'SafeBetAutoFailoverErrors',
+      alarmDescription:   'safebet-auto-failover Lambda is throwing errors — restore pipeline broken',
+      metric:             autoFailoverErrors,
+      threshold:          1,
+      comparisonOperator: cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods:  1,
+      treatMissingData:   cdk.aws_cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    /* ── 10. SNS topic — DR alerts ──────────────────────────────────── */
     this.drAlertsTopic = new sns.Topic(this, 'DrAlertsTopic', {
       topicName:   CONFIG.SNS_TOPIC_NAME,
       displayName: 'SafeBet IQ — DR Alerts',
     });
 
-    /* ── 10. Stack outputs ───────────────────────────────────────────── */
+    if (props.alertEmail) {
+      this.drAlertsTopic.addSubscription(
+        new sns_subs.EmailSubscription(props.alertEmail)
+      );
+    }
+
+    /* ── 11. Stack outputs ───────────────────────────────────────────── */
     new cdk.CfnOutput(this, 'PrimaryDbEndpoint', {
       value:       this.primaryDb.dbInstanceEndpointAddress,
-      description: 'RDS primary endpoint (use as DB_HOST in replica Lambda env)',
+      description: 'RDS primary endpoint',
       exportName:  'SafeBetPrimaryDbEndpoint',
     });
-
     new cdk.CfnOutput(this, 'PrimaryDbIdentifier', {
       value:       CONFIG.PRIMARY_DB_ID,
       description: 'RDS primary instance identifier',
       exportName:  'SafeBetPrimaryDbId',
     });
-
     new cdk.CfnOutput(this, 'PrimaryDbSecretArn', {
       value:       this.dbSecret.secretArn,
       description: 'Secrets Manager ARN — RDS admin credentials',
       exportName:  'SafeBetPrimaryDbSecretArn',
     });
-
     new cdk.CfnOutput(this, 'AutoFailoverLambdaArn', {
       value:       this.autoFailoverFn.functionArn,
       description: 'safebet-auto-failover Lambda ARN',
       exportName:  'SafeBetAutoFailoverArn',
     });
-
     new cdk.CfnOutput(this, 'DrAlertsTopicArn', {
       value:       this.drAlertsTopic.topicArn,
       description: 'SNS DR alerts topic ARN',
       exportName:  'SafeBetDrAlertsTopicArn',
+    });
+    new cdk.CfnOutput(this, 'SupabaseSecretArn', {
+      value:       supabaseSecret.secretArn,
+      description: 'Secrets Manager ARN — Supabase credentials for Lambda',
+      exportName:  'SafeBetSupabaseSecretArn',
     });
   }
 }
