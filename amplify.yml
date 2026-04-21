@@ -22,15 +22,13 @@ applications:
         build:
           commands:
             - npm run build
-            - cp -r .next/static .next/standalone/.next/static
-            - cp -r public .next/standalone/public
 
         postBuild:
           commands:
             - echo "Build complete — Branch=$AWS_BRANCH Env=$NEXT_PUBLIC_ENV"
 
       artifacts:
-        baseDirectory: .next/standalone
+        baseDirectory: .next
         files:
           - '**/*'
 
