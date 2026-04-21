@@ -1,37 +1,35 @@
 version: 1
-applications:
-  - appRoot: frontend
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - echo "Branch=$AWS_BRANCH"
-            - |
-              if [ "$AWS_BRANCH" = "production" ]; then
-                cp .env.production .env.local
-                echo "NEXT_PUBLIC_ENV=production" >> .env.local
-              elif [ "$AWS_BRANCH" = "demo" ]; then
-                cp .env.demo .env.local
-                echo "NEXT_PUBLIC_ENV=demo" >> .env.local
-              else
-                cp .env.demo .env.local
-                echo "NEXT_PUBLIC_ENV=demo" >> .env.local
-              fi
-            - npm ci
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd frontend
+        - |
+          if [ "$AWS_BRANCH" = "production" ]; then
+            cp .env.production .env.local
+            echo "NEXT_PUBLIC_ENV=production" >> .env.local
+          elif [ "$AWS_BRANCH" = "demo" ]; then
+            cp .env.demo .env.local
+            echo "NEXT_PUBLIC_ENV=demo" >> .env.local
+          else
+            cp .env.demo .env.local
+            echo "NEXT_PUBLIC_ENV=demo" >> .env.local
+          fi
+        - npm ci
 
-        build:
-          commands:
-            - npm run build
+    build:
+      commands:
+        - npm run build
 
-        postBuild:
-          commands:
-            - echo "Build complete — Branch=$AWS_BRANCH Env=$NEXT_PUBLIC_ENV"
+    postBuild:
+      commands:
+        - echo "Build complete — Branch=$AWS_BRANCH Env=$NEXT_PUBLIC_ENV"
 
-      artifacts:
-        baseDirectory: .next
-        files:
-          - '**/*'
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
 
-      cache:
-        paths:
-          - node_modules/**/*
+  cache:
+    paths:
+      - frontend/node_modules/**/*
