@@ -6,7 +6,7 @@ applications:
           commands:
             - echo "Branch: $AWS_BRANCH"
             - |
-              if [ "$AWS_BRANCH" = "Production" ]; then
+              if [ "$AWS_BRANCH" = "production" ]; then
                 cp .env.production .env.local
                 echo "NEXT_PUBLIC_ENV=production" >> .env.local
               elif [ "$AWS_BRANCH" = "demo" ]; then
