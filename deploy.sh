@@ -33,8 +33,9 @@ echo "→ [2/6] Building Next.js app..."
 npm run build
 
 echo ""
-echo "→ Build output (.next must exist):"
+echo "→ Build output (.next must exist, /api/health route must be present):"
 ls -la .next/
+grep -r "api/health" .next/server/app/api/ 2>/dev/null && echo "✓ health route built" || echo "⚠ health route not found in build"
 echo ""
 
 # ── Step 3: Swap to production-only node_modules ─────────────
