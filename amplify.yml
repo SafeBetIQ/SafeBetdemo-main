@@ -1,10 +1,11 @@
 version: 1
 applications:
-  - frontend:
+  - appRoot: frontend
+    frontend:
       phases:
         preBuild:
           commands:
-            - echo "Branch: $AWS_BRANCH"
+            - echo "Branch=$AWS_BRANCH"
             - |
               if [ "$AWS_BRANCH" = "production" ]; then
                 cp .env.production .env.local
@@ -21,24 +22,14 @@ applications:
         build:
           commands:
             - npm run build
+            - cp -r .next/static .next/standalone/.next/static
+            - cp -r public .next/standalone/public
 
         postBuild:
           commands:
-            # Assemble the standalone bundle. Next.js does NOT copy these automatically.
-            # Without this, the server starts but serves 404 for all static assets.
-            - cp -r .next/static .next/standalone/.next/static
-            - cp -r public .next/standalone/public
-            - |
-              echo "==================================================="
-              echo "Build complete"
-              echo "Branch:      $AWS_BRANCH"
-              echo "Environment: $NEXT_PUBLIC_ENV"
-              echo "App:         $NEXT_PUBLIC_APP_NAME"
-              echo "==================================================="
+            - echo "Build complete — Branch=$AWS_BRANCH Env=$NEXT_PUBLIC_ENV"
 
       artifacts:
-        # standalone/ contains server.js + node_modules + assembled assets.
-        # Path is relative to appRoot (frontend/), resolves to frontend/.next/standalone.
         baseDirectory: .next/standalone
         files:
           - '**/*'
@@ -46,5 +37,3 @@ applications:
       cache:
         paths:
           - node_modules/**/*
-
-    appRoot: frontend
