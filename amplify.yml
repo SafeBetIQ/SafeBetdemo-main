@@ -4,15 +4,11 @@ applications:
       phases:
         preBuild:
           commands:
-            # ── Environment isolation ────────────────────────────────────────
-            # Detect branch and create .env.local from the branch-specific
-            # env file committed to the repo (values are placeholders only).
-            # Real secrets are injected by Amplify Console as environment
-            # variables and override any file-based values at build time.
+            # When appRoot is set, Amplify's working directory is already
+            # frontend/ — no cd needed. All paths below are relative to frontend/.
+            - echo "Branch: $AWS_BRANCH"
             - |
-              echo "Branch: $AWS_BRANCH"
-              cd frontend
-              if [ "$AWS_BRANCH" = "production" ]; then
+              if [ "$AWS_BRANCH" = "Production" ]; then
                 echo "Loading production environment baseline"
                 cp .env.production .env.local
                 echo "NEXT_PUBLIC_ENV=production" >> .env.local
@@ -25,18 +21,14 @@ applications:
                 cp .env.demo .env.local
                 echo "NEXT_PUBLIC_ENV=demo" >> .env.local
               fi
-            # ── Dependency installation ──────────────────────────────────────
             - npm ci
 
         build:
           commands:
-            # Amplify Console environment variables (set per-branch in Console)
-            # are automatically available here and override .env.local values.
             - npm run build
 
         postBuild:
           commands:
-            # Emit which environment was built — safe info only, no secrets
             - |
               echo "==================================================="
               echo "Build complete"
@@ -46,12 +38,15 @@ applications:
               echo "==================================================="
 
       artifacts:
-        baseDirectory: frontend/.next
+        # baseDirectory is relative to appRoot (frontend/).
+        # .next is correct — NOT frontend/.next (that would resolve to frontend/frontend/.next).
+        baseDirectory: .next
         files:
           - '**/*'
 
       cache:
+        # Also relative to appRoot (frontend/).
         paths:
-          - frontend/node_modules/**/*
+          - node_modules/**/*
 
     appRoot: frontend

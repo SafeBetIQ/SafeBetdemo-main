@@ -224,13 +224,9 @@ interface HmacVerificationInput {
   secret:    string;
 }
 
-interface HmacVerificationResult {
-  valid: true;
-} | {
-  valid: false;
-  error: HmacError;
-  detail: string;
-}
+type HmacVerificationResult =
+  | { valid: true }
+  | { valid: false; error: HmacError; detail: string };
 
 /**
  * Constant-time byte comparison — prevents timing oracle attacks.
