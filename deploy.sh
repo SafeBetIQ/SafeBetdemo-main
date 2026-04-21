@@ -26,7 +26,13 @@ echo ""
 cd frontend
 
 echo "→ [1/6] Installing all dependencies..."
-npm ci
+if [ -f "package-lock.json" ]; then
+  echo "   package-lock.json found — using npm ci"
+  npm ci
+else
+  echo "   package-lock.json missing — using npm install (will generate lock file)"
+  npm install
+fi
 
 # ── Step 2: Build ────────────────────────────────────────────
 echo "→ [2/6] Building Next.js app..."
@@ -43,7 +49,11 @@ echo ""
 # EB will skip npm install because node_modules already exists in the zip.
 echo "→ [3/6] Trimming to production dependencies..."
 rm -rf node_modules
-npm ci --omit=dev --ignore-scripts
+if [ -f "package-lock.json" ]; then
+  npm ci --omit=dev --ignore-scripts
+else
+  npm install --omit=dev --ignore-scripts
+fi
 
 echo "→ node_modules size: $(du -sh node_modules | cut -f1)"
 

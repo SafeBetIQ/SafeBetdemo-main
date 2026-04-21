@@ -63,19 +63,22 @@ export interface ServerEnv {
 // Validation helpers
 // ---------------------------------------------------------------------------
 
+// True only during `next build` — not during runtime request handling.
+const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build';
+
 function requirePublic(key: string, name: string): string {
   const value = process.env[key];
   if (!value || value.startsWith('REPLACE_ME')) {
     const msg =
       `[SafeBet IQ] Missing required public environment variable: ${name}\n` +
       `  Expected key: ${key}\n` +
-      `  Set this in Amplify Console → Environment variables (branch-specific).\n` +
+      `  Set this in Elastic Beanstalk → Configuration → Software → Environment variables.\n` +
       `  For local dev: copy .env.example to .env.local and fill in the value.`;
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !IS_BUILD_PHASE) {
       throw new Error(msg);
     }
-    // Development: warn but don't crash
+    // Build phase or development: warn but don't crash
     console.error(`\x1b[31m${msg}\x1b[0m`);
     return '';
   }
@@ -118,7 +121,7 @@ function assertNoEnvCrossContamination(appEnv: AppEnvironment, supabaseUrl: stri
       `  This could mean a production database is wired to a demo build, or vice-versa.\n` +
       `  Fix this in Amplify Console → Environment variables.`;
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !IS_BUILD_PHASE) {
       throw new Error(msg);
     }
     console.error(`\x1b[31;1m${msg}\x1b[0m`);

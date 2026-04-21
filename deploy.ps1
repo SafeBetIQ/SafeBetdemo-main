@@ -22,8 +22,15 @@ Write-Host ""
 # ── Step 1: Full install + build ──────────────────────────────
 Write-Host "-> [1/6] Installing dependencies..."
 Set-Location frontend
-npm ci
-if ($LASTEXITCODE -ne 0) { Write-Error "npm ci failed"; exit 1 }
+
+if (Test-Path "package-lock.json") {
+    Write-Host "   package-lock.json found — using npm ci"
+    npm ci
+} else {
+    Write-Host "   package-lock.json missing — using npm install (will generate lock file)"
+    npm install
+}
+if ($LASTEXITCODE -ne 0) { Write-Error "npm install failed"; exit 1 }
 
 Write-Host "-> [2/6] Building Next.js app..."
 npm run build
@@ -37,7 +44,12 @@ Write-Host ""
 # ── Step 2: Swap to production deps ───────────────────────────
 Write-Host "-> [3/6] Trimming to production dependencies..."
 Remove-Item -Recurse -Force node_modules
-npm ci --omit=dev --ignore-scripts
+
+if (Test-Path "package-lock.json") {
+    npm ci --omit=dev --ignore-scripts
+} else {
+    npm install --omit=dev --ignore-scripts
+}
 if ($LASTEXITCODE -ne 0) { Write-Error "Production install failed"; exit 1 }
 
 $nodeSize = (Get-ChildItem node_modules -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB
