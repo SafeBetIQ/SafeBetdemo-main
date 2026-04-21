@@ -4,17 +4,29 @@ frontend:
     preBuild:
       commands:
         - npm ci --prefix frontend
+        - |
+          if [ "$AWS_BRANCH" = "production" ]; then
+            cp frontend/.env.production frontend/.env.local
+            echo "NEXT_PUBLIC_ENV=production" >> frontend/.env.local
+          elif [ "$AWS_BRANCH" = "demo" ]; then
+            cp frontend/.env.demo frontend/.env.local
+            echo "NEXT_PUBLIC_ENV=demo" >> frontend/.env.local
+          else
+            cp frontend/.env.demo frontend/.env.local
+            echo "NEXT_PUBLIC_ENV=demo" >> frontend/.env.local
+          fi
 
     build:
       commands:
         - npm run build --prefix frontend
+        - cp -r frontend/.next .next
 
     postBuild:
       commands:
         - echo "Build complete — Branch=$AWS_BRANCH"
 
   artifacts:
-    baseDirectory: frontend/.next
+    baseDirectory: .next
     files:
       - '**/*'
 
