@@ -3,27 +3,23 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci --prefix frontend
         - |
           if [ "$AWS_BRANCH" = "production" ]; then
-            cp frontend/.env.production frontend/.env.local
-            echo "NEXT_PUBLIC_ENV=production" >> frontend/.env.local
-          elif [ "$AWS_BRANCH" = "demo" ]; then
-            cp frontend/.env.demo frontend/.env.local
-            echo "NEXT_PUBLIC_ENV=demo" >> frontend/.env.local
+            cp .env.production .env.local
+            echo "NEXT_PUBLIC_ENV=production" >> .env.local
           else
-            cp frontend/.env.demo frontend/.env.local
-            echo "NEXT_PUBLIC_ENV=demo" >> frontend/.env.local
+            cp .env.demo .env.local
+            echo "NEXT_PUBLIC_ENV=demo" >> .env.local
           fi
+        - npm ci
 
     build:
       commands:
-        - npm run build --prefix frontend
-        - cp -r frontend/.next .next
+        - npm run build
 
     postBuild:
       commands:
-        - echo "Build complete — Branch=$AWS_BRANCH"
+        - echo "done"
 
   artifacts:
     baseDirectory: .next
@@ -32,4 +28,4 @@ frontend:
 
   cache:
     paths:
-      - frontend/node_modules/**/*
+      - node_modules/**/*
