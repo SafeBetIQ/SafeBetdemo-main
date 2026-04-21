@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendWhatsAppMessage, sendSMS, type DispatchResult } from '@/lib/messaging';
 
-// Force Node.js runtime so Buffer / btoa work correctly
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // ── Request / response shapes ─────────────────────────────────────────────────

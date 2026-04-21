@@ -1,20 +1,60 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ── UPGRADE 4: Contact Form API Security ──────────────────────────────────────
-// This Edge Function is the ONLY path for contact form submissions.
-// Direct anon INSERT to contact_submissions is a fallback kept for compatibility.
-//
-// Security layers (in order):
-//   1. Cloudflare Turnstile CAPTCHA verification
-//   2. Schema validation (email format, field lengths, allowed values)
-//   3. Rate limiting — 3 submissions per email per 24h (checked in DB)
-//   4. Sanitisation — whitespace trim, email lowercased
-//   5. INSERT using service_role (no anon JWT transmitted)
-// ─────────────────────────────────────────────────────────────────────────────
+// Security layers:
+//   1. IP rate limiting — 10 attempts per IP per hour (before CAPTCHA)
+//   2. Cloudflare Turnstile CAPTCHA verification
+//   3. Schema validation (email regex, field lengths, enum allowlist)
+//   4. Per-email rate limiting — 3 submissions per 24h (DB-enforced)
+//   5. Sanitisation — trim whitespace, lowercase email
+//   6. INSERT via service_role — no anon JWT ever transmitted
 
+// ── FIX 5: IP rate limiting ───────────────────────────────────────────────────
+const IP_LIMIT      = 10;
+const IP_WINDOW_MS  = 60 * 60 * 1000; // 1 hour
+const IP_MAP_MAX    = 5_000;
+const ipHitMap      = new Map<string, number[]>();
+
+function checkIpRateLimit(ip: string): { allowed: boolean; count: number } {
+  const now  = Date.now();
+  const hits = (ipHitMap.get(ip) ?? []).filter((t) => now - t < IP_WINDOW_MS);
+  hits.push(now);
+  ipHitMap.set(ip, hits);
+  if (ipHitMap.size > IP_MAP_MAX) {
+    const cutoff = now - IP_WINDOW_MS;
+    for (const [k, v] of ipHitMap) {
+      if (v.at(-1)! < cutoff) ipHitMap.delete(k);
+    }
+  }
+  return { allowed: hits.length <= IP_LIMIT, count: hits.length };
+}
+
+// ── Distributed rate limit (DB-backed, cross-instance) ───────────────────────
+interface RateLimitResult { allowed: boolean; count: number; limit: number; }
+
+async function checkDistributedRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateLimitResult> {
+  try {
+    const { data, error } = await supabase.rpc("check_distributed_rate_limit", {
+      p_key: key, p_limit: limit, p_window_seconds: windowSeconds,
+    });
+    if (error) throw error;
+    return data as RateLimitResult;
+  } catch (err) {
+    // Fail open — never block legitimate traffic on DB failure
+    console.warn("[contact-form] distributed rate limit check failed — failing open", { error: String(err) });
+    return { allowed: true, count: 0, limit };
+  }
+}
+
+// ── CORS — explicit origin only, no wildcard ──────────────────────────────────
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "https://safebetiq.com";
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin":  Deno.env.get("ALLOWED_ORIGIN") ?? "https://safebetiq.com",
+  "Access-Control-Allow-Origin":  ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
@@ -145,6 +185,16 @@ Deno.serve(async (req: Request) => {
     ?? req.headers.get("x-forwarded-for")?.split(",")[0].trim()
     ?? "unknown";
 
+  // ── FIX 5: IP rate limit — checked before CAPTCHA to block bot floods early ──
+  const { allowed: ipAllowed, count: ipCount } = checkIpRateLimit(ip);
+  if (!ipAllowed) {
+    console.warn("[contact-form] ABUSE: IP rate limit exceeded", { ip, count: ipCount });
+    return new Response(
+      JSON.stringify({ error: "Too many requests from your IP. Please try again later." }),
+      { status: 429, headers: { ...CORS_HEADERS, "Content-Type": "application/json", "Retry-After": "3600" } },
+    );
+  }
+
   // ── Parse body ──────────────────────────────────────────────────────────────
   let rawBody: unknown;
   try {
@@ -180,7 +230,17 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // ── Rate limit check — max 3 per email per 24 hours ─────────────────────────
+  // ── Distributed IP rate limit (cross-instance, authoritative) ──────────────
+  const ipRl = await checkDistributedRateLimit(supabase, `contact-form:ip:${ip}`, 10, 3600);
+  if (!ipRl.allowed) {
+    console.warn("[contact-form] ABUSE: distributed IP rate limit exceeded", { ip, count: ipRl.count });
+    return new Response(
+      JSON.stringify({ error: "Too many requests from your network. Please try again later." }),
+      { status: 429, headers: { ...CORS_HEADERS, "Content-Type": "application/json", "Retry-After": "3600" } },
+    );
+  }
+
+  // ── Per-email rate limit (DB query — max 3 per email per 24h) ────────────────
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error: countErr } = await supabase
     .from("contact_submissions")
@@ -189,7 +249,7 @@ Deno.serve(async (req: Request) => {
     .gte("created_at", since);
 
   if (countErr) {
-    console.error("[contact-form] Rate limit check failed:", countErr.message);
+    console.error("[contact-form] email rate limit check failed:", { code: countErr.code });
     return new Response(JSON.stringify({ error: "Internal error — please try again" }), {
       status: 500,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
@@ -197,7 +257,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if ((count ?? 0) >= 3) {
-    console.warn("[contact-form] Rate limit hit", { email: data.email, ip });
+    console.warn("[contact-form] per-email rate limit hit", { ip });
     return new Response(
       JSON.stringify({ error: "Too many submissions. Please wait 24 hours before submitting again." }),
       { status: 429, headers: { ...CORS_HEADERS, "Content-Type": "application/json", "Retry-After": "86400" } },

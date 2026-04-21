@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Required for AWS Amplify SSR (WEB_COMPUTE / Next.js - SSR platform).
+  // Amplify expects the standalone output directory structure.
+  output: 'standalone',
+
   eslint: {
     ignoreDuringBuilds: true,
   },
