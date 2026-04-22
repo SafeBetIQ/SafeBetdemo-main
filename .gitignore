@@ -60,3 +60,9 @@ infrastructure/lambda/**/function.zip
 # CDK
 infrastructure/cdk.out/
 infrastructure/dist/
+
+# Elastic Beanstalk deployment artifact
+app.zip
+
+# Supabase CLI local state
+supabase/.temp/
