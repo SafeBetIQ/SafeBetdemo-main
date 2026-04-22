@@ -22,7 +22,7 @@ Write-Host " Region  : $REGION"
 Write-Host "========================================"
 Write-Host ""
 
-# ── Step 1: Install all dependencies (dev deps needed for build) ──
+# ── Step 1: Install dependencies (dev deps needed for build) ──────
 Write-Host "-> [1/6] Installing dependencies..."
 Push-Location (Join-Path $REPO_ROOT "frontend")
 
@@ -41,9 +41,14 @@ Write-Host "-> [2/6] Building Next.js app..."
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
 
-Write-Host ""
-Write-Host "-> Build output (.next must exist):"
-Get-ChildItem ".next" | Select-Object -Property Name, LastWriteTime
+# Verify the build actually produced output — fail loudly if not
+$buildId = Join-Path ".next" "BUILD_ID"
+if (-not (Test-Path $buildId)) {
+    throw ".next/BUILD_ID not found after build -- build output is missing. Cannot deploy."
+}
+Write-Host "   Build ID: $(Get-Content $buildId)"
+Write-Host "   .next contents:"
+Get-ChildItem ".next" | Select-Object -Property Name | Format-Table -HideTableHeaders
 Write-Host ""
 
 # ── Step 3: Trim to production-only node_modules ──────────────────
@@ -87,6 +92,16 @@ $frontendPath = Join-Path $REPO_ROOT "frontend"
 Get-ChildItem -Path $frontendPath -Force |
     Where-Object { $skipNames -notcontains $_.Name -and $_.Name -notlike "*.log" } |
     ForEach-Object { Copy-Item -Path $_.FullName -Destination $stage -Recurse -Force }
+
+# Verify critical files are in the staging directory before zipping
+$required = @(".next", "package.json", "Procfile", "node_modules")
+foreach ($item in $required) {
+    $itemPath = Join-Path $stage $item
+    if (-not (Test-Path $itemPath)) {
+        throw "Required item missing from deployment package: $item -- aborting"
+    }
+    Write-Host "   [OK] $item"
+}
 
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $ZIP_FILE -Force
 Remove-Item -Path $stage -Recurse -Force
@@ -139,6 +154,8 @@ if ($LASTEXITCODE -ne 0) { throw "EB deployment trigger failed" }
 Write-Host ""
 Write-Host "========================================"
 Write-Host " Deployment triggered: $VERSION_LABEL"
+Write-Host " Wait ~3 minutes, then test:"
+Write-Host "   curl http://<your-eb-url>/api/health"
 Write-Host " Monitor with:"
 Write-Host "   aws elasticbeanstalk describe-events --environment-name $ENV_NAME --region $REGION"
 Write-Host "========================================"
