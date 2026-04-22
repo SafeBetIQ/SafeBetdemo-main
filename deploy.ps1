@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $APP_NAME      = "safebet-iq-app"
 $ENV_NAME      = "safebet-iq-prod"
-$S3_BUCKET     = "safebet-iq-deployments"
+$S3_BUCKET     = "safebet-iq-deployments-eu"
 $REGION        = "eu-west-1"
 $VERSION_LABEL = "safebet-" + (Get-Date -Format "yyyyMMdd-HHmmss")
 $ZIP_FILE      = "app.zip"
