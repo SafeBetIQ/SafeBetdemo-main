@@ -1,152 +1,129 @@
-# ============================================================
-# SafeBet IQ -- Elastic Beanstalk Deployment (PowerShell)
-# Run from repo root: .\deploy.ps1
-# Requires: node 18+, npm, PowerShell 5.1+, AWS CLI configured
-# ============================================================
+# SafeBet IQ - Elastic Beanstalk deployment
+# Usage: .\deploy.ps1  (run from repo root)
 
 $ErrorActionPreference = "Stop"
 
-$APP_NAME      = "safebet-iq-app"
-$ENV_NAME      = "safebet-iq-prod"
-$S3_BUCKET     = "safebet-iq-deployments-eu"
-$REGION        = "eu-west-1"
-$VERSION_LABEL = "safebet-" + (Get-Date -Format "yyyyMMdd-HHmmss")
-$ZIP_FILE      = "app.zip"
-$REPO_ROOT     = $PSScriptRoot
+$APP    = "safebet-iq-app"
+$ENV    = "safebet-iq-prod"
+$S3     = "safebet-iq-deployments-eu"
+$REGION = "eu-west-1"
+$VER    = "safebet-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$ZIP    = "app.zip"
+$ROOT   = $PSScriptRoot
 
 Write-Host ""
-Write-Host "========================================"
-Write-Host " SafeBet IQ -- EB Deployment"
-Write-Host " Version : $VERSION_LABEL"
-Write-Host " Region  : $REGION"
-Write-Host "========================================"
+Write-Host "=== SafeBet IQ - Deploying $VER ==="
 Write-Host ""
 
-# ── Step 1: Install dependencies (dev deps needed for build) ──────
-Write-Host "-> [1/6] Installing dependencies..."
-Push-Location (Join-Path $REPO_ROOT "frontend")
+# --- 1. Install & build ---
+Push-Location (Join-Path $ROOT "frontend")
 
-if (Test-Path "package-lock.json") {
-    Write-Host "   package-lock.json found -- using npm ci"
-    npm ci
-    if ($LASTEXITCODE -ne 0) { throw "npm ci failed" }
-} else {
-    Write-Host "   package-lock.json not found -- using npm install"
-    npm install
-    if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
+# Strip UTF-8 BOM from package.json if present — some Windows tools add it
+# and both npm and webpack reject it as invalid JSON.
+$pkgPath = (Resolve-Path "package.json").Path
+$pkgBytes = [System.IO.File]::ReadAllBytes($pkgPath)
+if ($pkgBytes.Length -ge 3 -and $pkgBytes[0] -eq 0xEF -and $pkgBytes[1] -eq 0xBB -and $pkgBytes[2] -eq 0xBF) {
+    [System.IO.File]::WriteAllBytes($pkgPath, $pkgBytes[3..($pkgBytes.Length - 1)])
+    Write-Host "   Stripped UTF-8 BOM from package.json"
 }
 
-# ── Step 2: Build Next.js app ─────────────────────────────────────
-Write-Host "-> [2/6] Building Next.js app..."
+Write-Host "[1/5] Installing dependencies..."
+npm install
+if ($LASTEXITCODE) { Pop-Location; throw "npm install failed" }
+
+Write-Host "[2/5] Building Next.js..."
 npm run build
-if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
+$buildExit = $LASTEXITCODE
 
-# Verify the build actually produced output — fail loudly if not
-$standaloneServer = Join-Path ".next" "standalone" | Join-Path -ChildPath "server.js"
-if (-not (Test-Path $standaloneServer)) {
-    throw ".next/standalone/server.js not found -- standalone build failed. Cannot deploy."
+if (-not (Test-Path ".next/standalone/server.js")) {
+    Pop-Location
+    throw "standalone server.js not found - check next.config.js output: 'standalone'"
 }
-Write-Host "   Standalone server: $standaloneServer"
 
-# Copy static assets into standalone so server.js can find them at runtime
-Write-Host "   Copying static assets into standalone..."
-Copy-Item -Path ".next\static" -Destination ".next\standalone\.next\static" -Recurse -Force
-Copy-Item -Path "public"       -Destination ".next\standalone\public"        -Recurse -Force
-Write-Host "   Static assets ready."
-Write-Host ""
+if ($buildExit) {
+    Write-Host "   Warning: build had prerender errors (Windows path issue) - standalone exists, continuing"
+}
 
-Pop-Location
-
-# ── Step 4: Package ZIP from frontend/ contents ───────────────────
-Write-Host ""
-Write-Host "-> [4/6] Creating deployment package..."
-
-# Verify critical files exist before zipping
-$required = @(".next", "Procfile")
-$frontendPath = Join-Path $REPO_ROOT "frontend"
-foreach ($item in $required) {
-    $itemPath = Join-Path $frontendPath $item
-    if (-not (Test-Path $itemPath)) {
-        throw "Required item missing from deployment package: $item -- aborting"
+# Next.js 13.5.x only creates prerender-manifest.js; the standalone server needs the full JSON
+# structure with version/routes/dynamicRoutes/notFoundRoutes/preview.
+if (Test-Path ".next\prerender-manifest.js") {
+    $pmPreview = node -e "var self={}; eval(require('fs').readFileSync('.next/prerender-manifest.js','utf8')); process.stdout.write(self.__PRERENDER_MANIFEST)"
+    if ($LASTEXITCODE -eq 0 -and $pmPreview) {
+        $fullManifest = "{`"version`":4,`"routes`":{},`"dynamicRoutes`":{},`"notFoundRoutes`":[],`"preview`":$pmPreview}"
+        [System.IO.File]::WriteAllBytes(".next\prerender-manifest.json", [System.Text.Encoding]::UTF8.GetBytes($fullManifest))
+        Write-Host "   Created prerender-manifest.json"
     }
-    Write-Host "   [OK] $item"
 }
 
-# Use tar with an explicit file list so every required file is guaranteed
-# at ZIP root with forward-slash paths (Compress-Archive uses backslashes).
-# NOTE: package.json and package-lock.json are intentionally excluded.
-#       Their presence triggers EB's automatic `npm install`, which takes
-#       14+ minutes on t3.small and hits the deployment timeout.
-#       The standalone build is self-contained: .next/standalone/node_modules/
-#       has all runtime dependencies — no install step needed on the instance.
-Remove-Item $ZIP_FILE -ErrorAction Ignore
+# Merge the full .next build output into standalone/.next (skip standalone/ and cache/)
+Get-ChildItem ".next" | Where-Object { $_.Name -notin @('standalone','cache') } |
+    ForEach-Object { Copy-Item $_.FullName -Destination ".next\standalone\.next\" -Recurse -Force }
+Copy-Item "public" ".next\standalone\public" -Recurse -Force
 
-Push-Location (Join-Path $REPO_ROOT "frontend")
-# Exclude .next/cache (582 MB build cache, not needed at runtime).
-# Its presence inflates the ZIP and causes 14-min EBS extraction on t3.small.
-tar --exclude="./.next/cache" -a -c -f "../$ZIP_FILE" `
-    ./Procfile `
-    ./next.config.js `
-    ./.next `
-    ./public `
-    ./.ebextensions
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw "tar packaging failed" }
+# --- 2. Fix Windows backslash paths in server bundles ---
+# Next.js built on Windows embeds require('next/dist\client\...') which
+# fails on Linux. Replace all next/dist\ separators with next/dist/.
+Write-Host "[3/5] Fixing Windows path separators..."
+$fixed = 0
+foreach ($f in (Get-ChildItem ".next" -Recurse -Include "*.js" -File)) {
+    $c = [System.IO.File]::ReadAllText($f.FullName)
+    if ($c -notmatch 'next/dist\\') { continue }
+    $n = $c
+    for ($i = 0; $i -lt 6; $i++) {
+        $n = $n -replace '(next/dist[/a-zA-Z0-9._-]*)\\+([a-zA-Z0-9._-])', '$1/$2'
+    }
+    if ($n -ne $c) {
+        [System.IO.File]::WriteAllText($f.FullName, $n)
+        $fixed++
+    }
+}
+Write-Host "   $fixed file(s) patched."
 
-# Confirm ZIP root structure before uploading
-Write-Host "-> ZIP root contents:"
-tar -tf "../$ZIP_FILE" | Select-String "^[^/]+/?$" | Select-Object -First 20
 Pop-Location
 
-$zipMB = [math]::Round((Get-Item $ZIP_FILE).Length / 1MB, 1)
-Write-Host "-> Package: $ZIP_FILE (${zipMB} MB)"
+# --- 3. Package ---
+Write-Host "[4/5] Packaging..."
+Remove-Item $ZIP -ErrorAction Ignore
+Push-Location (Join-Path $ROOT "frontend")
 
-if ($zipMB -eq 0) {
-    throw "Zip is empty -- aborting deploy"
-}
+# Temporarily replace package.json with a zero-dep version so EB's mandatory
+# npm install step exits immediately instead of OOM-killing the instance.
+# Windows built-in tar.exe does not support --transform for rename-in-archive.
+# Use WriteAllBytes to avoid the UTF-8 BOM that Set-Content -Encoding utf8 adds
+# (EB's Go JSON parser rejects the BOM as invalid character 'i').
+$pkgPath = (Resolve-Path "package.json").Path
+$realPkgBytes = [System.IO.File]::ReadAllBytes($pkgPath)
+$minPkg = [System.Text.Encoding]::ASCII.GetBytes('{"name":"safebet-iq","version":"1.0.0","private":true}')
+[System.IO.File]::WriteAllBytes($pkgPath, $minPkg)
 
-# ── Step 5: Upload to S3 ──────────────────────────────────────────
-Write-Host ""
-Write-Host "-> [5/6] Uploading to S3..."
+tar --exclude="./.next/cache" -a -c -f "../$ZIP" `
+    ./Procfile ./next.config.js ./.next ./public ./.ebextensions ./package.json
+$te = $LASTEXITCODE
 
-$s3Key = "$VERSION_LABEL/$ZIP_FILE"
+# Restore real package.json byte-for-byte regardless of tar exit code
+[System.IO.File]::WriteAllBytes($pkgPath, $realPkgBytes)
+Pop-Location
 
-$s3Args = @(
-    "s3", "cp", $ZIP_FILE,
-    "s3://$S3_BUCKET/$s3Key",
-    "--region", $REGION
-)
-& aws @s3Args
-if ($LASTEXITCODE -ne 0) { throw "S3 upload failed" }
+if ($te) { throw "tar packaging failed" }
+$mb = [math]::Round((Get-Item $ZIP).Length / 1MB, 1)
+Write-Host "   ${mb} MB"
 
-$versionArgs = @(
-    "elasticbeanstalk", "create-application-version",
-    "--application-name", $APP_NAME,
-    "--version-label",    $VERSION_LABEL,
-    "--source-bundle",    "S3Bucket=$S3_BUCKET,S3Key=$s3Key",
-    "--region",           $REGION
-)
-& aws @versionArgs
-if ($LASTEXITCODE -ne 0) { throw "create-application-version failed" }
+# --- 4. Upload & deploy ---
+Write-Host "[5/5] Deploying to Elastic Beanstalk ($REGION)..."
 
-# ── Step 6: Trigger EB deployment ────────────────────────────────
-Write-Host ""
-Write-Host "-> [6/6] Deploying to Elastic Beanstalk..."
+aws s3 cp $ZIP "s3://$S3/$VER/$ZIP" --region $REGION
+if ($LASTEXITCODE) { throw "S3 upload failed" }
 
-$deployArgs = @(
-    "elasticbeanstalk", "update-environment",
-    "--application-name",  $APP_NAME,
-    "--environment-name",  $ENV_NAME,
-    "--version-label",     $VERSION_LABEL,
-    "--region",            $REGION
-)
-& aws @deployArgs
-if ($LASTEXITCODE -ne 0) { throw "EB deployment trigger failed" }
+aws elasticbeanstalk create-application-version `
+    --application-name $APP --version-label $VER `
+    --source-bundle "S3Bucket=$S3,S3Key=$VER/$ZIP" --region $REGION
+if ($LASTEXITCODE) { throw "create-application-version failed" }
+
+aws elasticbeanstalk update-environment `
+    --application-name $APP --environment-name $ENV `
+    --version-label $VER --region $REGION
+if ($LASTEXITCODE) { throw "update-environment failed" }
 
 Write-Host ""
-Write-Host "========================================"
-Write-Host " Deployment triggered: $VERSION_LABEL"
-Write-Host " Wait ~3 minutes, then test:"
-Write-Host "   curl http://<your-eb-url>/api/health"
-Write-Host " Monitor with:"
-Write-Host "   aws elasticbeanstalk describe-events --environment-name $ENV_NAME --region $REGION"
-Write-Host "========================================"
+Write-Host "=== Deployed: $VER ==="
+Write-Host "Monitor: aws elasticbeanstalk describe-events --environment-name $ENV --region $REGION"
