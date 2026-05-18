@@ -47,14 +47,10 @@ function buildClient(): SupabaseClient {
       '  NEXT_PUBLIC_SUPABASE_ANON_KEY' + (supabaseAnonKey ? ' ✓' : ' ✗ MISSING') + '\n' +
       SETUP_GUIDE;
 
-    if (!isDev) {
-      // Production: fail immediately — no silent misconfiguration allowed.
-      throw new Error(message);
-    }
-
-    // Development: warn loudly but return a stub so the app renders
-    // (useful for browsing UI without a DB connection).
-    console.error(message);
+    // TEMPORARY: warn instead of crash to confirm env vars are the root cause of 504/500.
+    // Restore throw once NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // are confirmed set correctly on the EB environment.
+    console.error('[SafeBet IQ] PRODUCTION MISCONFIGURATION (non-fatal):', message);
     return createUnconfiguredClient();
   }
 

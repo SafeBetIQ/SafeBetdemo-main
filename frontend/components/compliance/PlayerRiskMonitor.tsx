@@ -20,6 +20,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface Player {
   id: string;
@@ -60,10 +61,14 @@ function getRiskLevel(score: number): string {
   return 'low';
 }
 
+const PAGE_SIZE = 50;
+
 export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
   const { user } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [filteredCount, setFilteredCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [riskCounts, setRiskCounts] = useState({ critical: 0, high: 0, medium: 0, low: 0 });
   const [avgRisk, setAvgRisk] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -119,56 +124,63 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
     }
   }
 
+  // Stats: reload when casinoId changes only
   useEffect(() => {
-    loadPlayers();
+    if (!casinoId) return;
+    Promise.all([
+      supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
+      supabase.from('players').select('risk_score').eq('casino_id', casinoId),
+    ]).then(([countResult, statsResult]) => {
+      setTotalCount(countResult.count ?? 0);
+      const allScores = statsResult.data || [];
+      const critical = allScores.filter(p => p.risk_score >= 80).length;
+      const high     = allScores.filter(p => p.risk_score >= 60 && p.risk_score < 80).length;
+      const medium   = allScores.filter(p => p.risk_score >= 40 && p.risk_score < 60).length;
+      const low      = allScores.filter(p => p.risk_score < 40).length;
+      const avg      = allScores.length ? Math.round(allScores.reduce((s, p) => s + p.risk_score, 0) / allScores.length) : 0;
+      setRiskCounts({ critical, high, medium, low });
+      setAvgRisk(avg);
+    });
   }, [casinoId]);
 
-  async function loadPlayers() {
+  // Table: paginated + filtered
+  useEffect(() => {
+    if (!casinoId) return;
     setLoading(true);
+    const offset = page * PAGE_SIZE;
+    let query = supabase
+      .from('players')
+      .select('id, player_id, first_name, last_name, email, risk_score, risk_level, status, total_wagered, session_count, last_active', { count: 'exact' })
+      .eq('casino_id', casinoId)
+      .order('risk_score', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
 
-    const [countResult, statsResult, tableResult] = await Promise.all([
-      supabase
-        .from('players')
-        .select('*', { count: 'exact', head: true })
-        .eq('casino_id', casinoId),
-      supabase
-        .from('players')
-        .select('risk_score')
-        .eq('casino_id', casinoId),
-      supabase
-        .from('players')
-        .select('id, player_id, first_name, last_name, email, risk_score, risk_level, status, total_wagered, session_count, last_active')
-        .eq('casino_id', casinoId)
-        .order('risk_score', { ascending: false })
-        .limit(500),
-    ]);
+    if (riskFilter === 'critical') query = query.gte('risk_score', 80);
+    else if (riskFilter === 'high') query = query.gte('risk_score', 60).lt('risk_score', 80);
+    else if (riskFilter === 'medium') query = query.gte('risk_score', 40).lt('risk_score', 60);
+    else if (riskFilter === 'low') query = query.lt('risk_score', 40);
+    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (search.trim()) {
+      const t = search.trim();
+      query = query.or(`first_name.ilike.%${t}%,last_name.ilike.%${t}%,email.ilike.%${t}%`);
+    }
 
-    const total = countResult.count ?? 0;
-    setTotalCount(total);
+    query.then(({ data, count }) => {
+      setPlayers(data || []);
+      setFilteredCount(count ?? 0);
+      setLoading(false);
+    });
+  }, [casinoId, page, search, riskFilter, statusFilter]);
 
-    const allScores = statsResult.data || [];
-    const critical = allScores.filter(p => p.risk_score >= 80).length;
-    const high      = allScores.filter(p => p.risk_score >= 60 && p.risk_score < 80).length;
-    const medium    = allScores.filter(p => p.risk_score >= 40 && p.risk_score < 60).length;
-    const low       = allScores.filter(p => p.risk_score < 40).length;
-    const avg       = allScores.length ? Math.round(allScores.reduce((s, p) => s + p.risk_score, 0) / allScores.length) : 0;
-    setRiskCounts({ critical, high, medium, low });
-    setAvgRisk(avg);
-
-    setPlayers(tableResult.data || []);
-    setLoading(false);
+  async function loadPlayers() {
+    setPage(0);
   }
 
   const { critical, high, medium, low } = riskCounts;
 
-  const filtered = players.filter(p => {
-    const name = `${p.first_name} ${p.last_name} ${p.email}`.toLowerCase();
-    if (search && !name.includes(search.toLowerCase())) return false;
-    const level = getRiskLevel(p.risk_score);
-    if (riskFilter !== 'all' && level !== riskFilter) return false;
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-    return true;
-  });
+  const handleSearch = (v: string) => { setSearch(v); setPage(0); };
+  const handleRisk = (v: string) => { setRiskFilter(v); setPage(0); };
+  const handleStatus = (v: string) => { setStatusFilter(v); setPage(0); };
 
   const pieData = [
     { name: 'Critical', value: critical, color: '#ef4444' },
@@ -339,9 +351,9 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Search players..." className="pl-8 h-8 text-xs w-44" value={search} onChange={e => setSearch(e.target.value)} />
+                <Input placeholder="Search players..." className="pl-8 h-8 text-xs w-44" value={search} onChange={e => handleSearch(e.target.value)} />
               </div>
-              <Select value={riskFilter} onValueChange={setRiskFilter}>
+              <Select value={riskFilter} onValueChange={handleRisk}>
                 <SelectTrigger className="h-8 text-xs w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -353,7 +365,7 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
                   <SelectItem value="low">Low (&lt;40)</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={handleStatus}>
                 <SelectTrigger className="h-8 text-xs w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -385,11 +397,11 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {players.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground py-10">No players found</TableCell>
                   </TableRow>
-                ) : filtered.slice(0, 50).map(p => {
+                ) : players.map(p => {
                   const level = getRiskLevel(p.risk_score);
                   return (
                     <TableRow key={p.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => handleViewPlayer(p)}>
@@ -430,11 +442,13 @@ export function PlayerRiskMonitor({ casinoId }: PlayerRiskMonitorProps) {
               </TableBody>
             </Table>
           </div>
-          {filtered.length > 50 && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Showing 50 of {filtered.length} filtered results ({totalCount.toLocaleString()} total players)
-            </p>
-          )}
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={filteredCount}
+            onPageChange={setPage}
+            loading={loading}
+          />
         </CardContent>
       </Card>
     </div>

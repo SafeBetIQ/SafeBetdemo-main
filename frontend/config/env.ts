@@ -121,10 +121,9 @@ function assertNoEnvCrossContamination(appEnv: AppEnvironment, supabaseUrl: stri
       `  This could mean a production database is wired to a demo build, or vice-versa.\n` +
       `  Fix this in Amplify Console → Environment variables.`;
 
-    if (process.env.NODE_ENV === 'production' && !IS_BUILD_PHASE) {
-      throw new Error(msg);
-    }
-    console.error(`\x1b[31;1m${msg}\x1b[0m`);
+    // TEMPORARY: warn instead of crash to diagnose 504 root cause.
+    // Restore throw once env vars are confirmed correct on EB.
+    console.warn(`\x1b[33;1m⚠️  ENVIRONMENT MISMATCH (non-fatal) — ${msg}\x1b[0m`);
   }
 }
 

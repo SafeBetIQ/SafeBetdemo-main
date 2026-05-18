@@ -42,33 +42,18 @@ npm run build
 if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
 
 # Verify the build actually produced output — fail loudly if not
-$buildId = Join-Path ".next" "BUILD_ID"
-if (-not (Test-Path $buildId)) {
-    throw ".next/BUILD_ID not found after build -- build output is missing. Cannot deploy."
+$standaloneServer = Join-Path ".next" "standalone" | Join-Path -ChildPath "server.js"
+if (-not (Test-Path $standaloneServer)) {
+    throw ".next/standalone/server.js not found -- standalone build failed. Cannot deploy."
 }
-Write-Host "   Build ID: $(Get-Content $buildId)"
-Write-Host "   .next contents:"
-Get-ChildItem ".next" | Select-Object -Property Name | Format-Table -HideTableHeaders
+Write-Host "   Standalone server: $standaloneServer"
+
+# Copy static assets into standalone so server.js can find them at runtime
+Write-Host "   Copying static assets into standalone..."
+Copy-Item -Path ".next\static" -Destination ".next\standalone\.next\static" -Recurse -Force
+Copy-Item -Path "public"       -Destination ".next\standalone\public"        -Recurse -Force
+Write-Host "   Static assets ready."
 Write-Host ""
-
-# ── Step 3: Trim to production-only node_modules ──────────────────
-Write-Host "-> [3/6] Trimming to production dependencies..."
-Remove-Item -Path "node_modules" -Recurse -Force
-
-if (Test-Path "package-lock.json") {
-    Write-Host "   Using npm ci --omit=dev"
-    npm ci --omit=dev --ignore-scripts
-    if ($LASTEXITCODE -ne 0) { throw "npm ci (prod) failed" }
-} else {
-    Write-Host "   Using npm install --omit=dev"
-    npm install --omit=dev --ignore-scripts
-    if ($LASTEXITCODE -ne 0) { throw "npm install (prod) failed" }
-}
-
-$nodeMB = [math]::Round(
-    (Get-ChildItem "node_modules" -Recurse -ErrorAction SilentlyContinue |
-     Measure-Object -Property Length -Sum).Sum / 1MB, 0)
-Write-Host "-> node_modules size: ${nodeMB} MB"
 
 Pop-Location
 
@@ -76,35 +61,41 @@ Pop-Location
 Write-Host ""
 Write-Host "-> [4/6] Creating deployment package..."
 
-if (Test-Path $ZIP_FILE) {
-    Remove-Item -Path $ZIP_FILE -Force
-}
-
-$stage = Join-Path $env:TEMP "safebet-deploy-stage"
-if (Test-Path $stage) {
-    Remove-Item -Path $stage -Recurse -Force
-}
-New-Item -ItemType Directory -Path $stage | Out-Null
-
-$skipNames = @(".env.local", ".env.production", ".env.demo", ".env.example", ".git")
-
+# Verify critical files exist before zipping
+$required = @(".next", "Procfile")
 $frontendPath = Join-Path $REPO_ROOT "frontend"
-Get-ChildItem -Path $frontendPath -Force |
-    Where-Object { $skipNames -notcontains $_.Name -and $_.Name -notlike "*.log" } |
-    ForEach-Object { Copy-Item -Path $_.FullName -Destination $stage -Recurse -Force }
-
-# Verify critical files are in the staging directory before zipping
-$required = @(".next", "package.json", "Procfile", "node_modules")
 foreach ($item in $required) {
-    $itemPath = Join-Path $stage $item
+    $itemPath = Join-Path $frontendPath $item
     if (-not (Test-Path $itemPath)) {
         throw "Required item missing from deployment package: $item -- aborting"
     }
     Write-Host "   [OK] $item"
 }
 
-Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $ZIP_FILE -Force
-Remove-Item -Path $stage -Recurse -Force
+# Use tar with an explicit file list so every required file is guaranteed
+# at ZIP root with forward-slash paths (Compress-Archive uses backslashes).
+# NOTE: package.json and package-lock.json are intentionally excluded.
+#       Their presence triggers EB's automatic `npm install`, which takes
+#       14+ minutes on t3.small and hits the deployment timeout.
+#       The standalone build is self-contained: .next/standalone/node_modules/
+#       has all runtime dependencies — no install step needed on the instance.
+Remove-Item $ZIP_FILE -ErrorAction Ignore
+
+Push-Location (Join-Path $REPO_ROOT "frontend")
+# Exclude .next/cache (582 MB build cache, not needed at runtime).
+# Its presence inflates the ZIP and causes 14-min EBS extraction on t3.small.
+tar --exclude="./.next/cache" -a -c -f "../$ZIP_FILE" `
+    ./Procfile `
+    ./next.config.js `
+    ./.next `
+    ./public `
+    ./.ebextensions
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "tar packaging failed" }
+
+# Confirm ZIP root structure before uploading
+Write-Host "-> ZIP root contents:"
+tar -tf "../$ZIP_FILE" | Select-String "^[^/]+/?$" | Select-Object -First 20
+Pop-Location
 
 $zipMB = [math]::Round((Get-Item $ZIP_FILE).Length / 1MB, 1)
 Write-Host "-> Package: $ZIP_FILE (${zipMB} MB)"

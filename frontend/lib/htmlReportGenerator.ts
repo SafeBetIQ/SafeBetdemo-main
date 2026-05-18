@@ -727,6 +727,15 @@ const BASE_STYLES = `
 // Helper utilities
 // ---------------------------------------------------------------------------
 
+function escapeHTML(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-ZA', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -768,7 +777,7 @@ function auditChainSection(chain: AuditChainStatus | undefined, sectionNum: stri
     return `
       <div class="section">
         <div class="section-header">
-          <span class="section-number">${sectionNum}</span>
+          <span class="section-number">${escapeHTML(sectionNum)}</span>
           <span class="section-title">Audit Trail Verification</span>
           <div class="section-rule"></div>
         </div>
@@ -791,7 +800,7 @@ function auditChainSection(chain: AuditChainStatus | undefined, sectionNum: stri
   return `
     <div class="section">
       <div class="section-header">
-        <span class="section-number">${sectionNum}</span>
+        <span class="section-number">${escapeHTML(sectionNum)}</span>
         <span class="section-title">Audit Trail Verification</span>
         <div class="section-rule"></div>
       </div>
@@ -838,8 +847,8 @@ function auditChainSection(chain: AuditChainStatus | undefined, sectionNum: stri
           </div>
           <div class="chain-integrity-note">
             ${intact
-              ? `<strong>Assessment:</strong> ${chain.integrityNote ?? 'All audit records are cryptographically intact. No evidence of tampering or unauthorised data modification was detected. This log is suitable for submission to regulatory authorities as an independent record of platform activity.'}`
-              : `<strong>CRITICAL:</strong> ${chain.integrityNote ?? `${chain.tamperedCount} audit record(s) failed hash-chain verification. This indicates potential unauthorised modification of historical audit data. Immediate investigation is required. This report must not be submitted to regulators until chain integrity is restored and the incident formally documented.`}`
+              ? `<strong>Assessment:</strong> ${escapeHTML(chain.integrityNote ?? 'All audit records are cryptographically intact. No evidence of tampering or unauthorised data modification was detected. This log is suitable for submission to regulatory authorities as an independent record of platform activity.')}`
+              : `<strong>CRITICAL:</strong> ${escapeHTML(chain.integrityNote ?? `${chain.tamperedCount} audit record(s) failed hash-chain verification. This indicates potential unauthorised modification of historical audit data. Immediate investigation is required. This report must not be submitted to regulators until chain integrity is restored and the incident formally documented.`)}`
             }
           </div>
         </div>
@@ -861,6 +870,7 @@ function generateCasinoHTML(
   const tc            = report.trainingCompliance;
   const rm            = report.riskManagement;
   const rc            = report.regulatoryCompliance;
+  const e             = escapeHTML;
 
   const overallCompliant = rc.ngaCompliant && rc.ficaCompliant && rc.auditCommittee && rc.surveillanceSystem;
 
@@ -869,7 +879,7 @@ function generateCasinoHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Casino Compliance Report — ${report.reportId}</title>
+  <title>Casino Compliance Report — ${e(report.reportId)}</title>
   ${BASE_STYLES}
 </head>
 <body>
@@ -892,7 +902,7 @@ function generateCasinoHTML(
     <div class="cover-meta-grid">
       <div class="cover-meta-item">
         <div class="cover-meta-label">Report Reference</div>
-        <div class="cover-meta-value">${report.reportId}</div>
+        <div class="cover-meta-value">${e(report.reportId)}</div>
       </div>
       <div class="cover-meta-item">
         <div class="cover-meta-label">Reporting Period</div>
@@ -900,11 +910,11 @@ function generateCasinoHTML(
       </div>
       <div class="cover-meta-item">
         <div class="cover-meta-label">Subject Entity</div>
-        <div class="cover-meta-value">${report.casinoDetails.name}</div>
+        <div class="cover-meta-value">${e(report.casinoDetails.name)}</div>
       </div>
       <div class="cover-meta-item">
         <div class="cover-meta-label">License Number</div>
-        <div class="cover-meta-value">${report.casinoDetails.licenseNumber}</div>
+        <div class="cover-meta-value">${e(report.casinoDetails.licenseNumber)}</div>
       </div>
       <div class="cover-meta-item">
         <div class="cover-meta-label">Date of Issue</div>
@@ -936,8 +946,8 @@ function generateCasinoHTML(
     <img src="/safebet-logo-transparent.png" alt="SafeBet IQ" />
   </div>
   <div class="doc-header-meta">
-    <p class="report-id">${report.reportId}</p>
-    <p>${report.casinoDetails.name} &nbsp;·&nbsp; ${periodStart} – ${periodEnd}</p>
+    <p class="report-id">${e(report.reportId)}</p>
+    <p>${e(report.casinoDetails.name)} &nbsp;·&nbsp; ${periodStart} – ${periodEnd}</p>
     <p>Generated: ${generatedDate}</p>
   </div>
 </div>
@@ -955,7 +965,7 @@ function generateCasinoHTML(
     <div class="narrative">
       <p>
         SafeBet IQ has conducted an independent compliance assessment of
-        <strong>${report.casinoDetails.name}</strong> (License No. ${report.casinoDetails.licenseNumber})
+        <strong>${e(report.casinoDetails.name)}</strong> (License No. ${e(report.casinoDetails.licenseNumber)})
         for the period <strong>${periodStart}</strong> to <strong>${periodEnd}</strong>.
         This report presents our findings with respect to staff training compliance, risk management
         performance, and adherence to the legislative framework governing licensed casino operations
@@ -963,7 +973,7 @@ function generateCasinoHTML(
       </p>
       <p>
         <strong>Overall Compliance Determination:</strong> Based on our assessment,
-        ${report.casinoDetails.name} is <strong>${overallCompliant ? 'IN COMPLIANCE' : 'NOT IN COMPLIANCE'}</strong>
+        ${e(report.casinoDetails.name)} is <strong>${overallCompliant ? 'IN COMPLIANCE' : 'NOT IN COMPLIANCE'}</strong>
         with its primary regulatory obligations under the National Gambling Act 7 of 2004 and ancillary
         legislation. The operator has achieved a staff training compliance rate of
         <strong>${tc.complianceRate}%</strong> against a minimum threshold of 80%, and recorded
@@ -991,19 +1001,19 @@ function generateCasinoHTML(
     <div class="info-grid">
       <div class="info-pair">
         <span class="info-key">Casino Name</span>
-        <span class="info-val">${report.casinoDetails.name}</span>
+        <span class="info-val">${e(report.casinoDetails.name)}</span>
       </div>
       <div class="info-pair">
         <span class="info-key">License Number</span>
-        <span class="info-val">${report.casinoDetails.licenseNumber}</span>
+        <span class="info-val">${e(report.casinoDetails.licenseNumber)}</span>
       </div>
       <div class="info-pair">
         <span class="info-key">Registered Address</span>
-        <span class="info-val">${report.casinoDetails.address}</span>
+        <span class="info-val">${e(report.casinoDetails.address)}</span>
       </div>
       <div class="info-pair">
         <span class="info-key">Compliance Contact</span>
-        <span class="info-val">${report.casinoDetails.contactEmail}</span>
+        <span class="info-val">${e(report.casinoDetails.contactEmail)}</span>
       </div>
       <div class="info-pair">
         <span class="info-key">Assessment Period</span>
@@ -1071,7 +1081,7 @@ function generateCasinoHTML(
         <tbody>
           ${tc.staffBreakdown.map(role => `
             <tr>
-              <td><strong>${role.role}</strong></td>
+              <td><strong>${e(role.role)}</strong></td>
               <td>${role.count}</td>
               <td>${role.trained}</td>
               <td><strong>${role.rate}%</strong></td>
@@ -1193,11 +1203,11 @@ function generateCasinoHTML(
         <tbody>
           ${report.certifications.map(cert => `
             <tr>
-              <td><strong>${cert.staffName}</strong></td>
-              <td>${cert.role}</td>
+              <td><strong>${e(cert.staffName)}</strong></td>
+              <td>${e(cert.role)}</td>
               <td>${cert.coursesCompleted}</td>
               <td><span class="badge badge-pass">${cert.creditsEarned} credits</span></td>
-              <td>${cert.certificationDate}</td>
+              <td>${e(cert.certificationDate)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1246,7 +1256,7 @@ function generateCasinoHTML(
     <div class="disclaimer-box">
       <h4>Confidentiality</h4>
       <p>
-        This document is confidential and is intended solely for the use of ${report.casinoDetails.name},
+        This document is confidential and is intended solely for the use of ${e(report.casinoDetails.name)},
         its board, and the designated regulatory authority. Unauthorised disclosure, reproduction, or
         distribution is prohibited. This report is classified as a compliance document and must be
         retained for a minimum of five (5) years in accordance with record-keeping requirements under
@@ -1262,7 +1272,7 @@ function generateCasinoHTML(
       </div>
       <div class="sig-block">
         <div class="sig-label">Report Reference</div>
-        <div class="sig-name">${report.reportId}</div>
+        <div class="sig-name">${e(report.reportId)}</div>
         <div class="sig-title">Issue Date: ${generatedDate}</div>
       </div>
       <div class="sig-block">
@@ -1284,7 +1294,7 @@ function generateCasinoHTML(
   <div class="doc-footer-right">
     <div class="footer-brand">SafeBet IQ</div>
     <p>Independent Compliance Assurance</p>
-    <p>${report.reportId}</p>
+    <p>${e(report.reportId)}</p>
   </div>
 </div>
 
@@ -1306,6 +1316,7 @@ function generateRegulatorHTML(
   const is            = report.industrySummary;
   const tm            = report.trainingMetrics;
   const rm            = report.riskMetrics;
+  const e             = escapeHTML;
 
   const compliantCount = report.casinoPerformance.filter(c => c.status === 'Compliant').length;
   const reviewCount    = report.casinoPerformance.filter(c => c.status === 'Under Review').length;
@@ -1316,7 +1327,7 @@ function generateRegulatorHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NGB Industry Audit Report — ${report.reportId}</title>
+  <title>NGB Industry Audit Report — ${e(report.reportId)}</title>
   ${BASE_STYLES}
 </head>
 <body>
@@ -1381,7 +1392,7 @@ function generateRegulatorHTML(
     <img src="/safebet-logo-transparent.png" alt="SafeBet IQ" />
   </div>
   <div class="doc-header-meta">
-    <p class="report-id">${report.reportId}</p>
+    <p class="report-id">${e(report.reportId)}</p>
     <p>National Gambling Board Industry Audit &nbsp;·&nbsp; ${periodStart} – ${periodEnd}</p>
     <p>Generated: ${generatedDate}</p>
   </div>
@@ -1619,8 +1630,8 @@ function generateRegulatorHTML(
         <tbody>
           ${report.casinoPerformance.map(casino => `
             <tr>
-              <td><strong>${casino.casinoName}</strong></td>
-              <td>${casino.licenseNumber}</td>
+              <td><strong>${e(casino.casinoName)}</strong></td>
+              <td>${e(casino.licenseNumber)}</td>
               <td>${casino.staffCount}</td>
               <td>${casino.trainedStaff}</td>
               <td>
@@ -1632,7 +1643,7 @@ function generateRegulatorHTML(
               </td>
               <td>${casino.totalCredits.toLocaleString()}</td>
               <td>
-                <span class="badge ${statusBadge(casino.status)}">${casino.status.toUpperCase()}</span>
+                <span class="badge ${statusBadge(casino.status)}">${e(casino.status).toUpperCase()}</span>
               </td>
             </tr>
           `).join('')}
@@ -1661,11 +1672,11 @@ function generateRegulatorHTML(
       : report.complianceIssues.map(issue => `
         <div class="issue-card ${issueClass(issue.severity)}">
           <div class="issue-card-header">
-            <span class="badge ${severityBadge(issue.severity)}">${issue.severity.toUpperCase()}</span>
-            <span class="issue-card-title">${issue.category}</span>
+            <span class="badge ${severityBadge(issue.severity)}">${e(issue.severity).toUpperCase()}</span>
+            <span class="issue-card-title">${e(issue.category)}</span>
           </div>
-          <p class="issue-card-desc">${issue.description}</p>
-          <p class="issue-card-meta">Affected Operators: <strong>${issue.affectedCasinos}</strong> &nbsp;·&nbsp;
+          <p class="issue-card-desc">${e(issue.description)}</p>
+          <p class="issue-card-meta">Affected Operators: <strong>${e(String(issue.affectedCasinos))}</strong> &nbsp;·&nbsp;
             ${issue.severity === 'High'
               ? 'Immediate remediation required — NGB notification triggered'
               : issue.severity === 'Medium'
@@ -1689,7 +1700,7 @@ function generateRegulatorHTML(
 
     <ol class="rec-list">
       ${report.recommendations.map(rec => `
-        <li class="rec-item">${rec}</li>
+        <li class="rec-item">${e(rec)}</li>
       `).join('')}
     </ol>
 
@@ -1740,7 +1751,7 @@ function generateRegulatorHTML(
       </div>
       <div class="sig-block">
         <div class="sig-label">Report Reference</div>
-        <div class="sig-name">${report.reportId}</div>
+        <div class="sig-name">${e(report.reportId)}</div>
         <div class="sig-title">Issued: ${generatedDate}</div>
       </div>
       <div class="sig-block">
@@ -1762,7 +1773,7 @@ function generateRegulatorHTML(
   <div class="doc-footer-right">
     <div class="footer-brand">SafeBet IQ</div>
     <p>National Gambling Board — Industry Audit</p>
-    <p>${report.reportId}</p>
+    <p>${e(report.reportId)}</p>
   </div>
 </div>
 

@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -21,6 +22,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface Player {
   id: string;
@@ -136,14 +138,22 @@ function MiniRiskBar({ score }: { score: number }) {
   );
 }
 
+const PAGE_SIZE = 50;
+
 export default function InterventionsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('players');
   const [players, setPlayers] = useState<Player[]>([]);
+  const [playersCount, setPlayersCount] = useState(0);
+  const [playersPage, setPlayersPage] = useState(0);
   const [thresholdRules, setThresholdRules] = useState<ThresholdRule[]>([]);
   const [deliveryQueue, setDeliveryQueue] = useState<DeliveryQueueItem[]>([]);
+  const [queueCount, setQueueCount] = useState(0);
+  const [queuePage, setQueuePage] = useState(0);
   const [interventions, setInterventions] = useState<InterventionRecord[]>([]);
   const [outcomes, setOutcomes] = useState<InterventionOutcome[]>([]);
+  const [outcomesCount, setOutcomesCount] = useState(0);
+  const [outcomesPage, setOutcomesPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -159,19 +169,25 @@ export default function InterventionsPage() {
   }, [user?.casino_id]);
 
   const loadPlayers = useCallback(async () => {
+    const offset = playersPage * PAGE_SIZE;
     let query = supabase
       .from('players')
-      .select('id, player_id, first_name, last_name, risk_score, last_active, total_wagered')
+      .select('id, player_id, first_name, last_name, risk_score, last_active, total_wagered', { count: 'exact' })
       .order('risk_score', { ascending: false })
-      .limit(100);
+      .range(offset, offset + PAGE_SIZE - 1);
 
     if (user?.role === 'casino_admin' && user?.casino_id) {
       query = query.eq('casino_id', user.casino_id);
     }
+    if (searchTerm.trim()) {
+      const t = searchTerm.trim();
+      query = query.or(`first_name.ilike.%${t}%,last_name.ilike.%${t}%,player_id.ilike.%${t}%`);
+    }
 
-    const { data } = await query;
+    const { data, count } = await query;
     setPlayers(data || []);
-  }, [user?.role, user?.casino_id]);
+    setPlayersCount(count ?? 0);
+  }, [user?.role, user?.casino_id, playersPage, searchTerm]);
 
   const loadThresholdRules = useCallback(async () => {
     let query = supabase
@@ -188,19 +204,21 @@ export default function InterventionsPage() {
   }, [user?.role, user?.casino_id]);
 
   const loadDeliveryQueue = useCallback(async () => {
+    const offset = queuePage * PAGE_SIZE;
     let query = supabase
       .from('intervention_delivery_queue')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(offset, offset + PAGE_SIZE - 1);
 
     if (user?.role === 'casino_admin' && user?.casino_id) {
       query = query.eq('casino_id', user.casino_id);
     }
 
-    const { data } = await query;
+    const { data, count } = await query;
     setDeliveryQueue(data || []);
-  }, [user?.role, user?.casino_id]);
+    setQueueCount(count ?? 0);
+  }, [user?.role, user?.casino_id, queuePage]);
 
   const loadInterventions = useCallback(async () => {
     let query = supabase
@@ -218,19 +236,21 @@ export default function InterventionsPage() {
   }, [user?.role, user?.casino_id]);
 
   const loadOutcomes = useCallback(async () => {
+    const offset = outcomesPage * PAGE_SIZE;
     let query = supabase
       .from('intervention_outcomes')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('applied_at', { ascending: false })
-      .limit(50);
+      .range(offset, offset + PAGE_SIZE - 1);
 
     if (user?.role === 'casino_admin' && user?.casino_id) {
       query = query.eq('casino_id', user.casino_id);
     }
 
-    const { data } = await query;
+    const { data, count } = await query;
     setOutcomes(data || []);
-  }, [user?.role, user?.casino_id]);
+    setOutcomesCount(count ?? 0);
+  }, [user?.role, user?.casino_id, outcomesPage]);
 
   useEffect(() => {
     if (!user) return;
@@ -313,13 +333,11 @@ export default function InterventionsPage() {
     }
   }
 
-  const filteredPlayers = players.filter((player) =>
-    `${player.first_name} ${player.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    player.player_id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSearch = (v: string) => { setSearchTerm(v); setPlayersPage(0); };
 
   const highRiskPlayers = players.filter(p => (p.risk_score || 0) >= 70);
   const mediumRiskPlayers = players.filter(p => (p.risk_score || 0) >= 40 && (p.risk_score || 0) < 70);
+  // counts reflect current page; for KPIs use total counts from DB
   const autoTriggered = interventions.filter(i => i.auto_triggered).length;
 
   const queueStats = {
@@ -461,7 +479,7 @@ export default function InterventionsPage() {
                       <Input
                         placeholder="Search players..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => handleSearch(e.target.value)}
                         className="pl-9"
                       />
                     </div>
@@ -480,15 +498,16 @@ export default function InterventionsPage() {
                           <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
+
                       <TableBody>
-                        {filteredPlayers.length === 0 ? (
+                        {players.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                               No players found
                             </TableCell>
                           </TableRow>
                         ) : (
-                          filteredPlayers.map((player) => {
+                          players.map((player) => {
                             const score = player.risk_score || 0;
                             const colors = getRiskColor(score);
                             const level = score >= 80 ? 'Critical' : score >= 70 ? 'High' : score >= 40 ? 'Moderate' : 'Low';
@@ -537,6 +556,12 @@ export default function InterventionsPage() {
                         )}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={playersPage}
+                      pageSize={PAGE_SIZE}
+                      total={playersCount}
+                      onPageChange={setPlayersPage}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -822,6 +847,12 @@ export default function InterventionsPage() {
                         )}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={queuePage}
+                      pageSize={PAGE_SIZE}
+                      total={queueCount}
+                      onPageChange={setQueuePage}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -960,6 +991,12 @@ export default function InterventionsPage() {
                         )}
                       </TableBody>
                     </Table>
+                    <PaginationControls
+                      page={outcomesPage}
+                      pageSize={PAGE_SIZE}
+                      total={outcomesCount}
+                      onPageChange={setOutcomesPage}
+                    />
                   </div>
                 </CardContent>
               </Card>

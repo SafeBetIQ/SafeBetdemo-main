@@ -17,7 +17,10 @@
  *   DR_ROUTE53_HEALTH_CHECK_ID — Route53 health check ID (optional)
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import * as Sentry from '@sentry/nextjs';
+import { rateLimit, getIp } from '@/lib/rate-limit';
 import {
   CloudWatchClient,
   GetMetricStatisticsCommand,
@@ -315,56 +318,108 @@ function deriveStatus(
 }
 
 /* ─────────────────────────────────────────────────────────────
+   AUTH
+───────────────────────────────────────────────────────────── */
+async function authorise(req: NextRequest): Promise<{ error: string } | { userId: string; email: string }> {
+  const authHeader = req.headers.get('authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return { error: 'missing_token' };
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return { error: 'invalid_token' };
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.role !== 'super_admin') return { error: 'forbidden' };
+  return { userId: user.id, email: user.email ?? '' };
+}
+
+/* ─────────────────────────────────────────────────────────────
    HANDLER
 ───────────────────────────────────────────────────────────── */
-export async function GET(): Promise<NextResponse<DRStatusPayload>> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  Sentry.setTag('endpoint', '/api/dr-status');
+  Sentry.setTag('environment', process.env.NODE_ENV);
+
+  const ip = getIp(req);
+  if (!rateLimit(ip)) {
+    Sentry.captureMessage('Rate limit exceeded', { level: 'warning', tags: { endpoint: '/api/dr-status', ip } });
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
+  }
+
+  const authResult = await authorise(req);
+  if ('error' in authResult) {
+    if (authResult.error === 'forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  }
+
+  Sentry.setUser({ id: authResult.userId, email: authResult.email });
+
   const errors: string[] = [];
 
   // Fire all fetchers in parallel — each is independent and never throws
   const [metrics, lastFailover, lastBackup, route53] = await Promise.all([
-    fetchCloudWatchMetrics().catch(e => { errors.push(`CW metrics: ${e}`); return null; }),
-    fetchLastFailoverEvent().catch(e => { errors.push(`CW logs: ${e}`); return null; }),
-    fetchLatestBackup().catch(e       => { errors.push(`S3 backup: ${e}`); return null; }),
-    fetchRoute53Status().catch(e      => { errors.push(`Route53: ${e}`); return null; }),
+    fetchCloudWatchMetrics().catch(e => { Sentry.captureException(e); errors.push(`CW metrics: ${e}`); return null; }),
+    fetchLastFailoverEvent().catch(e => { Sentry.captureException(e); errors.push(`CW logs: ${e}`); return null; }),
+    fetchLatestBackup().catch(e       => { Sentry.captureException(e); errors.push(`S3 backup: ${e}`); return null; }),
+    fetchRoute53Status().catch(e      => { Sentry.captureException(e); errors.push(`Route53: ${e}`); return null; }),
   ]);
 
-  const { status, healthScore } = deriveStatus(metrics, route53);
+  try {
+    const { status, healthScore } = deriveStatus(metrics, route53);
 
-  // Determine source reliability
-  const liveSources = [metrics, lastBackup, route53].filter(Boolean).length;
-  const source: DRStatusPayload['source'] =
-    liveSources === 0 ? 'unavailable' :
-    liveSources  < 3  ? 'partial'     :
-                        'live';
+    // Determine source reliability
+    const liveSources = [metrics, lastBackup, route53].filter(Boolean).length;
+    const source: DRStatusPayload['source'] =
+      liveSources === 0 ? 'unavailable' :
+      liveSources  < 3  ? 'partial'     :
+                          'live';
 
-  const payload: DRStatusPayload = {
-    status,
-    healthScore,
-    activeRegion: DR_REGION,
-    metrics: metrics ?? {
-      failoverExecuted:    0,
-      failoverFailed:      0,
-      failoverAborted:     0,
-      failoverAlreadyDone: 0,
-      criticalFailures:    0,
-    },
-    lastFailover: lastFailover ?? {
-      time:       null,
-      status:     null,
-      detail:     null,
-      oldPrimary: null,
-      newPrimary: null,
-      region:     null,
-    },
-    lastBackup: lastBackup ?? { time: null, key: null },
-    route53:    route53    ?? { status: null, checkedRegions: [] },
-    fetchedAt:  new Date().toISOString(),
-    source,
-    errors,
-  };
+    const payload: DRStatusPayload = {
+      status,
+      healthScore,
+      activeRegion: DR_REGION,
+      metrics: metrics ?? {
+        failoverExecuted:    0,
+        failoverFailed:      0,
+        failoverAborted:     0,
+        failoverAlreadyDone: 0,
+        criticalFailures:    0,
+      },
+      lastFailover: lastFailover ?? {
+        time:       null,
+        status:     null,
+        detail:     null,
+        oldPrimary: null,
+        newPrimary: null,
+        region:     null,
+      },
+      lastBackup: lastBackup ?? { time: null, key: null },
+      route53:    route53    ?? { status: null, checkedRegions: [] },
+      fetchedAt:  new Date().toISOString(),
+      source,
+      errors,
+    };
 
-  // Cache-control: allow 20s browser cache, 30s CDN staleness
-  return NextResponse.json(payload, {
-    headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=10' },
-  });
+    // Cache-control: allow 20s browser cache, 30s CDN staleness
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=10' },
+    });
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error('[dr-status] Unhandled error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

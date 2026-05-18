@@ -6,16 +6,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CircleAlert as AlertCircle,
-  Copy,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Shield,
-  Building2,
-  MapPin,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -24,121 +16,13 @@ import { supabase } from '@/lib/supabase';
 import { getRedirectPath } from '@/lib/auth';
 import Link from 'next/link';
 
-// ─── Demo credentials (match auth.users after running migrations) ─────────────
-// All accounts use the password: Demo@SafeBet2025!
-const DEMO_PASSWORD = 'Demo@SafeBet2025!';
-
-interface Credential {
-  label: string;
-  email: string;
-  password: string;
-  sub?: string;
-}
-
-const SUPER_ADMIN: Credential[] = [
-  {
-    label: 'Super Admin',
-    email: 'superadmin@safebetiq.com',
-    password: DEMO_PASSWORD,
-    sub: 'Full platform access — all casinos & analytics',
-  },
-];
-
-const CASINO_ADMINS: Credential[] = [
-  { label: 'Royal Palace Casino',  email: 'admin@royalpalace.safebetiq.com',  password: DEMO_PASSWORD, sub: 'Gauteng' },
-  { label: 'Golden Dragon Gaming', email: 'admin@goldendragon.safebetiq.com', password: DEMO_PASSWORD, sub: 'Western Cape' },
-  { label: 'Silver Star Resort',   email: 'admin@silverstar.safebetiq.com',   password: DEMO_PASSWORD, sub: 'North West' },
-];
-
-const NATIONAL_REGULATOR: Credential[] = [
-  {
-    label: 'National Gambling Board',
-    email: 'regulator@ngb.gov.za',
-    password: DEMO_PASSWORD,
-    sub: 'All provinces — full oversight',
-  },
-];
-
-const PROVINCIAL_REGULATORS: Credential[] = [
-  { label: 'Gauteng Gambling Board',                  email: 'regulator@gauteng.pgb.gov.za',      password: DEMO_PASSWORD, sub: 'Gauteng' },
-  { label: 'Western Cape Gambling & Racing Board',     email: 'regulator@westerncape.pgb.gov.za',  password: DEMO_PASSWORD, sub: 'Western Cape' },
-  { label: 'KwaZulu-Natal Gaming & Betting Board',     email: 'regulator@kwazulunatal.pgb.gov.za', password: DEMO_PASSWORD, sub: 'KwaZulu-Natal' },
-  { label: 'Mpumalanga Gaming Board',                  email: 'regulator@mpumalanga.pgb.gov.za',   password: DEMO_PASSWORD, sub: 'Mpumalanga' },
-  { label: 'Limpopo Gambling Board',                   email: 'regulator@limpopo.pgb.gov.za',      password: DEMO_PASSWORD, sub: 'Limpopo' },
-  { label: 'Free State Gambling, Liquor & Tourism',    email: 'regulator@freestate.pgb.gov.za',    password: DEMO_PASSWORD, sub: 'Free State' },
-  { label: 'Eastern Cape Gambling & Betting Board',    email: 'regulator@easterncape.pgb.gov.za',  password: DEMO_PASSWORD, sub: 'Eastern Cape' },
-  { label: 'North West Gambling Board',                email: 'regulator@northwest.pgb.gov.za',    password: DEMO_PASSWORD, sub: 'North West' },
-  { label: 'Northern Cape Gambling Board',             email: 'regulator@northerncape.pgb.gov.za', password: DEMO_PASSWORD, sub: 'Northern Cape' },
-];
-
-// ─── Credential row component ─────────────────────────────────────────────────
-function CredentialRow({
-  cred,
-  onFill,
-}: {
-  cred: Credential;
-  onFill: (email: string, password: string) => void;
-}) {
-  const [copied, setCopied] = useState<'email' | null>(null);
-
-  const copyEmail = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(cred.email).catch(() => {});
-    setCopied('email');
-    setTimeout(() => setCopied(null), 1500);
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={() => onFill(cred.email, cred.password)}
-      className="w-full text-left group rounded-lg border border-gray-800 bg-gray-950 hover:border-brand-700/60 hover:bg-gray-900 transition-all px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-brand-700/50"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-gray-200 truncate">{cred.label}</p>
-          {cred.sub && (
-            <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
-              <MapPin className="h-2.5 w-2.5 shrink-0" />
-              {cred.sub}
-            </p>
-          )}
-          <p className="text-[10px] text-gray-400 font-mono mt-1 truncate">{cred.email}</p>
-        </div>
-        <button
-          type="button"
-          title="Copy email"
-          onClick={copyEmail}
-          className="shrink-0 p-1 rounded text-gray-600 hover:text-brand-400 opacity-0 group-hover:opacity-100 transition-all"
-        >
-          {copied === 'email'
-            ? <Check className="h-3 w-3 text-brand-400" />
-            : <Copy className="h-3 w-3" />
-          }
-        </button>
-      </div>
-      <p className="text-[10px] text-gray-700 font-mono mt-1 group-hover:text-gray-500 transition-colors select-none">
-        {cred.password}
-      </p>
-    </button>
-  );
-}
-
-// ─── Login page ───────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail]                   = useState('');
-  const [password, setPassword]             = useState('');
-  const [showPassword, setShowPassword]     = useState(false);
-  const [error, setError]                   = useState('');
-  const [loading, setLoading]               = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
-
-  const fillCredential = (e: string, p: string) => {
-    setEmail(e);
-    setPassword(p);
-    setError('');
-  };
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError]               = useState('');
+  const [loading, setLoading]           = useState(false);
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -155,7 +39,7 @@ export default function LoginPage() {
       if (authError) {
         const msg = authError.message ?? '';
         if (/invalid|credentials|password/i.test(msg)) {
-          setError('Invalid email or password. Use the demo credentials below or contact your administrator.');
+          setError('Invalid email or password. Please contact your administrator.');
         } else if (/rate|too many/i.test(msg)) {
           setError('Too many login attempts. Please wait a few minutes and try again.');
         } else if (/confirm|verified/i.test(msg)) {
@@ -318,124 +202,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-          </div>
-
-          {/* Demo credentials panel */}
-          <div className="border-t border-gray-800">
-            <button
-              type="button"
-              onClick={() => setShowCredentials(!showCredentials)}
-              className="w-full flex items-center justify-between px-6 py-3.5 text-sm text-gray-400 hover:text-brand-400 hover:bg-gray-800/40 transition-colors"
-            >
-              <span className="font-medium">Demo Credentials</span>
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                Click any row to autofill
-                {showCredentials
-                  ? <ChevronUp className="h-3.5 w-3.5" />
-                  : <ChevronDown className="h-3.5 w-3.5" />
-                }
-              </span>
-            </button>
-
-            {showCredentials && (
-              <div className="px-4 pb-5">
-
-                {/* Password hint */}
-                <div className="mb-3 px-3 py-2 rounded-lg bg-brand-950/40 border border-brand-900/50">
-                  <p className="text-[11px] text-brand-400 font-medium">
-                    All demo accounts use the same password:
-                  </p>
-                  <p className="text-[11px] text-brand-300 font-mono mt-0.5 select-all">
-                    Demo@SafeBet2025!
-                  </p>
-                </div>
-
-                <Tabs defaultValue="super_admin" className="w-full">
-                  <TabsList className="w-full bg-gray-950 border border-gray-800 h-auto flex-wrap gap-1 p-1 rounded-lg mb-3">
-                    <TabsTrigger
-                      value="super_admin"
-                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
-                    >
-                      Super Admin
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="casinos"
-                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
-                    >
-                      Casinos
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="national"
-                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
-                    >
-                      National Reg
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="provincial"
-                      className="flex-1 text-[10px] data-[state=active]:bg-brand-700 data-[state=active]:text-white text-gray-500 py-1.5 rounded"
-                    >
-                      Provincial Reg
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Super Admin */}
-                  <TabsContent value="super_admin" className="mt-0 space-y-1.5">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Shield className="h-3 w-3 text-gray-500" />
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        Full platform access
-                      </span>
-                    </div>
-                    {SUPER_ADMIN.map((c) => (
-                      <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                    ))}
-                  </TabsContent>
-
-                  {/* Casino Admins */}
-                  <TabsContent value="casinos" className="mt-0">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Building2 className="h-3 w-3 text-gray-500" />
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        3 live casino operators
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {CASINO_ADMINS.map((c) => (
-                        <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  {/* National Regulator */}
-                  <TabsContent value="national" className="mt-0 space-y-1.5">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Shield className="h-3 w-3 text-gray-500" />
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        National Gambling Board — all casinos
-                      </span>
-                    </div>
-                    {NATIONAL_REGULATOR.map((c) => (
-                      <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                    ))}
-                  </TabsContent>
-
-                  {/* Provincial Regulators */}
-                  <TabsContent value="provincial" className="mt-0">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <MapPin className="h-3 w-3 text-gray-500" />
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                        9 provincial boards
-                      </span>
-                    </div>
-                    <div className="space-y-1 max-h-64 overflow-y-auto pr-0.5 custom-scrollbar">
-                      {PROVINCIAL_REGULATORS.map((c) => (
-                        <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                      ))}
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
           </div>
         </div>
 

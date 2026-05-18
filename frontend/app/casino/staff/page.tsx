@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +18,9 @@ import { toast } from 'sonner';
 import { Users, Search, Award, Mail, Briefcase, ExternalLink, Plus, CreditCard as Edit, LogIn, BookOpen, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+
+const PAGE_SIZE = 50;
 
 interface Staff {
   id: string;
@@ -33,7 +37,9 @@ export default function StaffListPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [staffCount, setStaffCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
@@ -54,72 +60,49 @@ export default function StaffListPage() {
   });
 
   useEffect(() => {
-    loadStaff();
-  }, [user]);
-
-  async function loadStaff() {
     if (!user) return;
-
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from('staff')
-        .select('*')
-        .order('last_name');
-
-      if (error) throw error;
-
-      setStaff(data || []);
-    } catch (error: any) {
-      toast.error('Failed to load staff');
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    const offset = page * PAGE_SIZE;
+    let query = supabase
+      .from('staff')
+      .select('*', { count: 'exact' })
+      .order('last_name')
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (searchTerm.trim()) {
+      const t = searchTerm.trim();
+      query = query.or(`first_name.ilike.%${t}%,last_name.ilike.%${t}%,email.ilike.%${t}%,role.ilike.%${t}%`);
     }
-  }
+    query.then(({ data, count, error }) => {
+      if (error) toast.error('Failed to load staff');
+      setStaff(data || []);
+      setStaffCount(count ?? 0);
+      setLoading(false);
+    });
+  }, [user, page, searchTerm]);
+
+  const handleSearch = (v: string) => { setSearchTerm(v); setPage(0); };
 
   async function handleAddStaff() {
     if (!user || !formData.first_name || !formData.last_name || !formData.email || !formData.role) {
       toast.error('Please fill in all required fields');
       return;
     }
-
     try {
       setSubmitting(true);
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('casino_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!userData?.casino_id) {
-        toast.error('Unable to determine your casino');
-        return;
-      }
-
+      const { data: userData } = await supabase.from('users').select('casino_id').eq('id', user.id).single();
+      if (!userData?.casino_id) { toast.error('Unable to determine your casino'); return; }
       const defaultPassword = 'SafeBet2024!';
-
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: defaultPassword,
-        options: {
-          data: {
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-          },
-        },
+        options: { data: { first_name: formData.first_name, last_name: formData.last_name } },
       });
-
       if (authError) {
         if (authError.message.includes('already registered')) {
           toast.error('This email is already registered');
-        } else {
-          throw authError;
-        }
+        } else throw authError;
         return;
       }
-
       const { error: staffError } = await supabase.from('staff').insert({
         casino_id: userData.casino_id,
         auth_user_id: authData.user?.id,
@@ -130,20 +113,11 @@ export default function StaffListPage() {
         status: formData.status,
         phone: formData.phone || null,
       });
-
       if (staffError) throw staffError;
-
       toast.success(`Staff member ${formData.first_name} ${formData.last_name} added successfully!`);
       setShowAddDialog(false);
-      setFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        role: '',
-        status: 'active',
-        phone: '',
-      });
-      loadStaff();
+      setFormData({ first_name: '', last_name: '', email: '', role: '', status: 'active', phone: '' });
+      setPage(0);
     } catch (error: any) {
       toast.error(error.message || 'Failed to add staff member');
     } finally {
@@ -156,36 +130,22 @@ export default function StaffListPage() {
       toast.error('Please fill in all required fields');
       return;
     }
-
     try {
       setSubmitting(true);
-
-      const { error } = await supabase
-        .from('staff')
-        .update({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          role: formData.role,
-          status: formData.status,
-          phone: formData.phone || null,
-        })
-        .eq('id', editingStaff.id);
-
+      const { error } = await supabase.from('staff').update({
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status,
+        phone: formData.phone || null,
+      }).eq('id', editingStaff.id);
       if (error) throw error;
-
       toast.success('Staff member updated successfully!');
       setShowEditDialog(false);
       setEditingStaff(null);
-      setFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        role: '',
-        status: 'active',
-        phone: '',
-      });
-      loadStaff();
+      setFormData({ first_name: '', last_name: '', email: '', role: '', status: 'active', phone: '' });
+      setPage(0);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update staff member');
     } finally {
@@ -209,26 +169,17 @@ export default function StaffListPage() {
   async function handleImpersonate(member: Staff) {
     try {
       if (!user) return;
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('casino_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
+      const { data: userData } = await supabase.from('users').select('casino_id').eq('id', user.id).maybeSingle();
       localStorage.setItem('impersonated_by', (user as any).id);
       localStorage.setItem('original_user_email', (user as any).email);
-
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email: member.email,
         password: 'Staff123!',
       });
-
       if (signInError) {
         toast.error('Unable to login as staff member. Please ensure staff has default credentials.');
         return;
       }
-
       await supabase.from('login_activity').insert({
         user_id: member.id,
         user_email: member.email,
@@ -238,7 +189,6 @@ export default function StaffListPage() {
         impersonated_by: (user as any).id,
         casino_id: userData?.casino_id || null,
       });
-
       toast.success(`Logged in as ${member.first_name} ${member.last_name}`);
       router.push('/staff/profile');
     } catch (error: any) {
@@ -249,13 +199,8 @@ export default function StaffListPage() {
   async function handleOpenAssignDialog(member: Staff) {
     setAssigningStaff(member);
     setSelectedModuleIds(new Set());
-
     try {
-      const { data: modulesData } = await supabase
-        .from('training_modules')
-        .select('*')
-        .order('title');
-
+      const { data: modulesData } = await supabase.from('training_modules').select('*').order('title');
       setAvailableModules(modulesData || []);
       setShowAssignDialog(true);
     } catch (error) {
@@ -265,11 +210,8 @@ export default function StaffListPage() {
 
   function toggleModule(moduleId: string) {
     const newSelected = new Set(selectedModuleIds);
-    if (newSelected.has(moduleId)) {
-      newSelected.delete(moduleId);
-    } else {
-      newSelected.add(moduleId);
-    }
+    if (newSelected.has(moduleId)) newSelected.delete(moduleId);
+    else newSelected.add(moduleId);
     setSelectedModuleIds(newSelected);
   }
 
@@ -278,25 +220,17 @@ export default function StaffListPage() {
       toast.error('Please select at least one course');
       return;
     }
-
     try {
       setAssigning(true);
-
       const enrollmentsToCreate = Array.from(selectedModuleIds).map(moduleId => ({
         staff_id: assigningStaff.id,
         module_id: moduleId,
         assigned_by: user.id,
-        status: 'not_started'
+        status: 'not_started',
       }));
-
-      const { error } = await supabase
-        .from('training_enrollments')
-        .upsert(enrollmentsToCreate, { onConflict: 'staff_id,module_id' });
-
+      const { error } = await supabase.from('training_enrollments').upsert(enrollmentsToCreate, { onConflict: 'staff_id,module_id' });
       if (error) throw error;
-
       toast.success(`Successfully assigned ${selectedModuleIds.size} course(s) to ${assigningStaff.first_name} ${assigningStaff.last_name}`);
-
       setShowAssignDialog(false);
       setAssigningStaff(null);
       setSelectedModuleIds(new Set());
@@ -307,14 +241,7 @@ export default function StaffListPage() {
     }
   }
 
-  const filteredStaff = staff.filter(s =>
-    s.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading) {
+  if (loading && staff.length === 0) {
     return (
       <DashboardLayout>
         <div className="flex h-full items-center justify-center">
@@ -345,7 +272,6 @@ export default function StaffListPage() {
         />
 
         <div className="flex-1 p-6 min-w-0 space-y-6">
-
           <Card>
             <CardContent className="p-6">
               <div className="relative">
@@ -353,7 +279,7 @@ export default function StaffListPage() {
                 <Input
                   placeholder="Search staff by name, email, or role..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -361,7 +287,7 @@ export default function StaffListPage() {
           </Card>
 
           <div className="grid gap-4">
-            {filteredStaff.length === 0 ? (
+            {staff.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -369,20 +295,15 @@ export default function StaffListPage() {
                 </CardContent>
               </Card>
             ) : (
-              filteredStaff.map((member) => (
+              staff.map((member) => (
                 <Card key={member.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-xl font-semibold">
-                            {member.first_name} {member.last_name}
-                          </h3>
-                          <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>
-                            {member.status}
-                          </Badge>
+                          <h3 className="text-xl font-semibold">{member.first_name} {member.last_name}</h3>
+                          <Badge variant={member.status === 'active' ? 'default' : 'secondary'}>{member.status}</Badge>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4" />
@@ -398,37 +319,19 @@ export default function StaffListPage() {
                           </div>
                         </div>
                       </div>
-
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenAssignDialog(member)}
-                          className="bg-brand-50 hover:bg-brand-100 border-brand-300"
-                        >
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Assign Courses
+                        <Button variant="outline" size="sm" onClick={() => handleOpenAssignDialog(member)} className="bg-brand-50 hover:bg-brand-100 border-brand-300">
+                          <BookOpen className="h-4 w-4 mr-2" />Assign Courses
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleImpersonate(member)}
-                        >
-                          <LogIn className="h-4 w-4 mr-2" />
-                          Login As
+                        <Button variant="outline" size="sm" onClick={() => handleImpersonate(member)}>
+                          <LogIn className="h-4 w-4 mr-2" />Login As
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(member)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                        <Button variant="outline" size="sm" onClick={() => openEditDialog(member)}>
+                          <Edit className="h-4 w-4 mr-2" />Edit
                         </Button>
                         <Link href={`/staff/profile?id=${member.id}`}>
                           <Button variant="outline" size="sm">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View Profile
+                            <ExternalLink className="h-4 w-4 mr-2" />View Profile
                           </Button>
                         </Link>
                       </div>
@@ -439,63 +342,45 @@ export default function StaffListPage() {
             )}
           </div>
 
+          {staffCount > 0 && (
+            <Card>
+              <PaginationControls
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={staffCount}
+                onPageChange={setPage}
+                loading={loading}
+              />
+            </Card>
+          )}
+
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Staff Member</DialogTitle>
-              <DialogDescription>
-                Create a new staff member account. They will receive login credentials via email.
-              </DialogDescription>
+              <DialogDescription>Create a new staff member account. They will receive login credentials via email.</DialogDescription>
             </DialogHeader>
-
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">First Name *</Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  placeholder="John"
-                />
+                <Input id="first_name" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="John" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="last_name">Last Name *</Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  placeholder="Doe"
-                />
+                <Input id="last_name" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Doe" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="john.doe@casino.com"
-                />
+                <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@casino.com" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+27 12 345 6789"
-                />
+                <Input id="phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+27 12 345 6789" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="role">Role *</Label>
                 <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="frontline">Frontline Staff</SelectItem>
                     <SelectItem value="vip_host">VIP Host</SelectItem>
@@ -506,13 +391,10 @@ export default function StaffListPage() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="status">Status *</Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -520,20 +402,12 @@ export default function StaffListPage() {
                 </Select>
               </div>
             </div>
-
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
               Default password: <strong>SafeBet2024!</strong> - Staff should change this upon first login.
             </div>
-
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddStaff}
-                disabled={submitting}
-                className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600"
-              >
+              <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={submitting}>Cancel</Button>
+              <Button onClick={handleAddStaff} disabled={submitting} className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600">
                 {submitting ? 'Adding...' : 'Add Staff Member'}
               </Button>
             </DialogFooter>
@@ -544,59 +418,29 @@ export default function StaffListPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit Staff Member</DialogTitle>
-              <DialogDescription>
-                Update staff member information.
-              </DialogDescription>
+              <DialogDescription>Update staff member information.</DialogDescription>
             </DialogHeader>
-
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="edit_first_name">First Name *</Label>
-                <Input
-                  id="edit_first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  placeholder="John"
-                />
+                <Input id="edit_first_name" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} placeholder="John" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_last_name">Last Name *</Label>
-                <Input
-                  id="edit_last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  placeholder="Doe"
-                />
+                <Input id="edit_last_name" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} placeholder="Doe" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_email">Email Address *</Label>
-                <Input
-                  id="edit_email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="john.doe@casino.com"
-                />
+                <Input id="edit_email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="john.doe@casino.com" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_phone">Phone Number</Label>
-                <Input
-                  id="edit_phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+27 12 345 6789"
-                />
+                <Input id="edit_phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="+27 12 345 6789" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_role">Role *</Label>
                 <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="frontline">Frontline Staff</SelectItem>
                     <SelectItem value="vip_host">VIP Host</SelectItem>
@@ -607,13 +451,10 @@ export default function StaffListPage() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit_status">Status *</Label>
                 <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
@@ -621,16 +462,9 @@ export default function StaffListPage() {
                 </Select>
               </div>
             </div>
-
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEditStaff}
-                disabled={submitting}
-                className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600"
-              >
+              <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={submitting}>Cancel</Button>
+              <Button onClick={handleEditStaff} disabled={submitting} className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600">
                 {submitting ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
@@ -645,7 +479,6 @@ export default function StaffListPage() {
                 {assigningStaff && `Select courses to assign to ${assigningStaff.first_name} ${assigningStaff.last_name}`}
               </DialogDescription>
             </DialogHeader>
-
             <div className="space-y-4 py-4">
               {availableModules.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">No courses available</p>
@@ -657,54 +490,31 @@ export default function StaffListPage() {
                       className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
                       onClick={() => toggleModule(module.id)}
                     >
-                      <Checkbox
-                        checked={selectedModuleIds.has(module.id)}
-                        onCheckedChange={() => toggleModule(module.id)}
-                      />
+                      <Checkbox checked={selectedModuleIds.has(module.id)} onCheckedChange={() => toggleModule(module.id)} />
                       <div className="flex-1">
                         <Label className="font-semibold cursor-pointer">{module.title}</Label>
                         <p className="text-sm text-gray-600 mt-1">{module.description}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {module.estimated_minutes} min
+                            <Clock className="h-3 w-3 mr-1" />{module.estimated_minutes} min
                           </Badge>
                           <Badge variant="outline" className="text-xs">
-                            <Award className="h-3 w-3 mr-1" />
-                            {module.credits_awarded} credits
+                            <Award className="h-3 w-3 mr-1" />{module.credits_awarded} credits
                           </Badge>
-                          {module.difficulty && (
-                            <Badge variant="secondary" className="text-xs">
-                              {module.difficulty}
-                            </Badge>
-                          )}
+                          {module.difficulty && <Badge variant="secondary" className="text-xs">{module.difficulty}</Badge>}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm font-medium text-blue-900">
-                  {selectedModuleIds.size} course(s) selected
-                </p>
+                <p className="text-sm font-medium text-blue-900">{selectedModuleIds.size} course(s) selected</p>
               </div>
             </div>
-
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowAssignDialog(false)}
-                disabled={assigning}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAssignCourses}
-                disabled={assigning || selectedModuleIds.size === 0}
-                className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600"
-              >
+              <Button variant="outline" onClick={() => setShowAssignDialog(false)} disabled={assigning}>Cancel</Button>
+              <Button onClick={handleAssignCourses} disabled={assigning || selectedModuleIds.size === 0} className="bg-gradient-to-r from-brand-400 to-teal-500 hover:from-brand-500 hover:to-teal-600">
                 {assigning ? 'Assigning...' : `Assign ${selectedModuleIds.size} Course${selectedModuleIds.size !== 1 ? 's' : ''}`}
               </Button>
             </DialogFooter>

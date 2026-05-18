@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/table';
 import { Shield, ShieldAlert, ShieldCheck, TriangleAlert as AlertTriangle, CircleAlert as AlertCircle, Info, Search, RefreshCw, CircleCheck as CheckCircle2, Clock, Lock, LogIn, LogOut, UserX, Key, Database, Activity, Eye, ChevronRight, Filter, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface SecurityEvent {
   id: string;
@@ -106,10 +108,15 @@ function timeAgo(ts: string): string {
   return `${days}d ago`;
 }
 
+const PAGE_SIZE = 50;
+
 export default function SecurityAuditLogPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [eventsCount, setEventsCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [casinos, setCasinos] = useState<Casino[]>([]);
+  const [uniqueSources, setUniqueSources] = useState<string[]>([]);
   const [stats, setStats] = useState<EventStats>({ total: 0, unresolved: 0, critical: 0, high: 0, last24h: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -132,61 +139,71 @@ export default function SecurityAuditLogPage() {
     if (data) setCasinos(data);
   }, []);
 
+  const loadStats = useCallback(async () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString();
+    const [total, unresolved, critical, high, last24h, sources] = await Promise.all([
+      supabase.from('security_events').select('*', { count: 'exact', head: true }),
+      supabase.from('security_events').select('*', { count: 'exact', head: true }).eq('resolved', false),
+      supabase.from('security_events').select('*', { count: 'exact', head: true }).eq('severity', 'critical').eq('resolved', false),
+      supabase.from('security_events').select('*', { count: 'exact', head: true }).eq('severity', 'high').eq('resolved', false),
+      supabase.from('security_events').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
+      supabase.from('security_events').select('source').order('source'),
+    ]);
+    setStats({
+      total: total.count ?? 0,
+      unresolved: unresolved.count ?? 0,
+      critical: critical.count ?? 0,
+      high: high.count ?? 0,
+      last24h: last24h.count ?? 0,
+    });
+    const srcs = Array.from(new Set((sources.data ?? []).map((e: any) => e.source).filter(Boolean))) as string[];
+    setUniqueSources(srcs);
+  }, []);
+
   const loadEvents = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (isRefresh) { setRefreshing(true); } else { setLoading(true); }
 
     try {
+      const offset = page * PAGE_SIZE;
       let query = supabase
         .from('security_events')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .limit(500);
+        .range(offset, offset + PAGE_SIZE - 1);
 
       if (severityFilter !== 'all') query = query.eq('severity', severityFilter);
       if (sourceFilter !== 'all') query = query.eq('source', sourceFilter);
       if (statusFilter === 'resolved') query = query.eq('resolved', true);
       if (statusFilter === 'unresolved') query = query.eq('resolved', false);
 
-      const { data, error } = await query;
+      const { data, count, error } = await query;
       if (error) throw error;
-
-      const allEvents = data ?? [];
-      setEvents(allEvents);
-
-      const now = Date.now();
-      const day = 24 * 60 * 60 * 1000;
-      setStats({
-        total: allEvents.length,
-        unresolved: allEvents.filter(e => !e.resolved).length,
-        critical: allEvents.filter(e => e.severity === 'critical' && !e.resolved).length,
-        high: allEvents.filter(e => e.severity === 'high' && !e.resolved).length,
-        last24h: allEvents.filter(e => now - new Date(e.created_at).getTime() < day).length,
-      });
+      setEvents(data ?? []);
+      setEventsCount(count ?? 0);
     } catch (err) {
       console.error('Failed to load security events:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [severityFilter, sourceFilter, statusFilter]);
+  }, [severityFilter, sourceFilter, statusFilter, page]);
 
-  useEffect(() => {
-    loadCasinos();
-  }, [loadCasinos]);
+  useEffect(() => { loadCasinos(); loadStats(); }, [loadCasinos, loadStats]);
+  useEffect(() => { loadEvents(); }, [loadEvents]);
 
-  useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+  const handleSeverityChange = (v: string) => { setSeverityFilter(v); setPage(0); };
+  const handleSourceChange = (v: string) => { setSourceFilter(v); setPage(0); };
+  const handleStatusChange = (v: string) => { setStatusFilter(v); setPage(0); };
 
   const filteredEvents = events.filter(event => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchesType = event.event_type.toLowerCase().includes(q);
-      const matchesSource = (event.source ?? '').toLowerCase().includes(q);
-      const matchesResource = (event.resource ?? '').toLowerCase().includes(q);
-      const matchesActor = (event.actor_email_hash ?? '').toLowerCase().includes(q);
-      if (!matchesType && !matchesSource && !matchesResource && !matchesActor) return false;
+      if (
+        !event.event_type.toLowerCase().includes(q) &&
+        !(event.source ?? '').toLowerCase().includes(q) &&
+        !(event.resource ?? '').toLowerCase().includes(q) &&
+        !(event.actor_email_hash ?? '').toLowerCase().includes(q)
+      ) return false;
     }
     return true;
   });
@@ -209,6 +226,7 @@ export default function SecurityAuditLogPage() {
       setResolveDialogOpen(false);
       setSelectedEvent(null);
       setResolutionNotes('');
+      loadStats();
       loadEvents(true);
     }
     setResolving(false);
@@ -323,7 +341,7 @@ export default function SecurityAuditLogPage() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Filter className="h-4 w-4 text-slate-400" />
-                <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                <Select value={severityFilter} onValueChange={handleSeverityChange}>
                   <SelectTrigger className="h-9 w-36">
                     <SelectValue placeholder="Severity" />
                   </SelectTrigger>
@@ -336,7 +354,7 @@ export default function SecurityAuditLogPage() {
                     <SelectItem value="info">Info</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <Select value={sourceFilter} onValueChange={handleSourceChange}>
                   <SelectTrigger className="h-9 w-40">
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
@@ -347,7 +365,7 @@ export default function SecurityAuditLogPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={handleStatusChange}>
                   <SelectTrigger className="h-9 w-36">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -469,15 +487,22 @@ export default function SecurityAuditLogPage() {
                 </Table>
               </div>
             )}
-            {filteredEvents.length > 0 && (
-              <div className="px-4 py-3 border-t bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
-                <span>Showing {filteredEvents.length.toLocaleString()} of {events.length.toLocaleString()} events</span>
+            <div className="border-t bg-slate-50">
+              <div className="flex items-center justify-between px-4 pt-2 text-xs text-slate-500">
                 <span className="flex items-center gap-1">
                   <Lock className="h-3 w-3" />
                   Tamper-evident — append only
                 </span>
               </div>
-            )}
+              <PaginationControls
+                page={page}
+                pageSize={PAGE_SIZE}
+                total={eventsCount}
+                onPageChange={setPage}
+                loading={loading || refreshing}
+                className="border-t-0 bg-slate-50"
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

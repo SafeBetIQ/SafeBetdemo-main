@@ -1,0 +1,199 @@
+{
+  "info": {
+    "name": "SafeBetIQ Decision Engine",
+    "_postman_id": "safebet-iq-decision-engine-v1",
+    "description": "Decision Engine API for responsible gambling compliance. Authenticate with x-api-key header or Bearer JWT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",  "value": "https://safebetiq.com",   "type": "string" },
+    { "key": "apiKey",   "value": "sk_live_your_key_here",   "type": "string" },
+    { "key": "playerId", "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "type": "string" },
+    { "key": "playerToken", "value": "tok_abc123", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/health", "host": ["{{baseUrl}}"], "path": ["api", "health"] }
+          }
+        },
+        {
+          "name": "Health Check (Sentry test)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health?test_error=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"],
+              "query": [{ "key": "test_error", "value": "1" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decision Engine",
+      "item": [
+        {
+          "name": "Check Player (by ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/check-player", "host": ["{{baseUrl}}"], "path": ["api", "check-player"] }
+          }
+        },
+        {
+          "name": "Check Player (by token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_token\": \"{{playerToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/check-player", "host": ["{{baseUrl}}"], "path": ["api", "check-player"] }
+          }
+        },
+        {
+          "name": "Verify Player",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/verify-player", "host": ["{{baseUrl}}"], "path": ["api", "verify-player"] }
+          }
+        },
+        {
+          "name": "Check Exclusion",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/check-exclusion", "host": ["{{baseUrl}}"], "path": ["api", "check-exclusion"] }
+          }
+        },
+        {
+          "name": "Get Decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"{{playerId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/get-decision", "host": ["{{baseUrl}}"], "path": ["api", "get-decision"] }
+          }
+        },
+        {
+          "name": "Get Decision (sandbox)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key",   "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"player_id\": \"sandbox-player-001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/get-decision", "host": ["{{baseUrl}}"], "path": ["api", "get-decision"] },
+            "description": "Set SANDBOX_MODE=true on the server to receive mock responses."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Interventions",
+      "item": [
+        {
+          "name": "Dispatch SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"sms\",\n  \"recipient\": \"+27821234567\",\n  \"message\": \"We noticed unusual activity. Please contact support.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/interventions/dispatch", "host": ["{{baseUrl}}"], "path": ["api", "interventions", "dispatch"] }
+          }
+        },
+        {
+          "name": "Dispatch In-App",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearerToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"in_app\",\n  \"recipient\": \"{{playerId}}\",\n  \"message\": \"Your account has been flagged for review.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/interventions/dispatch", "host": ["{{baseUrl}}"], "path": ["api", "interventions", "dispatch"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contact",
+      "item": [
+        {
+          "name": "Submit Contact Form",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane@casino.com\",\n  \"message\": \"Interested in integrating SafeBetIQ with our platform.\",\n  \"user_type\": \"casino_operator\",\n  \"company\": \"Acme Casino\",\n  \"turnstile_token\": \"<turnstile_token_from_frontend>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/api/contact", "host": ["{{baseUrl}}"], "path": ["api", "contact"] }
+          }
+        }
+      ]
+    }
+  ]
+}

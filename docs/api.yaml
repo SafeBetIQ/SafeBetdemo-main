@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: SafeBetIQ Decision Engine API
+  description: |
+    Responsible gambling decision engine for casino operators.
+
+    Authentication is via **`x-api-key`** header (API key) or **`Authorization: Bearer <jwt>`** (Supabase JWT).
+    API key takes precedence when both are supplied.
+
+    When `SANDBOX_MODE=true`, all Decision Engine endpoints return deterministic mock responses
+    without touching the database.
+  version: "1.0.0"
+  contact:
+    name: SafeBetIQ Support
+    email: support@safebetiq.com
+
+servers:
+  - url: https://safebetiq.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+tags:
+  - name: System
+  - name: Decision Engine
+  - name: Interventions
+  - name: Contact
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Player not found
+
+    ValidationError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Validation failed
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    PlayerLookupInput:
+      type: object
+      properties:
+        player_id:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        player_token:
+          type: string
+          example: tok_abc123
+
+    Player:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        casino_id: { type: string, format: uuid }
+        player_token: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        current_risk_score: { type: number, minimum: 0, maximum: 100 }
+        current_risk_level: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        is_active: { type: boolean }
+        last_activity: { type: string, format: date-time }
+        registration_date: { type: string, format: date-time }
+
+    Decision:
+      type: string
+      enum: [ALLOW, VERIFY, LIMIT, BLOCK]
+
+    ActionRequired:
+      type: string
+      enum: [NONE, REQUIRE_KYC, APPLY_LIMITS, ACCOUNT_SUSPEND]
+
+    DecisionResponse:
+      type: object
+      required: [success, player_id, decision, reason, action_required]
+      properties:
+        success: { type: boolean, example: true }
+        player_id: { type: string, format: uuid }
+        decision: { $ref: '#/components/schemas/Decision' }
+        reason: { type: string }
+        action_required: { $ref: '#/components/schemas/ActionRequired' }
+        risk_score: { type: number, minimum: 0, maximum: 100 }
+        underage_risk: { type: number, minimum: 0, maximum: 100 }
+        excluded: { type: boolean }
+
+paths:
+  /api/health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Returns HTTP 200 when the service is healthy. Pass `?test_error=1` to fire a Sentry test event.
+      security: []
+      parameters:
+        - name: test_error
+          in: query
+          required: false
+          schema: { type: string, enum: ["1"] }
+          description: When "1", captures a test exception in Sentry and returns 200.
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            text/plain:
+              schema: { type: string, example: OK }
+
+  /api/check-player:
+    post:
+      tags: [Decision Engine]
+      summary: Check player details
+      description: Fetches player profile. Supply `player_id` (UUID) **or** `player_token`. Multi-tenant isolated to the authenticated casino.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlayerLookupInput' }
+            examples:
+              by_id:
+                summary: By player_id
+                value: { player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+              by_token:
+                summary: By player_token
+                value: { player_token: "tok_abc123" }
+      responses:
+        "200":
+          description: Player found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  player: { $ref: '#/components/schemas/Player' }
+        "401": { description: Unauthorised, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "403": { description: Forbidden, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Player not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "422": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+        "429": { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "500": { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/verify-player:
+    post:
+      tags: [Decision Engine]
+      summary: Verify player identity and underage risk
+      description: Checks behaviour events for underage risk signals. Returns `underage_risk` score (0–100) and high-severity flags.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlayerLookupInput' }
+            examples:
+              by_id:
+                value: { player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  player_id: { type: string, format: uuid }
+                  verified: { type: boolean }
+                  underage_risk: { type: number, minimum: 0, maximum: 100 }
+                  flags: { type: array, items: { type: string } }
+              example:
+                success: true
+                player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                verified: true
+                underage_risk: 12
+                flags: []
+        "401": { description: Unauthorised, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Player not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "422": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+        "429": { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/check-exclusion:
+    post:
+      tags: [Decision Engine]
+      summary: Check active self-exclusion status
+      description: Returns whether the player has an active, non-expired self-exclusion record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlayerLookupInput' }
+            examples:
+              by_id:
+                value: { player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+      responses:
+        "200":
+          description: Exclusion status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  excluded: { type: boolean }
+                  exclusion:
+                    nullable: true
+                    type: object
+                    properties:
+                      id: { type: string }
+                      exclusion_type: { type: string, enum: [self, operator_initiated, regulator_mandated, network] }
+                      duration_type: { type: string, enum: [temporary, indefinite, permanent] }
+                      starts_at: { type: string, format: date-time }
+                      ends_at: { type: string, format: date-time, nullable: true }
+                      reason: { type: string, nullable: true }
+              example:
+                success: true
+                excluded: false
+                exclusion: null
+        "401": { description: Unauthorised, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Player not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "429": { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/get-decision:
+    post:
+      tags: [Decision Engine]
+      summary: Get access decision for a player
+      description: |
+        Evaluates all risk signals and returns a binding access decision.
+
+        Decision logic:
+        - `underage_risk > 80` → **BLOCK** / ACCOUNT_SUSPEND
+        - `excluded` → **BLOCK** / ACCOUNT_SUSPEND
+        - `risk_score > 70` → **LIMIT** / APPLY_LIMITS
+        - `risk_score > 50` → **VERIFY** / REQUIRE_KYC
+        - otherwise → **ALLOW** / NONE
+
+        All decisions are logged to `decision_logs`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/PlayerLookupInput' }
+                - type: object
+                  properties:
+                    casino_id:
+                      type: string
+                      format: uuid
+                      description: Required only for super_admin callers (casino_id is inferred from API key / JWT for operator callers).
+            examples:
+              allow:
+                summary: Low-risk player → ALLOW
+                value: { player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+              block_excluded:
+                summary: Excluded player → BLOCK
+                value: { player_token: "tok_excluded" }
+      responses:
+        "200":
+          description: Decision
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DecisionResponse' }
+              examples:
+                allow:
+                  value:
+                    success: true
+                    player_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    decision: ALLOW
+                    reason: No risk indicators detected
+                    action_required: NONE
+                    risk_score: 23
+                    underage_risk: 0
+                    excluded: false
+                block:
+                  value:
+                    success: true
+                    player_id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+                    decision: BLOCK
+                    reason: Player is subject to an active exclusion
+                    action_required: ACCOUNT_SUSPEND
+                    risk_score: 55
+                    underage_risk: 0
+                    excluded: true
+        "401": { description: Unauthorised, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "404": { description: Player not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "422": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+        "429": { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "500": { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/interventions/dispatch:
+    post:
+      tags: [Interventions]
+      summary: Dispatch an intervention message
+      description: Sends a message to a player via the specified channel. Requires `casino_admin` or `super_admin` role.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, message]
+              properties:
+                channel:
+                  type: string
+                  enum: [in_app, whatsapp, sms, email]
+                recipient:
+                  type: string
+                  description: Phone number (whatsapp/sms) or player ID (in_app/email).
+                message:
+                  type: string
+                  maxLength: 1000
+            example:
+              channel: sms
+              recipient: "+27821234567"
+              message: "We noticed some unusual activity on your account. Please contact support."
+      responses:
+        "200":
+          description: Dispatch result (check `success` field — always 200)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  status: { type: string, enum: [sent, failed] }
+                  sid: { type: string, nullable: true }
+                  error: { type: string, nullable: true }
+        "401": { description: Unauthorised, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        "429": { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /api/contact:
+    post:
+      tags: [Contact]
+      summary: Submit a contact form
+      description: Public endpoint. Requires Cloudflare Turnstile CAPTCHA. Rate-limited to 3 submissions per email per 24 hours.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, message, turnstile_token]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 100 }
+                email: { type: string, format: email }
+                message: { type: string, minLength: 10, maxLength: 5000 }
+                user_type: { type: string, enum: [casino_operator, regulator, player, other, ""] }
+                company: { type: string, maxLength: 200 }
+                phone: { type: string, maxLength: 30 }
+                turnstile_token: { type: string }
+      responses:
+        "200":
+          description: Submission accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        "403": { description: CAPTCHA failed }
+        "422": { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ValidationError' } } } }
+        "429": { description: Rate limited }

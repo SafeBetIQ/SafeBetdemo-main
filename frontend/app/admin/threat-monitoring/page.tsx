@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -19,6 +20,7 @@ import {
 } from 'recharts';
 import { ShieldAlert, Activity, CircleAlert as AlertCircle, TriangleAlert as AlertTriangle, Info, Shield, TrendingUp, Eye, CircleCheck as CheckCircle2, Clock, RefreshCw, Zap, Search, Terminal, Lock, Wifi, Database, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface ThreatAlert {
   id: string;
@@ -104,6 +106,8 @@ export default function ThreatMonitoringPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [casinoFilter, setCasinoFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [alertsPage, setAlertsPage] = useState(0);
+  const PAGE_SIZE = 50;
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -133,6 +137,12 @@ export default function ThreatMonitoringPage() {
     }
     return true;
   });
+
+  const pagedAlerts = filteredAlerts.slice(alertsPage * PAGE_SIZE, (alertsPage + 1) * PAGE_SIZE);
+
+  const handleSeverityChange = (v: string) => { setSeverityFilter(v); setAlertsPage(0); };
+  const handleStatusChange = (v: string) => { setStatusFilter(v); setAlertsPage(0); };
+  const handleSearchChange = (v: string) => { setSearch(v); setAlertsPage(0); };
 
   const openCritical = alerts.filter(a => a.severity === 'critical' && a.status === 'open').length;
   const openHigh = alerts.filter(a => a.severity === 'high' && a.status === 'open').length;
@@ -234,10 +244,10 @@ export default function ThreatMonitoringPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input placeholder="Search alerts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+                    <Input placeholder="Search alerts..." value={search} onChange={e => handleSearchChange(e.target.value)} className="pl-9 h-9" />
                   </div>
                   <div className="flex gap-2">
-                    <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                    <Select value={severityFilter} onValueChange={handleSeverityChange}>
                       <SelectTrigger className="h-9 w-32 text-xs"><SelectValue placeholder="Severity" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Severities</SelectItem>
@@ -247,7 +257,7 @@ export default function ThreatMonitoringPage() {
                         <SelectItem value="low">Low</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <Select value={statusFilter} onValueChange={handleStatusChange}>
                       <SelectTrigger className="h-9 w-36 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
@@ -277,7 +287,7 @@ export default function ThreatMonitoringPage() {
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-400">Loading...</TableCell></TableRow>
                     ) : filteredAlerts.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-400">No alerts match your filters</TableCell></TableRow>
-                    ) : filteredAlerts.map(alert => {
+                    ) : pagedAlerts.map(alert => {
                       const sev = SEVERITY_CONFIG[alert.severity] ?? SEVERITY_CONFIG.info;
                       const AlertIcon = ALERT_TYPE_ICONS[alert.alert_type] ?? Shield;
                       return (
@@ -322,9 +332,14 @@ export default function ThreatMonitoringPage() {
                     })}
                   </TableBody>
                 </Table>
-                <div className="px-4 py-2 bg-slate-50 border-t text-xs text-slate-400">
-                  {filteredAlerts.length} of {alerts.length} alerts
-                </div>
+                <PaginationControls
+                  page={alertsPage}
+                  pageSize={PAGE_SIZE}
+                  total={filteredAlerts.length}
+                  onPageChange={setAlertsPage}
+                  loading={loading || refreshing}
+                  className="bg-slate-50"
+                />
               </CardContent>
             </Card>
           </TabsContent>

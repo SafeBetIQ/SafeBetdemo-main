@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
+import { NextRequest } from 'next/server';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export function GET(req: NextRequest) {
+  Sentry.setTag('environment', process.env.NODE_ENV);
 
-export async function GET() {
-  return NextResponse.json(
-    { status: 'ok', timestamp: new Date().toISOString() },
-    { status: 200 }
-  );
+  if (req.nextUrl.searchParams.get('test_error') === '1') {
+    Sentry.captureException(new Error('SENTRY TEST ERROR'));
+    return new Response('Sentry test error captured', { status: 200 });
+  }
+
+  return new Response('OK', { status: 200 });
 }

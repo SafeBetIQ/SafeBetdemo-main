@@ -202,10 +202,16 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const MODULE_SSR_DEFAULTS: ModuleContextType = {
+  modules: [],
+  hasModule: () => false,
+  loading: true,
+  refreshModules: async () => {},
+};
+
 export function useModules() {
   const context = useContext(ModuleContext);
-  if (context === undefined) {
-    throw new Error('useModules must be used within a ModuleProvider');
-  }
+  // Return safe defaults during SSR / build-time prerender instead of throwing.
+  if (context === undefined) return MODULE_SSR_DEFAULTS;
   return context;
 }

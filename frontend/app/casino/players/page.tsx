@@ -1,4 +1,5 @@
 'use client';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,29 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Users, Search, TriangleAlert as AlertTriangle, TrendingUp, Download, Eye, Info } from 'lucide-react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import Link from 'next/link';
 import { exportBehavioralRiskData, type PlayerBehavioralRiskData } from '@/lib/exportUtils';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+
+const PAGE_SIZE = 50;
 
 interface Player {
   id: string;
@@ -50,7 +42,6 @@ interface Player {
   last_active: string;
   status: string;
   signup_date: string;
-  player_sessions?: any[];
 }
 
 export default function PlayersPage() {
@@ -58,32 +49,22 @@ export default function PlayersPage() {
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<Player[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [filteredCount, setFilteredCount] = useState(0);
   const [statsData, setStatsData] = useState({ active: 0, highRisk: 0, criticalRisk: 0, avgRiskScore: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [page, setPage] = useState(0);
 
+  // Stats: run once on user load (full casino aggregate)
   useEffect(() => {
-    if (user) {
-      loadPlayers();
-    }
-  }, [user]);
-
-  async function loadPlayers() {
-    try {
-      setLoading(true);
-      const casinoId = user?.casino_id;
-      if (!casinoId) return;
-
-      const [countRes, scoreRes, tableRes] = await Promise.all([
-        supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
-        supabase.from('players').select('risk_score, status').eq('casino_id', casinoId),
-        supabase.from('players').select('*').eq('casino_id', casinoId).order('risk_score', { ascending: false }).limit(1000),
-      ]);
-
-      const total = countRes.count ?? 0;
-      setTotalCount(total);
-
+    const casinoId = user?.casino_id;
+    if (!casinoId) return;
+    Promise.all([
+      supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
+      supabase.from('players').select('risk_score, status').eq('casino_id', casinoId),
+    ]).then(([countRes, scoreRes]) => {
+      setTotalCount(countRes.count ?? 0);
       const scores = scoreRes.data || [];
       const active = scores.filter(p => p.status === 'active').length;
       const highRisk = scores.filter(p => p.risk_score >= 60).length;
@@ -92,14 +73,38 @@ export default function PlayersPage() {
         ? Math.round(scores.reduce((sum, p) => sum + (p.risk_score || 0), 0) / scores.length)
         : 0;
       setStatsData({ active, highRisk, criticalRisk, avgRiskScore });
+    });
+  }, [user?.casino_id]);
 
-      setPlayers(tableRes.data || []);
-    } catch (error: any) {
-      setPlayers([]);
-    } finally {
-      setLoading(false);
+  // Table: paginated + filtered
+  useEffect(() => {
+    const casinoId = user?.casino_id;
+    if (!casinoId) return;
+    setLoading(true);
+    const offset = page * PAGE_SIZE;
+    let query = supabase
+      .from('players')
+      .select('*', { count: 'exact' })
+      .eq('casino_id', casinoId)
+      .order('risk_score', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (riskFilter === 'critical') query = query.gte('risk_score', 80);
+    else if (riskFilter === 'high') query = query.gte('risk_score', 60).lt('risk_score', 80);
+    else if (riskFilter === 'medium') query = query.gte('risk_score', 40).lt('risk_score', 60);
+    else if (riskFilter === 'low') query = query.lt('risk_score', 40);
+    if (searchTerm.trim()) {
+      const t = searchTerm.trim();
+      query = query.or(`first_name.ilike.%${t}%,last_name.ilike.%${t}%,email.ilike.%${t}%`);
     }
-  }
+
+    query.then(({ data, count }) => {
+      setPlayers(data || []);
+      setFilteredCount(count ?? 0);
+      setLoading(false);
+    });
+  }, [user?.casino_id, page, searchTerm, riskFilter, statusFilter]);
 
   const getRiskBadge = (score: number) => {
     if (score >= 80) return { label: 'Critical', className: 'bg-red-100 text-red-800 hover:bg-red-100' };
@@ -108,34 +113,12 @@ export default function PlayersPage() {
     return { label: 'Low', className: 'bg-green-100 text-green-800 hover:bg-green-100' };
   };
 
-  const filteredPlayers = players.filter((player) => {
-    const matchesSearch =
-      player.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      player.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      player.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRisk =
-      riskFilter === 'all' ||
-      (riskFilter === 'critical' && player.risk_score >= 80) ||
-      (riskFilter === 'high' && player.risk_score >= 60 && player.risk_score < 80) ||
-      (riskFilter === 'medium' && player.risk_score >= 40 && player.risk_score < 60) ||
-      (riskFilter === 'low' && player.risk_score < 40);
-
-    const matchesStatus = statusFilter === 'all' || player.status === statusFilter;
-
-    return matchesSearch && matchesRisk && matchesStatus;
-  });
-
-  const stats = {
-    total: totalCount,
-    active: statsData.active,
-    highRisk: statsData.highRisk,
-    criticalRisk: statsData.criticalRisk,
-    avgRiskScore: statsData.avgRiskScore,
-  };
+  const handleSearch = (v: string) => { setSearchTerm(v); setPage(0); };
+  const handleRisk = (v: string) => { setRiskFilter(v); setPage(0); };
+  const handleStatus = (v: string) => { setStatusFilter(v); setPage(0); };
 
   const handleExport = () => {
-    const exportData: PlayerBehavioralRiskData[] = filteredPlayers.map((player) => ({
+    const exportData: PlayerBehavioralRiskData[] = players.map((player) => ({
       playerId: player.id,
       playerName: `${player.first_name} ${player.last_name}`,
       game: 'Various',
@@ -150,7 +133,6 @@ export default function PlayersPage() {
       isActive: player.status === 'active',
       lastBetTime: new Date(player.last_active),
     }));
-
     exportBehavioralRiskData(exportData, user?.casino_id || 'Casino');
   };
 
@@ -171,19 +153,18 @@ export default function PlayersPage() {
 
         <div className="flex-1 p-6 min-w-0">
           <div className="space-y-6">
-            {/* Statistics Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <KPICard
                 title="Total Players"
-                value={stats.total}
+                value={totalCount}
                 icon={Users}
                 tooltip="Total number of registered players in your casino, including active, suspended, and self-excluded accounts."
               />
               <KPICard
                 title="Active Players"
-                value={stats.active}
+                value={statsData.active}
                 change={{
-                  value: stats.total > 0 ? ((stats.active / stats.total) * 100) : 0,
+                  value: totalCount > 0 ? ((statsData.active / totalCount) * 100) : 0,
                   type: 'neutral',
                   label: 'of total'
                 }}
@@ -192,10 +173,10 @@ export default function PlayersPage() {
               />
               <KPICard
                 title="High Risk Players"
-                value={stats.highRisk}
+                value={statsData.highRisk}
                 change={{
-                  value: stats.total > 0 ? ((stats.highRisk / stats.total) * 100) : 0,
-                  type: stats.highRisk > 5 ? 'increase' : 'neutral',
+                  value: totalCount > 0 ? ((statsData.highRisk / totalCount) * 100) : 0,
+                  type: statsData.highRisk > 5 ? 'increase' : 'neutral',
                   label: 'of total'
                 }}
                 icon={AlertTriangle}
@@ -203,13 +184,12 @@ export default function PlayersPage() {
               />
               <KPICard
                 title="Average Risk Score"
-                value={stats.avgRiskScore}
+                value={statsData.avgRiskScore}
                 icon={Eye}
                 tooltip="Mean risk score across all players, calculated using AI analysis of betting patterns, session behaviors, and other risk indicators."
               />
             </div>
 
-            {/* Players Table */}
             <Card className="relative">
               <div className="absolute top-4 right-4 z-10">
                 <Tooltip>
@@ -217,29 +197,26 @@ export default function PlayersPage() {
                     <Info className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p>Comprehensive list of all casino players with real-time risk scoring, activity monitoring, and filtering options. Use this to identify players who may need support or interventions.</p>
+                    <p>Comprehensive list of all casino players with real-time risk scoring, activity monitoring, and filtering options.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
               <CardHeader>
                 <CardTitle>All Players</CardTitle>
-                <CardDescription>
-                  View detailed information about all registered players
-                </CardDescription>
+                <CardDescription>View detailed information about all registered players</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Filters */}
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Search players by name or email..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => handleSearch(e.target.value)}
                       className="pl-9"
                     />
                   </div>
-                  <Select value={riskFilter} onValueChange={setRiskFilter}>
+                  <Select value={riskFilter} onValueChange={handleRisk}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Filter by risk" />
                     </SelectTrigger>
@@ -251,7 +228,7 @@ export default function PlayersPage() {
                       <SelectItem value="low">Low</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select value={statusFilter} onValueChange={handleStatus}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
@@ -264,7 +241,6 @@ export default function PlayersPage() {
                   </Select>
                 </div>
 
-                {/* Table */}
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
@@ -272,7 +248,7 @@ export default function PlayersPage() {
                       <p className="mt-4 text-sm text-muted-foreground">Loading players...</p>
                     </div>
                   </div>
-                ) : filteredPlayers.length === 0 ? (
+                ) : players.length === 0 ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
                       <Users className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -300,7 +276,7 @@ export default function PlayersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredPlayers.map((player) => {
+                        {players.map((player) => {
                           const riskBadge = getRiskBadge(player.risk_score);
                           return (
                             <TableRow key={player.id}>
@@ -308,30 +284,20 @@ export default function PlayersPage() {
                                 <div className="font-medium">{player.first_name} {player.last_name}</div>
                                 <div className="font-mono text-xs text-muted-foreground">{player.player_id}</div>
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {player.email}
-                              </TableCell>
+                              <TableCell className="text-muted-foreground">{player.email}</TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold">{player.risk_score}</span>
-                                  <Badge className={riskBadge.className}>
-                                    {riskBadge.label}
-                                  </Badge>
+                                  <Badge className={riskBadge.className}>{riskBadge.label}</Badge>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                R{(player.total_wagered || 0).toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {player.session_count || 0}
-                              </TableCell>
+                              <TableCell className="text-right">R{(player.total_wagered || 0).toLocaleString()}</TableCell>
+                              <TableCell className="text-right">{player.session_count || 0}</TableCell>
                               <TableCell>
                                 <Badge
                                   variant={
-                                    player.status === 'active'
-                                      ? 'default'
-                                      : player.status === 'suspended'
-                                      ? 'secondary'
+                                    player.status === 'active' ? 'default'
+                                      : player.status === 'suspended' ? 'secondary'
                                       : 'destructive'
                                   }
                                 >
@@ -339,9 +305,7 @@ export default function PlayersPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
-                                {player.last_active
-                                  ? new Date(player.last_active).toLocaleDateString()
-                                  : 'Never'}
+                                {player.last_active ? new Date(player.last_active).toLocaleDateString() : 'Never'}
                               </TableCell>
                               <TableCell>
                                 <Link href={`/behavioral-risk-intelligence?player=${player.id}`}>
@@ -358,12 +322,13 @@ export default function PlayersPage() {
                   </div>
                 )}
 
-                {/* Results Summary */}
-                {!loading && filteredPlayers.length > 0 && (
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    Showing {filteredPlayers.length} of {players.length} players
-                  </div>
-                )}
+                <PaginationControls
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  total={filteredCount}
+                  onPageChange={setPage}
+                  loading={loading}
+                />
               </CardContent>
             </Card>
           </div>
