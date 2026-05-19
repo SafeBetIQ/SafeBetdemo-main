@@ -132,10 +132,10 @@ const MODULES = [
     icon: Cpu,
     title: 'GuardianLayer',
     description: 'Minor protection module detecting under-age gambling patterns and triggering immediate escalation protocols.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/20',
-    hoverBorder: 'hover:border-orange-500/40',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
+    border: 'border-brand-800',
+    hoverBorder: 'hover:border-brand-500/40',
     features: ['Age pattern detection', 'Behavioural anomaly flags', 'Instant escalation workflows', 'Supervisor alert system'],
   },
 ];
@@ -397,14 +397,14 @@ export default function CasinosPage() {
                   </div>
 
                   <motion.div
-                    className="p-4 bg-orange-500/8 border border-orange-500/20 rounded-lg"
+                    className="p-4 bg-brand-400/5 border border-brand-800 rounded-lg"
                     animate={{ opacity: [1, 0.85, 1] }}
                     transition={{ duration: 2.5, repeat: Infinity }}
                   >
                     <div className="flex items-start gap-3">
-                      <Bell className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                      <Bell className="h-4 w-4 text-brand-400 mt-0.5 flex-shrink-0" />
                       <div>
-                        <div className="text-sm font-semibold text-orange-400 mb-1">AI Recommends</div>
+                        <div className="text-sm font-semibold text-brand-400 mb-1">AI Recommends</div>
                         <ul className="text-xs text-gray-400 space-y-1">
                           <li>• Send WhatsApp responsible gaming message</li>
                           <li>• Apply 60-min session warning</li>

@@ -27,8 +27,8 @@ const REGULATOR_TOOLS = [
     icon: AlertTriangle,
     title: 'Operator Compliance Scoring',
     description: 'Each operator receives a live compliance score based on intervention rates, response times, self-exclusion adherence, and report quality.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Brain,
@@ -326,8 +326,8 @@ export default function RegulatorIntelligencePage() {
       <section className="py-20 px-6 bg-black border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
-              <Shield className="h-4 w-4 mr-2" />
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
+              <Shield className="h-3.5 w-3.5 mr-1.5" />
               Enforcement Tools
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -341,8 +341,8 @@ export default function RegulatorIntelligencePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {ENFORCEMENT_TOOLS.map((tool, i) => (
               <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
-                <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <tool.icon className="h-5 w-5 text-orange-400" />
+                <div className="w-11 h-11 bg-brand-400/10 rounded-xl flex items-center justify-center mb-4">
+                  <tool.icon className="h-5 w-5 text-brand-400" />
                 </div>
                 <h3 className="text-base font-bold text-white mb-2">{tool.title}</h3>
                 <p className="text-gray-400 text-sm">{tool.description}</p>
@@ -420,7 +420,7 @@ export default function RegulatorIntelligencePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/contact">
-              <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-10 py-6">
+              <Button size="lg" className="bg-white hover:bg-gray-100 text-black font-semibold px-8">
                 Request Regulator Access
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

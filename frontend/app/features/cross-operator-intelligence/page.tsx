@@ -20,8 +20,8 @@ const CAPABILITIES = [
     icon: AlertTriangle,
     title: 'Multi-Operator Alert Propagation',
     description: 'Risk alerts, self-exclusion breaches, and intervention outcomes are shared across the operator network in real time.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Brain,
@@ -207,7 +207,7 @@ export default function CrossOperatorIntelligencePage() {
               </div>
               {[
                 { casino: 'Atlantic Crest Casino', alert: 'Risk Score 87 — Player seen at 2 other operators', type: 'HIGH RISK', color: 'text-red-400' },
-                { casino: 'Apex Gaming Resort', alert: 'Self-exclusion breach — same player at Goldfields Gaming', type: 'BREACH', color: 'text-orange-400' },
+                { casino: 'Apex Gaming Resort', alert: 'Self-exclusion breach — same player at Goldfields Gaming', type: 'BREACH', color: 'text-red-400' },
                 { casino: 'Crown & Sceptre Casino', alert: 'Shared intervention: loss velocity confirmed cross-site', type: 'SHARED', color: 'text-brand-400' },
                 { casino: 'Eastern Sands Casino', alert: 'Network alert: player active at 3 venues simultaneously', type: 'MULTI-SITE', color: 'text-yellow-400' },
                 { casino: 'Coastline Casino & Entertainment', alert: 'Pattern match: identical bet sequences across 2 operators', type: 'PATTERN', color: 'text-brand-400' },

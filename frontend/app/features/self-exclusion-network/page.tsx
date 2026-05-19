@@ -20,8 +20,8 @@ const EXCLUSION_FEATURES = [
     icon: Clock,
     title: 'Real-Time Breach Detection',
     description: 'If a self-excluded player attempts to log in or enter any participating venue, an instant alert fires to the operator and compliance team.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: RefreshCw,
@@ -127,16 +127,16 @@ export default function SelfExclusionNetworkPage() {
 
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-500/6 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black pointer-events-none" />
         <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-orange-500/10 text-orange-400 border-orange-500/20 px-4 py-2">
+            <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-sm px-5 py-2 rounded-full font-mono tracking-wide">
               <Ban className="h-4 w-4 mr-2" />
               Self-Exclusion Network
             </Badge>
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
               One Exclusion.{' '}
-              <span className="text-orange-400">Every Casino Enforces It.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">Every Casino Enforces It.</span>
             </h1>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
               SafeBet IQ's self-exclusion network ensures that when a player requests exclusion —
@@ -144,24 +144,22 @@ export default function SelfExclusionNetworkPage() {
               participating operator, with zero gaps.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/contact">
-                <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-black font-semibold px-10 py-6 text-base">
+              <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8">
+                <Link href="/contact">
                   Join the Network
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button size="lg" variant="outline" className="border-gray-700 text-gray-300 hover:border-orange-500 hover:text-orange-400 px-10 py-6 text-base">
-                  View Exclusion Dashboard
-                </Button>
-              </Link>
+                </Link>
+              </Button>
+              <Button asChild size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8">
+                <Link href="/login">View Exclusion Dashboard</Link>
+              </Button>
             </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((s, i) => (
               <div key={i} className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center">
-                <div className="text-3xl font-bold text-orange-400 mb-1">{s.value}</div>
+                <div className="text-3xl font-bold text-brand-400 mb-1">{s.value}</div>
                 <div className="text-white font-semibold text-sm mb-1">{s.label}</div>
                 <div className="text-gray-500 text-xs">{s.sub}</div>
               </div>
@@ -261,7 +259,7 @@ export default function SelfExclusionNetworkPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {EXCLUSION_FEATURES.map((feature, i) => (
-              <Card key={i} className="bg-gray-900/40 border-gray-800 hover:border-orange-500/30 transition-all duration-200 group">
+              <Card key={i} className="bg-gray-900/40 border-gray-800 hover:border-gray-700 transition-colors group">
                 <CardContent className="p-6">
                   <div className={`w-11 h-11 ${feature.bg} rounded-xl flex items-center justify-center mb-4`}>
                     <feature.icon className={`h-5 w-5 ${feature.color}`} />
@@ -279,8 +277,8 @@ export default function SelfExclusionNetworkPage() {
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
-              <Ban className="h-4 w-4 mr-2" />
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
+              <Ban className="h-3.5 w-3.5 mr-1.5" />
               Exclusion Types
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -295,14 +293,14 @@ export default function SelfExclusionNetworkPage() {
             {EXCLUSION_TYPES.map((type, i) => (
               <Card key={i} className="bg-gray-900/40 border-gray-800 hover:border-gray-700 transition-colors">
                 <CardContent className="p-6">
-                  <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center mb-4">
-                    <type.icon className="h-5 w-5 text-orange-400" />
+                  <div className="w-11 h-11 bg-brand-400/10 rounded-xl flex items-center justify-center mb-4">
+                    <type.icon className="h-5 w-5 text-brand-400" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-2">{type.title}</h3>
                   <p className="text-gray-400 text-sm mb-4">{type.description}</p>
                   <div className="bg-gray-800/50 rounded-lg px-3 py-2">
                     <span className="text-xs text-gray-500">Duration: </span>
-                    <span className="text-xs text-orange-400 font-semibold">{type.duration}</span>
+                    <span className="text-xs text-brand-400 font-semibold">{type.duration}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -327,7 +325,7 @@ export default function SelfExclusionNetworkPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {PROCESS_STEPS.map((step, i) => (
               <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
-                <div className="text-4xl font-bold text-orange-400/20 mb-3">{step.step}</div>
+                <div className="text-4xl font-bold text-brand-400/20 mb-3">{step.step}</div>
                 <h3 className="text-lg font-bold text-white mb-2">{step.title}</h3>
                 <p className="text-gray-400 text-sm">{step.description}</p>
               </div>
@@ -339,8 +337,8 @@ export default function SelfExclusionNetworkPage() {
       {/* CTA */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
         <div className="max-w-4xl mx-auto text-center">
-          <Badge className="mb-6 bg-orange-500/10 text-orange-400 border-orange-500/20">
-            <Lock className="h-4 w-4 mr-2" />
+          <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
+            <Lock className="h-3.5 w-3.5 mr-1.5" />
             Close the Gap
           </Badge>
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
@@ -351,18 +349,18 @@ export default function SelfExclusionNetworkPage() {
             asks for help, every casino in the network honours that request.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/contact">
-              <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-black font-semibold px-10 py-6">
+            <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8">
+              <Link href="/contact">
                 Join the Network
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/features/cross-operator-intelligence">
-              <Button size="lg" variant="outline" className="border-gray-700 text-gray-300 hover:border-orange-500 hover:text-orange-400 px-10 py-6">
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8">
+              <Link href="/features/cross-operator-intelligence">
                 Cross-Operator Intelligence
-                <ChevronRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

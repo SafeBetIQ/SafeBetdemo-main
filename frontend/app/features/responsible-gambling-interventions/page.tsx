@@ -66,8 +66,8 @@ const TRIGGER_TYPES = [
     icon: TrendingDown,
     title: 'Loss Velocity',
     description: 'Detect rapid loss accumulation within a session and intervene before the spiral deepens.',
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: RefreshCw,
@@ -80,8 +80,8 @@ const TRIGGER_TYPES = [
     icon: AlertTriangle,
     title: 'Behavioral Pattern Shift',
     description: 'AI detects sudden changes in bet sizing, game type, or visit frequency that signal problem behaviour.',
-    color: 'text-yellow-400',
-    bg: 'bg-yellow-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Users,
@@ -216,8 +216,8 @@ export default function ResponsibleGamblingInterventionsPage() {
       <section className="py-20 px-6 bg-black border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
-              <Bell className="h-4 w-4 mr-2" />
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
+              <Bell className="h-3.5 w-3.5 mr-1.5" />
               Intelligent Trigger Engine
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
