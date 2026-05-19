@@ -46,8 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('user_cache');
           sessionStorage.removeItem('user_cache_time');
+          const publicRoutes = ['/', '/login', '/nova-iq', '/wellbeing-game'];
+          if (!publicRoutes.includes(window.location.pathname)) {
+            router.push('/login');
+          }
         }
-        router.push('/login');
       } else if (event === 'SIGNED_IN') {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('user_cache');

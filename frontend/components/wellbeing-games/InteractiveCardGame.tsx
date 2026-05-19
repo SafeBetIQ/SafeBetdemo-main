@@ -247,20 +247,24 @@ export default function EnhancedInteractiveCardGame({
   useEffect(() => {
     const saved = localStorage.getItem('novaiq_save');
     if (saved) {
+      let data: Record<string, any> = {};
       try {
-        const data = JSON.parse(saved);
-        // Only restore if less than 1 hour old
-        if (Date.now() - data.timestamp < 3600000) {
-          setCurrentScenario(data.currentScenario);
-          setScore(data.score);
-          setDecisions(data.decisions);
-          setTelemetry(data.telemetry);
-          setSessionStart(data.sessionStart ? new Date(data.sessionStart) : null);
-          setComboStreak(data.comboStreak || 0);
-          setLastChoiceType(data.lastChoiceType || '');
-        }
+        data = JSON.parse(saved) ?? {};
       } catch (e) {
-        console.error('Failed to load saved progress', e);
+        console.error('Failed to parse saved progress', e);
+        data = {};
+      }
+      if (!data || !data.timestamp) return;
+      // Only restore if less than 1 hour old
+      if (Date.now() - (data.timestamp ?? 0) < 3600000) {
+        const workers = data.workers ?? [];
+        setCurrentScenario(data.currentScenario ?? 0);
+        setScore(data.score ?? 0);
+        setDecisions(workers.length ? workers : (data.decisions ?? []));
+        setTelemetry(data.telemetry ?? []);
+        setSessionStart(data.sessionStart ? new Date(data.sessionStart) : null);
+        setComboStreak(data.comboStreak ?? 0);
+        setLastChoiceType(data.lastChoiceType ?? '');
       }
     }
   }, []);

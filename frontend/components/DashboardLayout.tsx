@@ -3,7 +3,7 @@
 import React from 'react';
 import { AppShell } from './AppShell';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface DashboardLayoutProps {
@@ -13,6 +13,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [settled, setSettled] = useState(false);
 
   useEffect(() => {
@@ -23,10 +24,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [loading]);
 
   useEffect(() => {
-    if (settled && !user) {
+    const publicRoutes = ['/', '/login', '/nova-iq', '/wellbeing-game'];
+    if (settled && !user && !publicRoutes.includes(pathname)) {
       router.push('/login');
     }
-  }, [user, settled, router]);
+  }, [user, settled, router, pathname]);
 
   if (loading || !settled) {
     return (

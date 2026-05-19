@@ -1,3 +1,3 @@
 export default function Home() {
-  return <div>SafeBet IQ is live</div>;
+  return <div>Welcome to SafeBet IQ</div>;
 }

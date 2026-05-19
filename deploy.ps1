@@ -50,7 +50,8 @@ if (Test-Path ".next\prerender-manifest.js") {
     $pmPreview = node -e "var self={}; eval(require('fs').readFileSync('.next/prerender-manifest.js','utf8')); process.stdout.write(self.__PRERENDER_MANIFEST)"
     if ($LASTEXITCODE -eq 0 -and $pmPreview) {
         $fullManifest = "{`"version`":4,`"routes`":{},`"dynamicRoutes`":{},`"notFoundRoutes`":[],`"preview`":$pmPreview}"
-        [System.IO.File]::WriteAllBytes(".next\prerender-manifest.json", [System.Text.Encoding]::UTF8.GetBytes($fullManifest))
+        $pmJsonPath = Join-Path (Get-Location).Path ".next\prerender-manifest.json"
+        [System.IO.File]::WriteAllBytes($pmJsonPath, [System.Text.Encoding]::UTF8.GetBytes($fullManifest))
         Write-Host "   Created prerender-manifest.json"
     }
 }
@@ -79,6 +80,30 @@ foreach ($f in (Get-ChildItem ".next" -Recurse -Include "*.js" -File)) {
 }
 Write-Host "   $fixed file(s) patched."
 
+# --- 2b. Inject missing error-boundary entry into client-reference manifests ---
+# Next.js 13.5.x built on Windows omits error-boundary.js from client manifests
+# for pages that load chunk 3089 (nova-iq, wellbeing-game). At runtime on Linux
+# the RSC serializer looks up error-boundary in the manifest and gets a 500.
+# Fix: inject the entry (client module 41729 in chunk 4700, SSR module 65648).
+Write-Host "[3b/5] Patching error-boundary into client-reference manifests..."
+$ebFixed = 0
+$ebFindSSR   = '"81443":{"*":{"id":"7274","name":"*","chunks":[],"async":false}}},"edgeSSRModuleMapping":{}'
+$ebReplSSR   = '"81443":{"*":{"id":"7274","name":"*","chunks":[],"async":false}},"41729":{"*":{"id":"65648","name":"*","chunks":[],"async":false}}},"edgeSSRModuleMapping":{}'
+$ebFindCli   = '"clientModules":{"C:\\Projects\\SafeBetdemo-main\\frontend\\node_modules\\next\\dist\\client\\components\\app-router.js"'
+$ebNewEntries = '"C:\\Projects\\SafeBetdemo-main\\frontend\\node_modules\\next\\dist\\client\\components\\error-boundary.js":{"id":41729,"name":"*","chunks":["2272:static/chunks/webpack-860fd52b23ad5c7f.js","2971:static/chunks/fd9d1056-fe39244e3936f9d4.js","4700:static/chunks/4700-a5fe7bdf5179ec83.js"],"async":false},"C:\\Projects\\SafeBetdemo-main\\frontend\\node_modules\\next\\dist\\esm\\client\\components\\error-boundary.js":{"id":41729,"name":"*","chunks":["2272:static/chunks/webpack-860fd52b23ad5c7f.js","2971:static/chunks/fd9d1056-fe39244e3936f9d4.js","4700:static/chunks/4700-a5fe7bdf5179ec83.js"],"async":false},'
+$ebReplCli   = '"clientModules":{' + $ebNewEntries + '"C:\\Projects\\SafeBetdemo-main\\frontend\\node_modules\\next\\dist\\client\\components\\app-router.js"'
+foreach ($mf in (Get-ChildItem ".next" -Recurse -Filter "*_client-reference-manifest.js" -File)) {
+    $mc = [System.IO.File]::ReadAllText($mf.FullName)
+    if ($mc -notmatch '"41729"') {
+        $mn = $mc.Replace($ebFindSSR, $ebReplSSR).Replace($ebFindCli, $ebReplCli)
+        if ($mn -ne $mc) {
+            [System.IO.File]::WriteAllText($mf.FullName, $mn, [System.Text.Encoding]::UTF8)
+            $ebFixed++
+        }
+    }
+}
+Write-Host "   $ebFixed manifest(s) patched."
+
 Pop-Location
 
 # --- 3. Package ---
@@ -96,8 +121,17 @@ $realPkgBytes = [System.IO.File]::ReadAllBytes($pkgPath)
 $minPkg = [System.Text.Encoding]::ASCII.GetBytes('{"name":"safebet-iq","version":"1.0.0","private":true}')
 [System.IO.File]::WriteAllBytes($pkgPath, $minPkg)
 
-tar --exclude="./.next/cache" -a -c -f "../$ZIP" `
-    ./Procfile ./next.config.js ./.next ./public ./.ebextensions ./package.json
+# Remove source maps before packaging — Windows tar's --exclude glob creates
+# invalid zip files (libarchive bug), so delete the files explicitly instead.
+Get-ChildItem ".next\standalone" -Recurse -Filter "*.map" -File |
+    Remove-Item -Force
+Write-Host "   Source maps removed from standalone."
+
+# Package only the standalone runtime — server/static are already merged into
+# standalone/.next/ by the copy step above, so we skip the raw .next/ root to
+# avoid doubling the bundle size.
+tar --exclude="./.next/standalone/.next/cache" -a -c -f "../$ZIP" `
+    ./Procfile ./next.config.js ./.next/standalone ./.ebextensions ./package.json
 $te = $LASTEXITCODE
 
 # Restore real package.json byte-for-byte regardless of tar exit code
