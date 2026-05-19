@@ -220,7 +220,7 @@ export default function SelfExclusionNetworkPage() {
                 { time: '15:38:11', player: 'PL-01043', venue: 'Crown & Sceptre Casino', status: 'BLOCKED', excluded: '2 Feb 2026', color: 'text-red-400' },
                 { time: '15:22:50', player: 'PL-00688', venue: 'Harbour Lights Casino', status: 'BLOCKED', excluded: '15 Dec 2025', color: 'text-red-400' },
                 { time: '15:09:34', player: 'PL-02271', venue: 'Apex Gaming Resort', status: 'BLOCKED', excluded: '5 Mar 2026', color: 'text-red-400' },
-                { time: '14:55:18', player: 'PL-00441', venue: 'Coastline Casino & Entertainment', status: 'ALERTED', excluded: '11 Jan 2026', color: 'text-orange-400' },
+                { time: '14:55:18', player: 'PL-00441', venue: 'Coastline Casino & Entertainment', status: 'ALERTED', excluded: '11 Jan 2026', color: 'text-brand-400' },
               ].map((row, i) => (
                 <div key={i} className="py-3 border-b border-gray-800 last:border-0">
                   <div className="flex items-center justify-between mb-1">
