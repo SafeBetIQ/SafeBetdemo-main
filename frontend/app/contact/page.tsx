@@ -97,7 +97,7 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-black">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-xl border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/">
               <Image
@@ -133,10 +133,10 @@ export default function ContactPage() {
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
               Get Started with
@@ -152,8 +152,8 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
             <Card className="bg-gray-900/50 border-gray-800">
               <CardContent className="p-8 text-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <Mail className="h-7 w-7 text-black" />
+                <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Mail className="h-7 w-7 text-brand-400" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">Email Us</h3>
                 <p className="text-gray-400 mb-4">Get in touch with our team</p>
@@ -163,8 +163,8 @@ export default function ContactPage() {
 
             <Card className="bg-gray-900/50 border-gray-800">
               <CardContent className="p-8 text-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <Phone className="h-7 w-7 text-black" />
+                <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Phone className="h-7 w-7 text-brand-400" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">Call Us</h3>
                 <p className="text-gray-400 mb-4">Speak with our sales team</p>
@@ -174,8 +174,8 @@ export default function ContactPage() {
 
             <Card className="bg-gray-900/50 border-gray-800">
               <CardContent className="p-8 text-center">
-                <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <MapPin className="h-7 w-7 text-black" />
+                <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <MapPin className="h-7 w-7 text-brand-400" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">Visit Us</h3>
                 <p className="text-gray-400 mb-4">Our headquarters</p>

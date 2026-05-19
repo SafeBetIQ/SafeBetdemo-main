@@ -12,7 +12,7 @@ export default function PostmanSamplesPage() {
       <div className="max-w-5xl mx-auto px-6 py-16">
         <div className="flex items-center space-x-3 mb-6">
           <Download className="h-10 w-10 text-brand-400" />
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-brand-400 to-teal-500 text-transparent bg-clip-text">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
             Postman Collection
           </h1>
         </div>

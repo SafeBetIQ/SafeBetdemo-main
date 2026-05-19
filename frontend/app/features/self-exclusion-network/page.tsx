@@ -27,29 +27,29 @@ const EXCLUSION_FEATURES = [
     icon: RefreshCw,
     title: 'Automatic Re-Enrolment Prevention',
     description: 'AI cross-references new registrations against the exclusion register — blocking re-enrolment under the same identity.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: FileText,
     title: 'Compliance Audit Trail',
     description: 'Every exclusion, breach attempt, and enforcement action is logged with full timestamps for regulator submission.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Database,
     title: 'Multi-Identity Matching',
     description: 'SafeBet IQ matches players across name variations, ID numbers, and email patterns to prevent workaround re-registrations.',
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Eye,
     title: 'Regulator Exclusion Dashboard',
     description: 'Provincial and national regulators have a live view of exclusion volumes, breach attempts, and operator compliance rates.',
-    color: 'text-green-400',
-    bg: 'bg-green-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
 ];
 
@@ -128,7 +128,7 @@ export default function SelfExclusionNetworkPage() {
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-500/6 via-transparent to-transparent" />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <Badge className="mb-6 bg-orange-500/10 text-orange-400 border-orange-500/20 px-4 py-2">
               <Ban className="h-4 w-4 mr-2" />
@@ -172,7 +172,7 @@ export default function SelfExclusionNetworkPage() {
 
       {/* The Problem */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <Badge className="mb-6 bg-red-500/10 text-red-400 border-red-500/20">
@@ -245,7 +245,7 @@ export default function SelfExclusionNetworkPage() {
 
       {/* Features */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-brand-400/10 text-brand-400 border-brand-400/20">
               <Shield className="h-4 w-4 mr-2" />
@@ -277,7 +277,7 @@ export default function SelfExclusionNetworkPage() {
 
       {/* Exclusion Types */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
               <Ban className="h-4 w-4 mr-2" />
@@ -315,7 +315,7 @@ export default function SelfExclusionNetworkPage() {
       <section className="py-20 px-6 bg-black border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Activity className="h-4 w-4 mr-2" />
               The Process
             </Badge>

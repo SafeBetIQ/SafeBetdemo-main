@@ -27,29 +27,29 @@ const CAPABILITIES = [
     icon: Brain,
     title: 'Aggregated Behavioural Profiles',
     description: 'Player risk profiles are enriched with behaviour data from all consenting operators, giving each casino a fuller picture than they could build alone.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Database,
     title: 'National Pattern Recognition',
     description: 'Identify gambling harm trends at a national and provincial level — patterns no single operator could detect in isolation.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Shield,
     title: 'POPIA-Compliant Data Sharing',
     description: 'All intelligence sharing is governed by strict consent frameworks, anonymisation protocols, and POPIA-compliant data handling.',
-    color: 'text-green-400',
-    bg: 'bg-green-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Target,
     title: 'Regulator Oversight Layer',
     description: 'Regulators receive aggregated intelligence without operator-specific identifiers — enabling oversight without compromising operator confidentiality.',
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
 ];
 
@@ -108,9 +108,9 @@ const BENEFITS = [
       'Aggregated data for policy decision-making',
       'Automated reports on network-wide intervention rates',
     ],
-    color: 'text-teal-400',
-    borderColor: 'border-teal-400/20',
-    bgColor: 'bg-teal-400/5',
+    color: 'text-brand-400',
+    borderColor: 'border-brand-800',
+    bgColor: 'bg-brand-900/40',
   },
 ];
 
@@ -121,16 +121,16 @@ export default function CrossOperatorIntelligencePage() {
 
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/8 via-transparent to-transparent" />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black" />
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-cyan-500/10 text-cyan-400 border-cyan-500/20 px-4 py-2">
+            <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Globe className="h-4 w-4 mr-2" />
               Cross-Operator Intelligence
             </Badge>
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
               One Network.{' '}
-              <span className="text-cyan-400">Shared Intelligence.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">Shared Intelligence.</span>
             </h1>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
               Problem gamblers don't stay at one casino. SafeBet IQ's cross-operator intelligence
@@ -139,13 +139,13 @@ export default function CrossOperatorIntelligencePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
-                <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-black font-semibold px-10 py-6 text-base">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10 py-6 text-base">
                   Join the Network
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="lg" variant="outline" className="border-gray-700 text-gray-300 hover:border-cyan-500 hover:text-cyan-400 px-10 py-6 text-base">
+                <Button size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-10 py-6 text-base">
                   View Live Intelligence
                 </Button>
               </Link>
@@ -156,7 +156,7 @@ export default function CrossOperatorIntelligencePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {NETWORK_STATS.map((s, i) => (
               <div key={i} className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 text-center">
-                <div className="text-3xl font-bold text-cyan-400 mb-1">{s.value}</div>
+                <div className="text-3xl font-bold text-brand-400 mb-1">{s.value}</div>
                 <div className="text-white font-semibold text-sm mb-1">{s.label}</div>
                 <div className="text-gray-500 text-xs">{s.sub}</div>
               </div>
@@ -167,10 +167,10 @@ export default function CrossOperatorIntelligencePage() {
 
       {/* Network Diagram Visual */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <Badge className="mb-6 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+              <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Share2 className="h-4 w-4 mr-2" />
                 The Intelligence Network
               </Badge>
@@ -194,7 +194,7 @@ export default function CrossOperatorIntelligencePage() {
                   'Contribute to national gambling harm reduction data',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-brand-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-300 text-sm">{item}</span>
                   </li>
                 ))}
@@ -202,13 +202,13 @@ export default function CrossOperatorIntelligencePage() {
             </div>
             <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-cyan-400 text-sm font-semibold">Live Network Alerts</span>
+                <div className="w-3 h-3 rounded-full bg-brand-400 animate-pulse" />
+                <span className="text-brand-400 text-sm font-semibold">Live Network Alerts</span>
               </div>
               {[
                 { casino: 'Atlantic Crest Casino', alert: 'Risk Score 87 — Player seen at 2 other operators', type: 'HIGH RISK', color: 'text-red-400' },
                 { casino: 'Apex Gaming Resort', alert: 'Self-exclusion breach — same player at Goldfields Gaming', type: 'BREACH', color: 'text-orange-400' },
-                { casino: 'Crown & Sceptre Casino', alert: 'Shared intervention: loss velocity confirmed cross-site', type: 'SHARED', color: 'text-cyan-400' },
+                { casino: 'Crown & Sceptre Casino', alert: 'Shared intervention: loss velocity confirmed cross-site', type: 'SHARED', color: 'text-brand-400' },
                 { casino: 'Eastern Sands Casino', alert: 'Network alert: player active at 3 venues simultaneously', type: 'MULTI-SITE', color: 'text-yellow-400' },
                 { casino: 'Coastline Casino & Entertainment', alert: 'Pattern match: identical bet sequences across 2 operators', type: 'PATTERN', color: 'text-brand-400' },
               ].map((row, i) => (
@@ -227,7 +227,7 @@ export default function CrossOperatorIntelligencePage() {
 
       {/* Capabilities */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-brand-400/10 text-brand-400 border-brand-400/20">
               <Zap className="h-4 w-4 mr-2" />
@@ -243,7 +243,7 @@ export default function CrossOperatorIntelligencePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {CAPABILITIES.map((cap, i) => (
-              <Card key={i} className="bg-gray-900/40 border-gray-800 hover:border-cyan-500/30 transition-all duration-200 group">
+              <Card key={i} className="bg-gray-900/40 border-gray-800 hover:border-brand-500/30 transition-all duration-200 group">
                 <CardContent className="p-6">
                   <div className={`w-11 h-11 ${cap.bg} rounded-xl flex items-center justify-center mb-4`}>
                     <cap.icon className={`h-5 w-5 ${cap.color}`} />
@@ -261,7 +261,7 @@ export default function CrossOperatorIntelligencePage() {
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Network className="h-4 w-4 mr-2" />
               How It Works
             </Badge>
@@ -277,10 +277,10 @@ export default function CrossOperatorIntelligencePage() {
             {HOW_IT_WORKS.map((step, i) => (
               <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-cyan-500/10 border border-cyan-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <step.icon className="h-5 w-5 text-cyan-400" />
+                  <div className="w-12 h-12 bg-brand-400/10 border border-brand-800 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <step.icon className="h-5 w-5 text-brand-400" />
                   </div>
-                  <span className="text-cyan-400 font-bold text-2xl">{step.step}</span>
+                  <span className="text-brand-400 font-bold text-2xl">{step.step}</span>
                 </div>
                 <h3 className="text-lg font-bold text-white mb-2">{step.title}</h3>
                 <p className="text-gray-400 text-sm">{step.description}</p>
@@ -292,9 +292,9 @@ export default function CrossOperatorIntelligencePage() {
 
       {/* Benefits Split */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-green-500/10 text-green-400 border-green-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Building2 className="h-4 w-4 mr-2" />
               Who Benefits
             </Badge>
@@ -323,7 +323,7 @@ export default function CrossOperatorIntelligencePage() {
       {/* CTA */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
         <div className="max-w-4xl mx-auto text-center">
-          <Badge className="mb-6 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+          <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
             <Globe className="h-4 w-4 mr-2" />
             Join the Network
           </Badge>
@@ -336,13 +336,13 @@ export default function CrossOperatorIntelligencePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/contact">
-              <Button size="lg" className="bg-cyan-500 hover:bg-cyan-600 text-black font-semibold px-10 py-6">
+              <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10 py-6">
                 Request Network Access
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="/features/self-exclusion-network">
-              <Button size="lg" variant="outline" className="border-gray-700 text-gray-300 hover:border-cyan-500 hover:text-cyan-400 px-10 py-6">
+              <Button size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-10 py-6">
                 Self-Exclusion Network
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Button>

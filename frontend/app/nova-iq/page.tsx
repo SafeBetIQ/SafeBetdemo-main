@@ -13,7 +13,7 @@ export default function NovaIQPage() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-400 border-t-transparent" />
       </div>
     );
   }

@@ -48,7 +48,7 @@ export default function NovaIQPage() {
       <section className="relative pt-20 md:pt-32 pb-12 md:pb-20 px-4 md:px-6 overflow-hidden">
         <div className="absolute inset-0">
           <motion.div
-            className="absolute top-20 left-10 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl"
+            className="absolute top-20 left-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -74,7 +74,7 @@ export default function NovaIQPage() {
           />
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10">
+        <div className="max-w-5xl mx-auto relative z-10">
           <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 30 }}
@@ -91,7 +91,7 @@ export default function NovaIQPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
             >
-              <span className="bg-gradient-to-r from-brand-400 to-cyan-300 bg-clip-text text-transparent">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
                 Nova IQ
               </span>
               <br />
@@ -122,11 +122,11 @@ export default function NovaIQPage() {
                 <div className="text-xs text-gray-400 mt-1">AI Accuracy</div>
               </div>
               <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 text-center">
-                <div className="text-2xl md:text-3xl font-bold text-green-400">+12.5%</div>
+                <div className="text-2xl md:text-3xl font-bold text-brand-400">+12.5%</div>
                 <div className="text-xs text-gray-400 mt-1">Nova IQ Lift</div>
               </div>
               <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 text-center">
-                <div className="text-2xl md:text-3xl font-bold text-purple-400">83.4%</div>
+                <div className="text-2xl md:text-3xl font-bold text-brand-400">83.4%</div>
                 <div className="text-xs text-gray-400 mt-1">Success Rate</div>
               </div>
             </motion.div>
@@ -165,7 +165,7 @@ export default function NovaIQPage() {
 
       {/* VALUE PROPS */}
       <section className="py-16 px-4 md:px-6 bg-gradient-to-b from-transparent to-slate-950/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -229,7 +229,7 @@ export default function NovaIQPage() {
 
       {/* HOW IT WORKS */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -402,7 +402,7 @@ export default function NovaIQPage() {
 
       {/* WHAT CASINOS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50 relative">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -520,7 +520,7 @@ export default function NovaIQPage() {
 
       {/* WHAT REGULATORS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50 relative">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -644,14 +644,14 @@ export default function NovaIQPage() {
 
       {/* XAI FEATURES SECTION */}
       <section className="py-20 px-4 md:px-6 bg-gradient-to-b from-slate-950/50 to-black">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Badge className="mb-6 bg-purple-400/10 text-purple-400 border-purple-400/20">
+            <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               EXPLAINABLE AI SYSTEM
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -670,10 +670,10 @@ export default function NovaIQPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Card className="bg-gradient-to-br from-purple-900/30 to-black border-purple-500/30 h-full">
+              <Card className="bg-gray-950 border-gray-800 h-full">
                 <CardContent className="p-8">
-                  <div className="w-14 h-14 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6">
-                    <Shield className="h-7 w-7 text-purple-400" />
+                  <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mb-6">
+                    <Shield className="h-7 w-7 text-brand-400" />
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-4">AI Reason Stacks</h3>
                   <p className="text-gray-300 leading-relaxed mb-4">
@@ -681,15 +681,15 @@ export default function NovaIQPage() {
                   </p>
                   <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>Live gambling behavior (65-85% weight)</span>
                     </li>
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>Nova IQ assessment data (15-35% weight)</span>
                     </li>
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>24h / 7d / 30d behavioral triggers</span>
                     </li>
                   </ul>
@@ -738,10 +738,10 @@ export default function NovaIQPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <Card className="bg-gradient-to-br from-green-900/30 to-black border-green-500/30 h-full">
+              <Card className="bg-gray-950 border-gray-800 h-full">
                 <CardContent className="p-8">
-                  <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6">
-                    <TrendingUp className="h-7 w-7 text-green-400" />
+                  <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mb-6">
+                    <TrendingUp className="h-7 w-7 text-brand-400" />
                   </div>
                   <h3 className="text-2xl font-bold text-white mb-4">Outcome Learning</h3>
                   <p className="text-gray-300 leading-relaxed mb-4">
@@ -749,15 +749,15 @@ export default function NovaIQPage() {
                   </p>
                   <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>7d, 14d, 30d risk tracking</span>
                     </li>
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>Effectiveness scoring</span>
                     </li>
                     <li className="flex items-start">
-                      <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                       <span>AI accuracy improvement +19%</span>
                     </li>
                   </ul>
@@ -780,7 +780,7 @@ export default function NovaIQPage() {
 
       {/* DEMO SECTION */}
       <section id="demo-section" className="py-20 px-4 md:px-6 bg-gradient-to-b from-slate-950/50 to-slate-900/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 30 }}
@@ -812,7 +812,7 @@ export default function NovaIQPage() {
 
       {/* WHAT STAKEHOLDERS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-900/30">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -1099,7 +1099,7 @@ export default function NovaIQPage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-cyan-400 font-semibold px-8"
+                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-brand-500 font-semibold px-8"
               >
                 <Link href="/safeplay-connect/overview">
                   <Globe className="mr-2 h-5 w-5" />
@@ -1109,7 +1109,7 @@ export default function NovaIQPage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-cyan-400 font-semibold px-8"
+                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-brand-500 font-semibold px-8"
               >
                 <Link href="/features/regulators">
                   <FileCheck className="mr-2 h-5 w-5" />

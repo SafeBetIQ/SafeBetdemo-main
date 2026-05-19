@@ -49,7 +49,7 @@ export default function RegulatorsPage() {
             transition={{ duration: 8, repeat: Infinity }}
           ></motion.div>
           <motion.div
-            className="absolute bottom-20 right-10 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"
+            className="absolute bottom-20 right-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"
             animate={{
               scale: [1.2, 1, 1.2],
               opacity: [0.5, 0.3, 0.5]
@@ -58,14 +58,14 @@ export default function RegulatorsPage() {
           ></motion.div>
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
+              <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Eye className="h-4 w-4 mr-2" />
                 For Gaming Regulators
               </Badge>
@@ -97,7 +97,7 @@ export default function RegulatorsPage() {
               transition={{ duration: 0.6, delay: 0.6 }}
             >
               <Link href="/contact">
-                <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
                   Request Access<ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -107,7 +107,7 @@ export default function RegulatorsPage() {
       </section>
 
       <section className="py-20 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Comprehensive Regulatory Oversight Platform
@@ -169,13 +169,13 @@ export default function RegulatorsPage() {
                 <Card className={`bg-gray-900/50 border-gray-800 hover:border-brand-400/50 transition-all h-full cursor-pointer ${activeFeature === index ? 'shadow-xl shadow-brand-400/20' : ''}`}>
                   <CardContent className="p-8">
                     <motion.div
-                      className="w-14 h-14 bg-gradient-to-br from-brand-400 to-teal-500 rounded-2xl flex items-center justify-center mb-6"
+                      className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mb-6"
                       animate={{
                         rotate: activeFeature === index ? [0, -10, 10, -10, 0] : 0
                       }}
                       transition={{ duration: 0.5 }}
                     >
-                      <feature.icon className="h-7 w-7 text-black" />
+                      <feature.icon className="h-7 w-7 text-brand-400" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-white mb-3">{feature.title}</h3>
                     <p className="text-gray-400 mb-4">{feature.description}</p>
@@ -303,7 +303,7 @@ export default function RegulatorsPage() {
       </section>
 
       <section className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-6">
               Why Choose SafeBet IQ for Regulatory Oversight

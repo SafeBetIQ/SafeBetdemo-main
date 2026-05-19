@@ -12,7 +12,7 @@ export default function APIDocsPage() {
       <div className="max-w-6xl mx-auto px-6 py-16">
         <div className="flex items-center space-x-3 mb-6">
           <Code className="h-10 w-10 text-brand-400" />
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-brand-400 to-teal-500 text-transparent bg-clip-text">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
             API Documentation
           </h1>
         </div>
@@ -43,9 +43,9 @@ export default function APIDocsPage() {
                   <pre className="text-sm text-gray-300">{`Authorization: Bearer sk_prod_your_api_key_here`}</pre>
                 </div>
               </div>
-              <div className="flex items-start space-x-2 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-300">
+              <div className="flex items-start space-x-2 p-4 bg-brand-400/10 border border-brand-800 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-brand-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-brand-300">
                   <span className="font-semibold">API Keys:</span> Obtain your API keys from the Casino Dashboard Settings tab.
                   Keep them secure and never expose them in client-side code.
                 </div>

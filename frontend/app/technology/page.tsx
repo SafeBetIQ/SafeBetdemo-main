@@ -16,12 +16,12 @@ export default function TechnologyPage() {
       <section className="relative pt-32 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
+            <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Brain className="h-4 w-4 mr-2" />
               Powered by Advanced AI
             </Badge>
@@ -41,11 +41,11 @@ export default function TechnologyPage() {
                 <div className="text-sm text-gray-500">AI Accuracy</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-400 mb-1">+19.4%</div>
+                <div className="text-4xl font-bold text-brand-400 mb-1">+19.4%</div>
                 <div className="text-sm text-gray-500">90-Day Improvement</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-purple-400 mb-1">+12.5%</div>
+                <div className="text-4xl font-bold text-brand-400 mb-1">+12.5%</div>
                 <div className="text-sm text-gray-500">Nova IQ Lift</div>
               </div>
             </div>
@@ -54,7 +54,7 @@ export default function TechnologyPage() {
       </section>
 
       <section className="py-20 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
             <div>
               <h2 className="text-4xl font-bold text-white mb-6">
@@ -126,9 +126,9 @@ export default function TechnologyPage() {
       </section>
 
       <section className="py-20 px-6 bg-black">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-purple-400/10 text-purple-400 border-purple-400/20">
+            <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Eye className="h-4 w-4 mr-2" />
               Explainable AI You Can Trust
             </Badge>
@@ -142,10 +142,10 @@ export default function TechnologyPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <Card className="bg-gradient-to-br from-purple-900/30 to-black border-purple-500/30">
+            <Card className="bg-gray-950 border-gray-800 hover:border-gray-700 transition-colors">
               <CardContent className="p-8">
-                <div className="w-14 h-14 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6">
-                  <Shield className="h-7 w-7 text-purple-400" />
+                <div className="w-14 h-14 bg-brand-400/10 rounded-2xl flex items-center justify-center mb-6">
+                  <Shield className="h-7 w-7 text-brand-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-4">Reason Stacks</h3>
                 <p className="text-gray-300 leading-relaxed mb-4">
@@ -153,19 +153,19 @@ export default function TechnologyPage() {
                 </p>
                 <ul className="space-y-2 text-sm text-gray-400">
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Live gambling behavior analysis</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Nova IQ behavioral assessment data</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>24h / 7d / 30d behavioral triggers</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>AI confidence scores for full transparency</span>
                   </li>
                 </ul>
@@ -202,10 +202,10 @@ export default function TechnologyPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-900/30 to-black border-green-500/30">
+            <Card className="bg-gray-950 border-gray-800 hover:border-gray-700 transition-colors">
               <CardContent className="p-8">
-                <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6">
-                  <BarChart3 className="h-7 w-7 text-green-400" />
+                <div className="w-14 h-14 bg-brand-400/10 rounded-2xl flex items-center justify-center mb-6">
+                  <BarChart3 className="h-7 w-7 text-brand-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-4">Outcome Learning</h3>
                 <p className="text-gray-300 leading-relaxed mb-4">
@@ -213,19 +213,19 @@ export default function TechnologyPage() {
                 </p>
                 <ul className="space-y-2 text-sm text-gray-400">
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Risk reduced, stabilized, or escalated tracking</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Time-to-impact and effectiveness scoring</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>AI accuracy improvements up to +19% in 90 days</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-4 w-4 text-brand-400 mr-2 mt-0.5 flex-shrink-0" />
                     <span>Privacy-safe shared intelligence across operators</span>
                   </li>
                 </ul>
@@ -233,10 +233,10 @@ export default function TechnologyPage() {
             </Card>
           </div>
 
-          <div className="p-8 bg-gradient-to-r from-purple-900/20 to-brand-900/20 border border-purple-500/30 rounded-2xl">
+          <div className="p-8 bg-brand-900/20 border border-brand-800 rounded-2xl">
             <div className="flex items-start gap-6">
-              <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <Brain className="h-8 w-8 text-purple-400" />
+              <div className="w-16 h-16 bg-brand-400/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <Brain className="h-8 w-8 text-brand-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-white mb-3">Nova IQ: Behavioral Intelligence, Not Just a Game</h3>
@@ -246,14 +246,14 @@ export default function TechnologyPage() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-purple-400 mt-1 flex-shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-brand-400 mt-1 flex-shrink-0" />
                     <div>
                       <div className="font-semibold text-white mb-1">Supporting Evidence, Not Final Judgment</div>
                       <p className="text-sm text-gray-400">Nova IQ factors appear alongside live casino data in Reason Stacks</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-purple-400 mt-1 flex-shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-brand-400 mt-1 flex-shrink-0" />
                     <div>
                       <div className="font-semibold text-white mb-1">POPIA-Aligned Privacy Protection</div>
                       <p className="text-sm text-gray-400">No personal data exposure, full regulatory compliance</p>
@@ -267,7 +267,7 @@ export default function TechnologyPage() {
       </section>
 
       <section className="py-20 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               Enterprise-Grade Infrastructure
@@ -312,8 +312,8 @@ export default function TechnologyPage() {
             ].map((tech, i) => (
               <Card key={i} className="bg-gray-900/50 border-gray-800 hover:border-brand-400/50 transition-all">
                 <CardContent className="p-8">
-                  <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-teal-500 rounded-2xl flex items-center justify-center mb-6">
-                    <tech.icon className="h-7 w-7 text-black" />
+                  <div className="w-14 h-14 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center mb-6">
+                    <tech.icon className="h-7 w-7 text-brand-400" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-3">{tech.title}</h3>
                   <p className="text-gray-400 leading-relaxed">{tech.description}</p>
@@ -325,7 +325,7 @@ export default function TechnologyPage() {
       </section>
 
       <section className="py-20 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-6">
               How It Works
@@ -378,7 +378,7 @@ export default function TechnologyPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/contact">
-              <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-12 py-6 text-lg rounded-full">
+              <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-12 py-6 text-lg rounded-full">
                 Schedule Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

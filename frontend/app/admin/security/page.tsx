@@ -232,8 +232,6 @@ export default function SecurityAuditLogPage() {
     setResolving(false);
   };
 
-  const uniqueSources = Array.from(new Set(events.map(e => e.source).filter(Boolean))) as string[];
-
   const statCards = [
     {
       label: 'Total Events',

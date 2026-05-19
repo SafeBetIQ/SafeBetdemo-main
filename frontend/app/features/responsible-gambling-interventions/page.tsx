@@ -14,7 +14,7 @@ const CHANNELS = [
     name: 'WhatsApp',
     description: 'Instant, personalised messages delivered directly to the player\'s phone with read receipts and response tracking.',
     badge: 'Highest Open Rate',
-    badgeColor: 'bg-green-500/10 text-green-400 border-green-500/20',
+    badgeColor: 'bg-brand-400/10 text-brand-400 border-brand-800',
     stat: '98%',
     statLabel: 'Open Rate',
   },
@@ -32,7 +32,7 @@ const CHANNELS = [
     name: 'SMS',
     description: 'Short, direct messages for time-sensitive interventions when players are mid-session on mobile.',
     badge: 'Instant Delivery',
-    badgeColor: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+    badgeColor: 'bg-brand-400/10 text-brand-400 border-brand-800',
     stat: '<3s',
     statLabel: 'Delivery Time',
   },
@@ -41,7 +41,7 @@ const CHANNELS = [
     name: 'In-Platform',
     description: 'Pop-up notifications and banners displayed directly within the gaming interface at the moment of risk.',
     badge: 'Zero Latency',
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    badgeColor: 'bg-brand-400/10 text-brand-400 border-brand-800',
     stat: '0ms',
     statLabel: 'Delay',
   },
@@ -59,8 +59,8 @@ const TRIGGER_TYPES = [
     icon: Clock,
     title: 'Session Duration',
     description: 'Flag players who exceed healthy session lengths — 2 hours, 4 hours, or custom casino-defined limits.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: TrendingDown,
@@ -73,8 +73,8 @@ const TRIGGER_TYPES = [
     icon: RefreshCw,
     title: 'Deposit Frequency',
     description: 'Alert when players make multiple deposits in short windows — a key chasing-losses signal.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: AlertTriangle,
@@ -87,8 +87,8 @@ const TRIGGER_TYPES = [
     icon: Users,
     title: 'Manual Staff Trigger',
     description: 'Compliance staff can manually trigger interventions after reviewing player profiles or customer interactions.',
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
 ];
 
@@ -130,7 +130,7 @@ export default function ResponsibleGamblingInterventionsPage() {
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-400/8 via-transparent to-transparent" />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20 px-4 py-2">
               <MessageSquare className="h-4 w-4 mr-2" />
@@ -174,9 +174,9 @@ export default function ResponsibleGamblingInterventionsPage() {
 
       {/* Delivery Channels */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Zap className="h-4 w-4 mr-2" />
               Multi-Channel Delivery
             </Badge>
@@ -214,7 +214,7 @@ export default function ResponsibleGamblingInterventionsPage() {
 
       {/* Trigger Conditions */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
               <Bell className="h-4 w-4 mr-2" />
@@ -249,7 +249,7 @@ export default function ResponsibleGamblingInterventionsPage() {
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Settings className="h-4 w-4 mr-2" />
               How It Works
             </Badge>
@@ -282,7 +282,7 @@ export default function ResponsibleGamblingInterventionsPage() {
 
       {/* Compliance & Audit */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
@@ -320,10 +320,10 @@ export default function ResponsibleGamblingInterventionsPage() {
               </div>
               {[
                 { time: '14:32:07', player: 'PL-00491', channel: 'WhatsApp', trigger: 'Risk Score 84', status: 'Delivered', statusColor: 'text-green-400' },
-                { time: '14:29:51', player: 'PL-01882', channel: 'Email', trigger: 'Session 4.2hrs', status: 'Opened', statusColor: 'text-teal-400' },
+                { time: '14:29:51', player: 'PL-01882', channel: 'Email', trigger: 'Session 4.2hrs', status: 'Opened', statusColor: 'text-brand-400' },
                 { time: '14:25:18', player: 'PL-00234', channel: 'SMS', trigger: 'Loss Velocity', status: 'Responded', statusColor: 'text-brand-400' },
                 { time: '14:22:04', player: 'PL-03341', channel: 'WhatsApp', trigger: 'Deposit x3', status: 'Delivered', statusColor: 'text-green-400' },
-                { time: '14:18:33', player: 'PL-00718', channel: 'In-Platform', trigger: 'Risk Score 71', status: 'Shown', statusColor: 'text-cyan-400' },
+                { time: '14:18:33', player: 'PL-00718', channel: 'In-Platform', trigger: 'Risk Score 71', status: 'Shown', statusColor: 'text-brand-400' },
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-800 last:border-0">
                   <span className="text-gray-600 text-xs font-mono w-16 flex-shrink-0">{row.time}</span>
@@ -354,7 +354,7 @@ export default function ResponsibleGamblingInterventionsPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/contact">
-              <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-10 py-6">
+              <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10 py-6">
                 Book a Demo
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

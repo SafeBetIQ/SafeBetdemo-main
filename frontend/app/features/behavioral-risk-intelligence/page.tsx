@@ -121,20 +121,20 @@ export default function BehavioralRiskIntelligencePage() {
             transition={{ duration: 10, repeat: Infinity }}
           />
           <motion.div
-            className="absolute bottom-20 right-10 w-80 h-80 bg-cyan-500/8 rounded-full blur-3xl"
+            className="absolute bottom-20 right-10 w-80 h-80 bg-brand-400/8 rounded-full blur-3xl"
             animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.15, 0.3] }}
             transition={{ duration: 8, repeat: Infinity }}
           />
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
+              <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Brain className="h-4 w-4 mr-2" />
                 AI-Powered Behavioral Analysis
               </Badge>
@@ -168,13 +168,13 @@ export default function BehavioralRiskIntelligencePage() {
               transition={{ duration: 0.6, delay: 0.6 }}
             >
               <Link href="/contact">
-                <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
                   Request Demo
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/technology">
-                <Button size="lg" variant="outline" className="border-brand-400 bg-transparent text-brand-400 hover:bg-brand-400 hover:text-black px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
+                <Button size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8 py-6 text-lg rounded-full transform hover:scale-105 transition-transform">
                   View Technology
                 </Button>
               </Link>
@@ -235,7 +235,7 @@ export default function BehavioralRiskIntelligencePage() {
       </section>
 
       <section className="py-20 px-6 bg-black relative">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
@@ -283,7 +283,7 @@ export default function BehavioralRiskIntelligencePage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -291,7 +291,7 @@ export default function BehavioralRiskIntelligencePage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-4 bg-brand-400/10 text-brand-400 border-brand-400/20">
+              <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Eye className="h-4 w-4 mr-2" />
                 How It Works
               </Badge>
@@ -351,7 +351,7 @@ export default function BehavioralRiskIntelligencePage() {
                       { label: 'Deposit Regularity', value: 45, color: 'bg-yellow-400' },
                       { label: 'Loss Chasing Index', value: 82, color: 'bg-red-400' },
                       { label: 'Break Compliance', value: 34, color: 'bg-orange-400' },
-                      { label: 'Self-Awareness Score', value: 61, color: 'bg-cyan-400' },
+                      { label: 'Self-Awareness Score', value: 61, color: 'bg-brand-400' },
                     ].map((metric) => (
                       <div key={metric.label}>
                         <div className="flex items-center justify-between mb-1.5">
@@ -391,7 +391,7 @@ export default function BehavioralRiskIntelligencePage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -429,7 +429,7 @@ export default function BehavioralRiskIntelligencePage() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Badge className="mb-4 bg-brand-400/10 text-brand-400 border-brand-400/20">
+              <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Shield className="h-4 w-4 mr-2" />
                 Built for South Africa
               </Badge>
@@ -452,7 +452,7 @@ export default function BehavioralRiskIntelligencePage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
@@ -508,7 +508,7 @@ export default function BehavioralRiskIntelligencePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
-                <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-8 py-6 text-lg rounded-full">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-6 text-lg rounded-full">
                   Schedule a Demo
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>

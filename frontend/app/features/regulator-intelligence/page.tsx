@@ -20,8 +20,8 @@ const REGULATOR_TOOLS = [
     icon: Map,
     title: 'Provincial Intelligence Dashboards',
     description: 'Provincial regulators see a filtered, jurisdiction-specific view — their casinos, their players, their compliance data.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: AlertTriangle,
@@ -34,22 +34,22 @@ const REGULATOR_TOOLS = [
     icon: Brain,
     title: 'AI-Assisted Pattern Recognition',
     description: 'National-level AI models detect systemic gambling harm patterns — identifying high-risk demographics, venues, and periods.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: FileText,
     title: 'Automated Regulatory Reports',
     description: 'Monthly and quarterly compliance reports generated automatically and delivered to regulators without operator involvement.',
-    color: 'text-green-400',
-    bg: 'bg-green-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
   {
     icon: Scale,
     title: 'Policy Impact Analysis',
     description: 'Measure the real-world impact of regulatory interventions — see whether new policies are reducing harm at the population level.',
-    color: 'text-blue-400',
-    bg: 'bg-blue-400/10',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
   },
 ];
 
@@ -82,9 +82,9 @@ const ACCESS_LEVELS = [
       'Operator performance benchmarking',
       'Direct casino compliance alerts',
     ],
-    color: 'text-teal-400',
-    border: 'border-teal-400/20',
-    bg: 'bg-teal-400/5',
+    color: 'text-brand-400',
+    border: 'border-brand-800',
+    bg: 'bg-brand-900/40',
   },
 ];
 
@@ -135,7 +135,7 @@ export default function RegulatorIntelligencePage() {
       {/* Hero */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-400/8 via-transparent to-transparent" />
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-16">
             <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20 px-4 py-2">
               <Scale className="h-4 w-4 mr-2" />
@@ -152,7 +152,7 @@ export default function RegulatorIntelligencePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
-                <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-10 py-6 text-base">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10 py-6 text-base">
                   Request Regulator Access
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -179,10 +179,10 @@ export default function RegulatorIntelligencePage() {
 
       {/* The Shift */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <Badge className="mb-6 bg-teal-500/10 text-teal-400 border-teal-500/20">
+              <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <TrendingUp className="h-4 w-4 mr-2" />
                 From Reactive to Proactive
               </Badge>
@@ -250,7 +250,7 @@ export default function RegulatorIntelligencePage() {
 
       {/* Intelligence Tools */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-brand-400/10 text-brand-400 border-brand-400/20">
               <Layers className="h-4 w-4 mr-2" />
@@ -282,9 +282,9 @@ export default function RegulatorIntelligencePage() {
 
       {/* Access Levels */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
+            <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
               <Lock className="h-4 w-4 mr-2" />
               Role-Based Access
             </Badge>
@@ -324,7 +324,7 @@ export default function RegulatorIntelligencePage() {
 
       {/* Enforcement Tools */}
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-orange-500/10 text-orange-400 border-orange-500/20">
               <Shield className="h-4 w-4 mr-2" />
@@ -354,10 +354,10 @@ export default function RegulatorIntelligencePage() {
 
       {/* Reporting Standards */}
       <section className="py-20 px-6 bg-gray-950 border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <Badge className="mb-6 bg-green-500/10 text-green-400 border-green-500/20">
+              <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Award className="h-4 w-4 mr-2" />
                 Reporting Standards
               </Badge>
@@ -372,7 +372,7 @@ export default function RegulatorIntelligencePage() {
               <ul className="space-y-4">
                 {REPORTING_STANDARDS.map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-brand-400 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-300 text-sm">{item}</span>
                   </li>
                 ))}
@@ -381,10 +381,10 @@ export default function RegulatorIntelligencePage() {
             <div className="space-y-4">
               {[
                 { label: 'Operator Compliance Rate', value: 91, color: 'bg-brand-400' },
-                { label: 'Self-Exclusion Enforcement', value: 99, color: 'bg-green-400' },
-                { label: 'Intervention Response Rate', value: 87, color: 'bg-teal-400' },
-                { label: 'Report Timeliness Score', value: 96, color: 'bg-cyan-400' },
-                { label: 'NRGP Programme Alignment', value: 94, color: 'bg-blue-400' },
+                { label: 'Self-Exclusion Enforcement', value: 99, color: 'bg-brand-400' },
+                { label: 'Intervention Response Rate', value: 87, color: 'bg-brand-500' },
+                { label: 'Report Timeliness Score', value: 96, color: 'bg-brand-400' },
+                { label: 'NRGP Programme Alignment', value: 94, color: 'bg-brand-600' },
               ].map((metric, i) => (
                 <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-5">
                   <div className="flex justify-between mb-2">

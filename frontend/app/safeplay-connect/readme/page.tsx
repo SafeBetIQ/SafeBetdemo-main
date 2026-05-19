@@ -13,7 +13,7 @@ export default function ReadmePage() {
       <div className="max-w-5xl mx-auto px-6 py-16">
         <div className="flex items-center space-x-3 mb-6">
           <Book className="h-10 w-10 text-brand-400" />
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-brand-400 to-teal-500 text-transparent bg-clip-text">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
             Integration Guide
           </h1>
         </div>
@@ -80,7 +80,7 @@ export default function ReadmePage() {
             </CardContent>
           </Card>
 
-          <div className="bg-gradient-to-r from-brand-400/10 to-teal-500/10 border border-brand-400/20 rounded-lg p-8">
+          <div className="bg-brand-900/20 border border-brand-800 rounded-lg p-8">
             <h3 className="text-2xl font-bold mb-4">Contact Information</h3>
             <p className="text-gray-400 mb-6">
               Ready to integrate SafeBet IQ Connect? Our technical team is standing by.

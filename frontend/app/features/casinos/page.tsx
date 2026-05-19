@@ -22,7 +22,7 @@ const FEATURES = [
       'Multi-signal correlation engine',
       'Session time pattern detection',
     ],
-    color: 'from-brand-400 to-teal-500',
+    color: 'from-brand-400 to-brand-600',
     accent: 'brand',
   },
   {
@@ -36,8 +36,8 @@ const FEATURES = [
       'Regulator-ready XAI reports',
       'Confidence scoring per signal',
     ],
-    color: 'from-cyan-500 to-teal-400',
-    accent: 'cyan',
+    color: 'from-brand-500 to-brand-400',
+    accent: 'brand',
   },
   {
     icon: MessageSquare,
@@ -64,8 +64,8 @@ const FEATURES = [
       'Intervention ROI tracking',
       'Revenue sustainability insights',
     ],
-    color: 'from-teal-500 to-cyan-400',
-    accent: 'teal',
+    color: 'from-brand-600 to-brand-400',
+    accent: 'brand',
   },
   {
     icon: FileText,
@@ -78,7 +78,7 @@ const FEATURES = [
       'Exportable compliance data',
       'Custom date range filtering',
     ],
-    color: 'from-brand-500 to-teal-500',
+    color: 'from-brand-500 to-brand-600',
     accent: 'brand',
   },
   {
@@ -92,8 +92,8 @@ const FEATURES = [
       'Cooling-off period workflows',
       'Player-initiated controls',
     ],
-    color: 'from-cyan-500 to-brand-400',
-    accent: 'cyan',
+    color: 'from-brand-400 to-brand-600',
+    accent: 'brand',
   },
 ];
 
@@ -102,10 +102,10 @@ const MODULES = [
     icon: Globe,
     title: 'SafeBet IQ Connect',
     description: 'REST API + webhooks for direct integration with your platform — Playtech, BetSoftware, Evolution, and more.',
-    color: 'text-teal-400',
-    bg: 'bg-teal-500/10',
-    border: 'border-teal-500/20',
-    hoverBorder: 'hover:border-teal-500/40',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
+    border: 'border-brand-800',
+    hoverBorder: 'hover:border-brand-500',
     features: ['REST API & webhooks', 'Native platform plugins', 'Real-time data sync', 'Sandbox test environment'],
   },
   {
@@ -122,10 +122,10 @@ const MODULES = [
     icon: ShieldCheck,
     title: 'Self-Exclusion Network',
     description: 'Cross-operator self-exclusion sharing network, ensuring players excluded at one venue cannot access others.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10',
-    border: 'border-cyan-500/20',
-    hoverBorder: 'hover:border-cyan-500/40',
+    color: 'text-brand-400',
+    bg: 'bg-brand-400/10',
+    border: 'border-brand-800',
+    hoverBorder: 'hover:border-brand-500',
     features: ['Cross-operator exclusion sync', 'Instant ban propagation', 'Regulator-linked registry', 'Re-entry attempt alerts'],
   },
   {
@@ -181,10 +181,10 @@ const INTEGRATIONS = [
 
 const RISK_FACTORS = [
   { label: 'Visit Frequency', value: 20, max: 20, color: 'bg-brand-400' },
-  { label: 'Bet Size Escalation', value: 22, max: 25, color: 'bg-teal-400' },
-  { label: 'Session Duration', value: 18, max: 20, color: 'bg-cyan-400' },
+  { label: 'Bet Size Escalation', value: 22, max: 25, color: 'bg-brand-400' },
+  { label: 'Session Duration', value: 18, max: 20, color: 'bg-brand-400' },
   { label: 'Loss Ratio', value: 20, max: 25, color: 'bg-brand-500' },
-  { label: 'Behavioral Flags', value: 13, max: 15, color: 'bg-teal-500' },
+  { label: 'Behavioral Flags', value: 13, max: 15, color: 'bg-brand-600' },
 ];
 
 function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -252,15 +252,15 @@ export default function CasinosPage() {
       <section className="relative pt-32 pb-24 px-6 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-brand-400/8 rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-teal-500/8 rounded-full blur-[100px]" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-brand-400/8 rounded-full blur-[100px]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(137,216,72,0.04)_0%,transparent_60%)]" />
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20 px-4 py-2 text-sm font-medium">
+                <Badge className="mb-6 bg-brand-900/40 text-brand-300 border border-brand-800 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                   <Building2 className="h-4 w-4 mr-2" />
                   For Casino Operators
                 </Badge>
@@ -295,7 +295,7 @@ export default function CasinosPage() {
                 transition={{ duration: 0.6, delay: 0.45 }}
               >
                 <Link href="/contact">
-                  <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-8 py-6 text-base rounded-full transition-all hover:scale-105">
+                  <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-6 text-base rounded-full transition-all hover:scale-105">
                     Request a Demo
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -422,7 +422,7 @@ export default function CasinosPage() {
 
       {/* ── INTEGRATION STRIP ── */}
       <section className="py-6 px-6 border-y border-gray-800/60 bg-gray-950/40">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
             <span className="text-xs text-gray-600 font-medium uppercase tracking-widest mr-4">Integrates with</span>
             {INTEGRATIONS.map((name, i) => (
@@ -436,7 +436,7 @@ export default function CasinosPage() {
 
       {/* ── CORE FEATURES ── */}
       <section className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -494,7 +494,7 @@ export default function CasinosPage() {
 
       {/* ── AI EXPLAINABILITY DEEP DIVE ── */}
       <section className="py-24 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -502,7 +502,7 @@ export default function CasinosPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Badge className="mb-6 bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+              <Badge className="mb-6 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <Zap className="h-4 w-4 mr-2" />
                 SafeBet IQ Risk Engine
               </Badge>
@@ -559,7 +559,7 @@ export default function CasinosPage() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-sm font-semibold text-white">Nova IQ — Explanation Layer</div>
-                    <Badge className="bg-cyan-500/10 text-cyan-400 border-0 text-xs">XAI Active</Badge>
+                    <Badge className="bg-brand-400/10 text-brand-400 border-0 text-xs">XAI Active</Badge>
                   </div>
                   <div className="space-y-3">
                     {[
@@ -595,7 +595,7 @@ export default function CasinosPage() {
               <Card className="bg-gray-900/40 border-gray-800">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <Brain className="h-5 w-5 text-cyan-400" />
+                    <Brain className="h-5 w-5 text-brand-400" />
                     <div className="text-sm font-semibold text-white">Behavioral Persona Detection</div>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
@@ -628,7 +628,7 @@ export default function CasinosPage() {
 
       {/* ── OPTIONAL MODULES ── */}
       <section className="py-24 px-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -636,7 +636,7 @@ export default function CasinosPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
+              <Badge className="mb-4 bg-gray-900 text-gray-400 border border-gray-700 text-xs px-4 py-1.5 rounded-full font-mono tracking-wide uppercase">
                 <PlugZap className="h-3.5 w-3.5 mr-2" />
                 Add-On Modules
               </Badge>
@@ -689,7 +689,7 @@ export default function CasinosPage() {
 
       {/* ── BENEFITS / WHY SAFEPLAY ── */}
       <section className="py-24 px-6 bg-gray-950">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -871,7 +871,7 @@ export default function CasinosPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
-                <Button size="lg" className="bg-brand-400 hover:bg-brand-500 text-black font-semibold px-10 py-6 text-base rounded-full transition-all hover:scale-105">
+                <Button size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-10 py-6 text-base rounded-full transition-all hover:scale-105">
                   Schedule a Demo
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>

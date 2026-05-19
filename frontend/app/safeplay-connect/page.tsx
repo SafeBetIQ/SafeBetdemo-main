@@ -156,13 +156,13 @@ export default function SafeBetIQConnectPublicPage() {
             transition={{ duration: 10, repeat: Infinity }}
           />
           <motion.div
-            className="absolute bottom-10 left-10 w-80 h-80 bg-cyan-500/8 rounded-full blur-3xl"
+            className="absolute bottom-10 left-10 w-80 h-80 bg-brand-400/8 rounded-full blur-3xl"
             animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.15, 0.3] }}
             transition={{ duration: 8, repeat: Infinity }}
           />
         </div>
 
-        <div className="max-w-7xl mx-auto relative">
+        <div className="max-w-5xl mx-auto relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <motion.div
@@ -282,7 +282,7 @@ export default function SafeBetIQConnectPublicPage() {
       </section>
 
       <section className="py-20 px-6 bg-black">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
@@ -324,7 +324,7 @@ export default function SafeBetIQConnectPublicPage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
@@ -379,7 +379,7 @@ export default function SafeBetIQConnectPublicPage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
@@ -436,7 +436,7 @@ export default function SafeBetIQConnectPublicPage() {
       </section>
 
       <section className="py-20 px-6 bg-black border-t border-gray-900">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -510,7 +510,7 @@ export default function SafeBetIQConnectPublicPage() {
                     <div className="text-gray-400 pl-8">{'"session_fatigue"'}: <span className="text-yellow-400">0.83</span>,</div>
                     <div className="text-gray-400 pl-8">{'"deposit_anomaly"'}: <span className="text-red-400">true</span></div>
                     <div className="text-gray-400 pl-4">{'}'},</div>
-                    <div className="text-gray-400 pl-4">{'"recommendation"'}: <span className="text-cyan-400">{'"trigger_cooloff"'}</span>,</div>
+                    <div className="text-gray-400 pl-4">{'"recommendation"'}: <span className="text-brand-400">{'"trigger_cooloff"'}</span>,</div>
                     <div className="text-gray-400 pl-4">{'"confidence"'}: <span className="text-green-400">0.94</span></div>
                     <div className="text-gray-300">{'}'}</div>
                   </div>

@@ -131,7 +131,7 @@ export default function NovaIQXAIPage() {
 
   return (
     <TooltipProvider>
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black">
       <MainNavigation />
 
       <div className="pt-24 pb-12 px-6">
@@ -139,27 +139,27 @@ export default function NovaIQXAIPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-brand-500 rounded-2xl flex items-center justify-center">
-                <Brain className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 bg-brand-400/10 border border-brand-800 rounded-2xl flex items-center justify-center">
+                <Brain className="h-6 w-6 text-brand-400" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">Nova IQ Intelligence</h1>
-                <p className="text-lg text-gray-600 mt-1">
+                <h1 className="text-4xl font-bold text-white">Nova IQ Intelligence</h1>
+                <p className="text-lg text-gray-400 mt-1">
                   Explainable AI combining live casino data with behavioral assessments
                 </p>
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Badge className="bg-purple-100 text-purple-700 border-0">
+              <Badge className="bg-brand-900/40 text-brand-300 border border-brand-800">
                 <Sparkles className="h-3 w-3 mr-1" />
                 Explainable AI
               </Badge>
-              <Badge className="bg-green-100 text-green-700 border-0">
+              <Badge className="bg-brand-400/10 text-brand-400 border border-brand-800">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 86.9% Accuracy
               </Badge>
-              <Badge className="bg-blue-100 text-blue-700 border-0">
+              <Badge className="bg-gray-900 text-gray-400 border border-gray-700">
                 +19.4% Improvement
               </Badge>
             </div>
@@ -179,12 +179,12 @@ export default function NovaIQXAIPage() {
                 </Tooltip>
               </div>
               <CardHeader>
-                <CardTitle className="text-lg">AI Reason Stacks</CardTitle>
-                <CardDescription>Explainable decision factors</CardDescription>
+                <CardTitle className="text-lg text-white">AI Reason Stacks</CardTitle>
+                <CardDescription className="text-gray-400">Explainable decision factors</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-brand-600 mb-2">100%</div>
-                <p className="text-sm text-gray-600">
+                <div className="text-3xl font-bold text-brand-400 mb-2">100%</div>
+                <p className="text-sm text-gray-400">
                   Every AI decision shows top contributing factors with weights and sources
                 </p>
               </CardContent>
@@ -202,12 +202,12 @@ export default function NovaIQXAIPage() {
                 </Tooltip>
               </div>
               <CardHeader>
-                <CardTitle className="text-lg">Intervention Success</CardTitle>
-                <CardDescription>Outcome tracking</CardDescription>
+                <CardTitle className="text-lg text-white">Intervention Success</CardTitle>
+                <CardDescription className="text-gray-400">Outcome tracking</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-600 mb-2">83.4%</div>
-                <p className="text-sm text-gray-600">
+                <div className="text-3xl font-bold text-brand-400 mb-2">83.4%</div>
+                <p className="text-sm text-gray-400">
                   Success rate for AI-guided interventions across all operators
                 </p>
               </CardContent>
@@ -225,12 +225,12 @@ export default function NovaIQXAIPage() {
                 </Tooltip>
               </div>
               <CardHeader>
-                <CardTitle className="text-lg">Nova IQ Impact</CardTitle>
-                <CardDescription>Accuracy lift</CardDescription>
+                <CardTitle className="text-lg text-white">Nova IQ Impact</CardTitle>
+                <CardDescription className="text-gray-400">Accuracy lift</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-purple-600 mb-2">+12.5%</div>
-                <p className="text-sm text-gray-600">
+                <div className="text-3xl font-bold text-brand-400 mb-2">+12.5%</div>
+                <p className="text-sm text-gray-400">
                   Additional accuracy gained when Nova IQ behavioral data is included
                 </p>
               </CardContent>
@@ -248,17 +248,17 @@ export default function NovaIQXAIPage() {
 
             <TabsContent value="reason-stack" className="space-y-6">
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Explainable AI Reason Stack</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-white mb-2">Explainable AI Reason Stack</h2>
+                <p className="text-gray-400">
                   See exactly why the AI flagged this player, with contributing factors from live casino data and Nova IQ behavioral assessments.
                 </p>
               </div>
               <ReasonStackDisplay {...sampleReasonStack} />
 
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-gray-950 border-gray-800">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-blue-900 mb-2">How It Works</h3>
-                  <ul className="space-y-2 text-sm text-blue-700">
+                  <h3 className="font-semibold text-white mb-2">How It Works</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li>• Analyzes live gambling behavior (loss-chasing, session escalation, spend patterns)</li>
                     <li>• Integrates Nova IQ behavioral assessments (impulsivity, patience, risk escalation)</li>
                     <li>• Weights all factors and displays top 3-5 contributors with percentages</li>
@@ -271,17 +271,17 @@ export default function NovaIQXAIPage() {
 
             <TabsContent value="recommendation" className="space-y-6">
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">AI-Guided Intervention Recommendation</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-white mb-2">AI-Guided Intervention Recommendation</h2>
+                <p className="text-gray-400">
                   AI suggests the intervention type, timing, and provides success probability. Staff can accept, override, or defer with full decision logging.
                 </p>
               </div>
               <AIInterventionRecommendation {...sampleRecommendation} readOnly />
 
-              <Card className="bg-purple-50 border-purple-200">
+              <Card className="bg-gray-950 border-gray-800">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-purple-900 mb-2">Decision Support Features</h3>
-                  <ul className="space-y-2 text-sm text-purple-700">
+                  <h3 className="font-semibold text-white mb-2">Decision Support Features</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li>• AI recommends intervention type (soft message, cooling-off, limits, escalation, monitor)</li>
                     <li>• Provides timing guidance (immediate, delayed, scheduled)</li>
                     <li>• Estimates success probability based on behavioral profile</li>
@@ -295,17 +295,17 @@ export default function NovaIQXAIPage() {
 
             <TabsContent value="outcome" className="space-y-6">
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Intervention Outcome Tracking</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-white mb-2">Intervention Outcome Tracking</h2>
+                <p className="text-gray-400">
                   Track post-intervention results to measure effectiveness and feed learning back into the AI system.
                 </p>
               </div>
               <InterventionOutcomeTracker {...sampleOutcome} />
 
-              <Card className="bg-green-50 border-green-200">
+              <Card className="bg-gray-950 border-gray-800">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-green-900 mb-2">Outcome Learning Loop</h3>
-                  <ul className="space-y-2 text-sm text-green-700">
+                  <h3 className="font-semibold text-white mb-2">Outcome Learning Loop</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li>• Tracks pre-intervention risk scores and behavioral metrics</li>
                     <li>• Measures post-intervention scores at 7d, 14d, and 30d intervals</li>
                     <li>• Calculates effectiveness scores (0-100) and time-to-impact</li>
@@ -319,8 +319,8 @@ export default function NovaIQXAIPage() {
 
             <TabsContent value="learning" className="space-y-6">
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Learning Performance Metrics</h2>
-                <p className="text-gray-600">
+                <h2 className="text-2xl font-bold text-white mb-2">AI Learning Performance Metrics</h2>
+                <p className="text-gray-400">
                   System-wide AI accuracy improvements, Nova IQ impact, and intervention success rates.
                 </p>
               </div>
@@ -359,10 +359,10 @@ export default function NovaIQXAIPage() {
                 </Card>
               )}
 
-              <Card className="bg-brand-50 border-brand-200">
+              <Card className="bg-brand-900/20 border-brand-800">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-brand-900 mb-2">Continuous Improvement</h3>
-                  <ul className="space-y-2 text-sm text-brand-700">
+                  <h3 className="font-semibold text-brand-300 mb-2">Continuous Improvement</h3>
+                  <ul className="space-y-2 text-sm text-gray-400">
                     <li>• AI models continuously learn from real intervention outcomes</li>
                     <li>• Accuracy improves over time (current: +19.4% over 90 days)</li>
                     <li>• Nova IQ behavioral data contributes additional +12.5% accuracy lift</li>
@@ -375,37 +375,37 @@ export default function NovaIQXAIPage() {
           </Tabs>
 
           {/* System Architecture */}
-          <Card className="mt-8 border-2 border-purple-200">
+          <Card className="mt-8 border border-gray-800 bg-gray-950">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-purple-600" />
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Brain className="h-5 w-5 text-brand-400" />
                 System Architecture
               </CardTitle>
-              <CardDescription>How Nova IQ Intelligence works with SafeBet IQ intervention engine</CardDescription>
+              <CardDescription className="text-gray-400">How Nova IQ Intelligence works with SafeBet IQ intervention engine</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="font-bold text-purple-900 mb-2">1. Data Collection</div>
-                  <ul className="text-sm text-purple-700 space-y-1">
+                <div className="p-4 bg-gray-900 rounded-lg border border-gray-800">
+                  <div className="font-bold text-brand-300 mb-2">1. Data Collection</div>
+                  <ul className="text-sm text-gray-400 space-y-1">
                     <li>• Live casino betting data</li>
                     <li>• Session patterns</li>
                     <li>• Nova IQ assessments</li>
                     <li>• Behavioral metrics</li>
                   </ul>
                 </div>
-                <div className="p-4 bg-brand-50 rounded-lg border border-brand-200">
-                  <div className="font-bold text-brand-900 mb-2">2. AI Analysis</div>
-                  <ul className="text-sm text-brand-700 space-y-1">
+                <div className="p-4 bg-gray-900 rounded-lg border border-gray-800">
+                  <div className="font-bold text-brand-300 mb-2">2. AI Analysis</div>
+                  <ul className="text-sm text-gray-400 space-y-1">
                     <li>• Generate reason stacks</li>
                     <li>• Calculate risk levels</li>
                     <li>• Provide recommendations</li>
                     <li>• Estimate success probability</li>
                   </ul>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="font-bold text-green-900 mb-2">3. Outcome Learning</div>
-                  <ul className="text-sm text-green-700 space-y-1">
+                <div className="p-4 bg-gray-900 rounded-lg border border-gray-800">
+                  <div className="font-bold text-brand-300 mb-2">3. Outcome Learning</div>
+                  <ul className="text-sm text-gray-400 space-y-1">
                     <li>• Track interventions</li>
                     <li>• Measure effectiveness</li>
                     <li>• Improve AI accuracy</li>

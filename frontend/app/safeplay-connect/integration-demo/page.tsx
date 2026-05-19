@@ -12,7 +12,7 @@ export default function IntegrationDemoPage() {
       <div className="max-w-6xl mx-auto px-6 py-16">
         <div className="flex items-center space-x-3 mb-6">
           <Code className="h-10 w-10 text-brand-400" />
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-brand-400 to-teal-500 text-transparent bg-clip-text">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
             Integration Code Samples
           </h1>
         </div>
@@ -537,10 +537,10 @@ if (result.intervention?.required == true)
           </TabsContent>
         </Tabs>
 
-        <Card className="bg-blue-900/20 border-blue-800">
+        <Card className="bg-brand-900/20 border-brand-800">
           <CardContent className="p-6">
             <div className="flex items-start space-x-3">
-              <AlertCircle className="h-6 w-6 text-blue-400 mt-1 flex-shrink-0" />
+              <AlertCircle className="h-6 w-6 text-brand-400 mt-1 flex-shrink-0" />
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold text-white">Need Help with Integration?</h3>
                 <p className="text-gray-300">

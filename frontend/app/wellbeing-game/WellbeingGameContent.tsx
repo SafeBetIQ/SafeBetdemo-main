@@ -48,7 +48,7 @@ export default function WellbeingGamePage() {
       <section className="relative pt-20 md:pt-32 pb-12 md:pb-20 px-4 md:px-6 overflow-hidden">
         <div className="absolute inset-0">
           <motion.div
-            className="absolute top-20 left-10 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl"
+            className="absolute top-20 left-10 w-96 h-96 bg-brand-400/10 rounded-full blur-3xl"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -74,7 +74,7 @@ export default function WellbeingGamePage() {
           />
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10">
+        <div className="max-w-5xl mx-auto relative z-10">
           <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 30 }}
@@ -91,7 +91,7 @@ export default function WellbeingGamePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
             >
-              <span className="bg-gradient-to-r from-brand-400 to-cyan-300 bg-clip-text text-transparent">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
                 Nova IQ
               </span>
             </motion.h1>
@@ -141,7 +141,7 @@ export default function WellbeingGamePage() {
 
       {/* VALUE PROPS */}
       <section className="py-16 px-4 md:px-6 bg-gradient-to-b from-transparent to-slate-950/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -205,7 +205,7 @@ export default function WellbeingGamePage() {
 
       {/* HOW IT WORKS */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -378,7 +378,7 @@ export default function WellbeingGamePage() {
 
       {/* WHAT CASINOS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50 relative">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -496,7 +496,7 @@ export default function WellbeingGamePage() {
 
       {/* WHAT REGULATORS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-950/50 relative">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -629,7 +629,7 @@ export default function WellbeingGamePage() {
 
       {/* DEMO SECTION */}
       <section id="demo-section" className="py-20 px-4 md:px-6 bg-gradient-to-b from-slate-950/50 to-slate-900/50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-12"
             initial={{ opacity: 0, y: 30 }}
@@ -661,7 +661,7 @@ export default function WellbeingGamePage() {
 
       {/* WHAT STAKEHOLDERS SEE */}
       <section className="py-20 px-4 md:px-6 bg-slate-900/30">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -938,7 +938,7 @@ export default function WellbeingGamePage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-cyan-500 hover:bg-cyan-600 text-black font-semibold px-8"
+                className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8"
               >
                 <Link href="/contact">
                   <MessageSquare className="mr-2 h-5 w-5" />
@@ -948,7 +948,7 @@ export default function WellbeingGamePage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-cyan-400 font-semibold px-8"
+                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-brand-500 font-semibold px-8"
               >
                 <Link href="/safeplay-connect/overview">
                   <Globe className="mr-2 h-5 w-5" />
@@ -958,7 +958,7 @@ export default function WellbeingGamePage() {
               <Button
                 size="lg"
                 asChild
-                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-cyan-400 font-semibold px-8"
+                className="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 hover:border-brand-500 font-semibold px-8"
               >
                 <Link href="/features/regulators">
                   <FileCheck className="mr-2 h-5 w-5" />

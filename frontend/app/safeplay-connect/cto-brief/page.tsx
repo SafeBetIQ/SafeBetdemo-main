@@ -11,7 +11,7 @@ export default function CTOBriefPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-black text-white">
       <MainNavigation />
       <div className="max-w-5xl mx-auto px-6 py-16">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-brand-400 to-teal-500 text-transparent bg-clip-text">
+        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
           Technical Brief for Casino CTOs
         </h1>
         <p className="text-xl text-gray-400 mb-12">2-minute technical overview of SafeBet IQ Connect architecture</p>
@@ -35,7 +35,7 @@ export default function CTOBriefPage() {
               <div className="bg-gray-950 border border-gray-800 rounded-lg p-6">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4">
-                    <Database className="h-8 w-8 text-blue-400" />
+                    <Database className="h-8 w-8 text-brand-400" />
                     <div>
                       <div className="font-semibold text-white">Your Casino Platform</div>
                       <div className="text-sm text-gray-400">SOFTSWISS / Altenar / BET Software / Playtech PAM</div>
@@ -56,7 +56,7 @@ export default function CTOBriefPage() {
             </CardContent>
           </Card>
 
-          <div className="bg-gradient-to-r from-brand-400/10 to-teal-500/10 border border-brand-400/20 rounded-lg p-8">
+          <div className="bg-brand-900/20 border border-brand-800 rounded-lg p-8">
             <h3 className="text-2xl font-bold mb-4">Ready to Discuss Technical Details?</h3>
             <p className="text-gray-400 mb-6">
               Schedule a technical deep-dive with our engineering team.
