@@ -146,6 +146,35 @@ export default function LoginPage() {
             <p className="text-sm text-gray-400 text-center mt-1">Sign in to your dashboard</p>
           </div>
 
+          {/* Demo quick login */}
+          <div className="px-6 pt-4 pb-2 border-b border-gray-800/60 flex flex-col gap-2">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold text-center">Quick Demo Login</p>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('superadmin@safebetiq.com', 'Demo@SafeBet2025!')}
+              disabled={loading}
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Admin
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('admin@royalpalace.safebetiq.com', 'Demo@SafeBet2025!')}
+              disabled={loading}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Casino
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('regulator@ngb.gov.za', 'Demo@SafeBet2025!')}
+              disabled={loading}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Regulator
+            </Button>
+          </div>
+
           {/* Login form */}
           <div className="px-6 py-5">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -216,40 +245,6 @@ export default function LoginPage() {
             </form>
           </div>
         </div>
-
-        {process.env.NEXT_PUBLIC_ENV === 'demo' && (
-          <div className="mt-4 rounded-2xl bg-gray-900 border border-gray-800 shadow-2xl overflow-hidden">
-            <div className="px-6 pt-4 pb-3 border-b border-gray-800/60">
-              <p className="text-xs font-semibold text-gray-400 text-center uppercase tracking-widest">Demo Quick Login</p>
-            </div>
-            <div className="px-6 py-4 flex flex-col gap-3">
-              <Button
-                type="button"
-                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_ADMIN_EMAIL!, process.env.NEXT_PUBLIC_ADMIN_PASSWORD!)}
-                disabled={loading}
-                className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-10 text-sm transition-colors"
-              >
-                Login as Admin
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_CASINO_EMAIL!, process.env.NEXT_PUBLIC_CASINO_PASSWORD!)}
-                disabled={loading}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
-              >
-                Login as Casino
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_REGULATOR_EMAIL!, process.env.NEXT_PUBLIC_REGULATOR_PASSWORD!)}
-                disabled={loading}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
-              >
-                Login as Regulator
-              </Button>
-            </div>
-          </div>
-        )}
 
         <p className="text-center text-xs text-gray-600 mt-5">
           Powered by AI-driven responsible gaming technology
