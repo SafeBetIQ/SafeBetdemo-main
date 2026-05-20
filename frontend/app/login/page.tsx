@@ -24,6 +24,18 @@ export default function LoginPage() {
   const [error, setError]               = useState('');
   const [loading, setLoading]           = useState(false);
 
+  const handleDemoLogin = async (email: string, password: string) => {
+    setError('');
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) {
+      setError(authError.message || 'Demo login failed.');
+      setLoading(false);
+      return;
+    }
+    router.push('/dashboard');
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError('');
@@ -204,6 +216,40 @@ export default function LoginPage() {
             </form>
           </div>
         </div>
+
+        {process.env.NEXT_PUBLIC_ENV === 'demo' && (
+          <div className="mt-4 rounded-2xl bg-gray-900 border border-gray-800 shadow-2xl overflow-hidden">
+            <div className="px-6 pt-4 pb-3 border-b border-gray-800/60">
+              <p className="text-xs font-semibold text-gray-400 text-center uppercase tracking-widest">Demo Quick Login</p>
+            </div>
+            <div className="px-6 py-4 flex flex-col gap-3">
+              <Button
+                type="button"
+                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_ADMIN_EMAIL!, process.env.NEXT_PUBLIC_ADMIN_PASSWORD!)}
+                disabled={loading}
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-10 text-sm transition-colors"
+              >
+                Login as Admin
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_CASINO_EMAIL!, process.env.NEXT_PUBLIC_CASINO_PASSWORD!)}
+                disabled={loading}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+              >
+                Login as Casino
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleDemoLogin(process.env.NEXT_PUBLIC_REGULATOR_EMAIL!, process.env.NEXT_PUBLIC_REGULATOR_PASSWORD!)}
+                disabled={loading}
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+              >
+                Login as Regulator
+              </Button>
+            </div>
+          </div>
+        )}
 
         <p className="text-center text-xs text-gray-600 mt-5">
           Powered by AI-driven responsible gaming technology
