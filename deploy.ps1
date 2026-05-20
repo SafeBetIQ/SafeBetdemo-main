@@ -26,7 +26,8 @@ npm ci
 if ($LASTEXITCODE) { throw "npm ci failed" }
 
 # --- 2. Build ---
-Write-Host "[2/4] Building Next.js ($TargetEnv)..."
+Write-Host "[2/4] Building Next.js ($TargetEnv) — clean build..."
+Remove-Item ".next" -Recurse -Force -ErrorAction Ignore
 $env:NEXT_PUBLIC_ENV = $TargetEnv
 npm run build
 if ($LASTEXITCODE) { throw "npm run build failed" }

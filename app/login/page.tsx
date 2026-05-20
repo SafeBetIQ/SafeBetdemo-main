@@ -483,6 +483,9 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-600 mt-5">
           Powered by AI-driven responsible gaming technology
         </p>
+        <p className="text-center text-[10px] text-gray-700 mt-1 font-mono">
+          build: {process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) ?? 'dev'}
+        </p>
       </div>
     </div>
   );
