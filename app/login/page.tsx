@@ -140,6 +140,18 @@ export default function LoginPage() {
     setError('');
   };
 
+  const handleDemoLogin = async (email: string, password: string) => {
+    setError('');
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) {
+      setError(authError.message || 'Demo login failed.');
+      setLoading(false);
+      return;
+    }
+    router.push('/dashboard');
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError('');
@@ -318,6 +330,35 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+          </div>
+
+          {/* 1-click demo login buttons */}
+          <div className="border-t border-gray-800 px-6 py-4 flex flex-col gap-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold text-center mb-1">Quick Login</p>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('superadmin@safebetiq.com', DEMO_PASSWORD)}
+              disabled={loading}
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Admin
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('admin@royalpalace.safebetiq.com', DEMO_PASSWORD)}
+              disabled={loading}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Casino
+            </Button>
+            <Button
+              type="button"
+              onClick={() => handleDemoLogin('regulator@ngb.gov.za', DEMO_PASSWORD)}
+              disabled={loading}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold h-10 text-sm transition-colors"
+            >
+              Login as Regulator
+            </Button>
           </div>
 
           {/* Demo credentials panel */}
