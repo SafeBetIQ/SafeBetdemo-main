@@ -120,6 +120,13 @@ Pop-Location
 # --- 3. Package ---
 Write-Host "[4/5] Packaging..."
 Remove-Item $ZIP -ErrorAction Ignore
+
+# Write build.txt with current git SHA so the running instance can be verified
+$gitSha = git rev-parse HEAD 2>$null
+if (-not $gitSha) { $gitSha = "unknown" }
+[System.IO.File]::WriteAllText((Join-Path $ROOT "build.txt"), $gitSha.Trim() + "`n")
+Write-Host "   build.txt: $($gitSha.Trim())"
+
 Push-Location (Join-Path $ROOT "frontend")
 
 # Temporarily replace package.json with a zero-dep version so EB's mandatory
@@ -142,7 +149,7 @@ Write-Host "   Source maps removed from standalone."
 # standalone/.next/ by the copy step above, so we skip the raw .next/ root to
 # avoid doubling the bundle size.
 tar --exclude="./.next/standalone/.next/cache" -a -c -f "../$ZIP" `
-    ./Procfile ./next.config.js ./.next/standalone ./.ebextensions ./package.json
+    ./Procfile ./next.config.js ./.next/standalone ./.ebextensions ./package.json ../build.txt
 $te = $LASTEXITCODE
 
 # Restore real package.json byte-for-byte regardless of tar exit code
@@ -168,6 +175,13 @@ aws elasticbeanstalk update-environment `
     --application-name $APP --environment-name $ENV `
     --version-label $VER --region $REGION
 if ($LASTEXITCODE) { throw "update-environment failed" }
+
+Write-Host "   Waiting 90s for deployment to stabilise before restarting app servers..."
+Start-Sleep -Seconds 90
+
+aws elasticbeanstalk restart-app-server `
+    --environment-name $ENV --region $REGION
+if ($LASTEXITCODE) { Write-Host "   Warning: restart-app-server returned non-zero (may be non-fatal)" }
 
 Write-Host ""
 Write-Host "=== Deployed: $VER ==="
