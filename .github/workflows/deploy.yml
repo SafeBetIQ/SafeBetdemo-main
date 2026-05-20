@@ -25,20 +25,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Cache Next.js build
-        uses: actions/cache@v4
-        with:
-          path: frontend/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/**/*.ts', 'frontend/**/*.tsx') }}
-          restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-
-            nextjs-${{ runner.os }}-
-
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Build
+      - name: Build (prod)
         working-directory: frontend
         run: npm run build
         env:
@@ -65,18 +56,15 @@ jobs:
         shell: bash
         run: |
           set -e
-          pwsh ./deploy.ps1 -TargetEnv prod
+          pwsh ./deploy.ps1 -TargetEnv prod -SkipBuild
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-      - name: Health check
+      - name: Health check (prod)
         run: |
           echo "Waiting 60s for EB to become healthy..."
           sleep 60
@@ -97,3 +85,37 @@ jobs:
         with:
           version: ${{ github.sha }}
           set_commits: auto
+
+      - name: Clean build output for demo rebuild
+        run: rm -rf frontend/.next
+
+      - name: Build (demo)
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DEMO_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEMO_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+
+      - name: Deploy to Elastic Beanstalk (safebet-iq-demo)
+        shell: bash
+        run: |
+          set -e
+          pwsh ./deploy.ps1 -TargetEnv demo -SkipBuild
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DEMO_SUPABASE_SERVICE_ROLE_KEY }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: Health check (demo)
+        run: |
+          echo "Waiting 60s for demo EB to become healthy..."
+          sleep 60
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 10 "${{ secrets.DEMO_APP_URL }}/api/health")
+          echo "Demo health check status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Demo health check failed — got HTTP $STATUS"
+            exit 1
+          fi
+          echo "Demo health check passed."

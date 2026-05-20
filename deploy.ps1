@@ -3,7 +3,8 @@
 
 param(
     [ValidateSet('prod', 'demo')]
-    [string]$TargetEnv = 'prod'
+    [string]$TargetEnv = 'prod',
+    [switch]$SkipBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,30 +24,35 @@ Write-Host ""
 # --- 1. Install & build ---
 Push-Location (Join-Path $ROOT "frontend")
 
-# Strip UTF-8 BOM from package.json if present — some Windows tools add it
-# and both npm and webpack reject it as invalid JSON.
-$pkgPath = (Resolve-Path "package.json").Path
-$pkgBytes = [System.IO.File]::ReadAllBytes($pkgPath)
-if ($pkgBytes.Length -ge 3 -and $pkgBytes[0] -eq 0xEF -and $pkgBytes[1] -eq 0xBB -and $pkgBytes[2] -eq 0xBF) {
-    [System.IO.File]::WriteAllBytes($pkgPath, $pkgBytes[3..($pkgBytes.Length - 1)])
-    Write-Host "   Stripped UTF-8 BOM from package.json"
+if ($SkipBuild) {
+    Write-Host "[1/5] Skipping install (CI already built)."
+    Write-Host "[2/5] Skipping build   (CI already built)."
+} else {
+    # Strip UTF-8 BOM from package.json if present — some Windows tools add it
+    # and both npm and webpack reject it as invalid JSON.
+    $pkgPath = (Resolve-Path "package.json").Path
+    $pkgBytes = [System.IO.File]::ReadAllBytes($pkgPath)
+    if ($pkgBytes.Length -ge 3 -and $pkgBytes[0] -eq 0xEF -and $pkgBytes[1] -eq 0xBB -and $pkgBytes[2] -eq 0xBF) {
+        [System.IO.File]::WriteAllBytes($pkgPath, $pkgBytes[3..($pkgBytes.Length - 1)])
+        Write-Host "   Stripped UTF-8 BOM from package.json"
+    }
+
+    Write-Host "[1/5] Installing dependencies..."
+    npm install
+    if ($LASTEXITCODE) { Pop-Location; throw "npm install failed" }
+
+    Write-Host "[2/5] Building Next.js..."
+    npm run build
+    $buildExit = $LASTEXITCODE
+
+    if ($buildExit) {
+        Write-Host "   Warning: build had prerender errors (Windows path issue) - standalone exists, continuing"
+    }
 }
-
-Write-Host "[1/5] Installing dependencies..."
-npm install
-if ($LASTEXITCODE) { Pop-Location; throw "npm install failed" }
-
-Write-Host "[2/5] Building Next.js..."
-npm run build
-$buildExit = $LASTEXITCODE
 
 if (-not (Test-Path ".next/standalone/server.js")) {
     Pop-Location
     throw "standalone server.js not found - check next.config.js output: 'standalone'"
-}
-
-if ($buildExit) {
-    Write-Host "   Warning: build had prerender errors (Windows path issue) - standalone exists, continuing"
 }
 
 # Next.js 13.5.x only creates prerender-manifest.js; the standalone server needs the full JSON
