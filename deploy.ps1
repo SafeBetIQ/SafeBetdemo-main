@@ -1,18 +1,23 @@
 # SafeBet IQ - Elastic Beanstalk deployment
-# Usage: .\deploy.ps1  (run from repo root)
+# Usage: .\deploy.ps1 [-TargetEnv prod|demo]  (run from repo root)
+
+param(
+    [ValidateSet('prod', 'demo')]
+    [string]$TargetEnv = 'prod'
+)
 
 $ErrorActionPreference = "Stop"
 
 $APP    = "safebet-iq-app"
-$ENV    = "safebet-iq-prod"
+$ENV    = if ($TargetEnv -eq 'demo') { "safebet-iq-demo" } else { "safebet-iq-prod" }
 $S3     = "safebet-iq-deployments-eu"
 $REGION = "eu-west-1"
-$VER    = "safebet-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+$VER    = "safebet-$TargetEnv-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 $ZIP    = "app.zip"
 $ROOT   = $PSScriptRoot
 
 Write-Host ""
-Write-Host "=== SafeBet IQ - Deploying $VER ==="
+Write-Host "=== SafeBet IQ ($TargetEnv) - Deploying $VER to $ENV ==="
 Write-Host ""
 
 # --- 1. Install & build ---

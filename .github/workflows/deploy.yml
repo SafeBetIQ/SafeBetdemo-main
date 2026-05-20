@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to Elastic Beanstalk
 
 on:
   push:
@@ -53,11 +53,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-1
 
-      - name: Deploy to Elastic Beanstalk
+      - name: Validate standalone build
+        run: |
+          if [ ! -f "frontend/.next/standalone/server.js" ]; then
+            echo "ERROR: frontend/.next/standalone/server.js not found — check next.config.js output: standalone"
+            exit 1
+          fi
+          echo "Standalone build OK."
+
+      - name: Deploy to Elastic Beanstalk (safebet-iq-prod)
         shell: bash
         run: |
           set -e
-          pwsh ./deploy.ps1
+          pwsh ./deploy.ps1 -TargetEnv prod
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
