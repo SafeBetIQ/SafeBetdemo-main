@@ -332,9 +332,9 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* 1-click demo login buttons */}
+          {/* 1-click demo login buttons — always rendered, no env condition */}
           <div className="border-t border-gray-800 px-6 py-4 flex flex-col gap-2">
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold text-center mb-1">Quick Login</p>
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold text-center mb-1">Quick Demo Login</p>
             <Button
               type="button"
               onClick={() => handleDemoLogin('superadmin@safebetiq.com', DEMO_PASSWORD)}
