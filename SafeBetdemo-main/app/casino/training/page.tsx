@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -245,46 +247,44 @@ export default function TrainingDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-brand-400 mb-4"></div>
-          <p className="text-gray-600">Loading training data...</p>
-        </div>
-      </div>
+      <CasinoAdminGuard>
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-full p-12">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-muted border-t-primary mb-4" />
+              <p className="text-sm text-muted-foreground">Loading training data...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </CasinoAdminGuard>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-black border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Image
-                src="/safebet-logo-transparent.png"
-                alt="SafeBet IQ Logo"
-                width={354}
-                height={95}
-                className="h-12 w-auto"
-                priority
-              />
-              <div className="border-l border-gray-600 pl-4">
-                <p className="text-xs text-gray-400">Training & Staff Management</p>
+    <CasinoAdminGuard>
+      <DashboardLayout>
+        <div className="flex min-h-full flex-col">
+
+          {/* Page header — consistent with other casino pages */}
+          <div className="border-b bg-card px-6 py-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                  <GraduationCap className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold">Training & Staff Management</h1>
+                  <p className="text-sm text-muted-foreground">Staff compliance training, credits, and performance reports</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Link href="/casino/dashboard">
-                <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-gray-800">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
+              <Button onClick={handleViewReport} size="sm" className="bg-primary hover:bg-primary/90">
+                <FileText className="h-4 w-4 mr-1.5" />
+                Compliance Report
+              </Button>
             </div>
           </div>
-        </div>
-      </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex-1 p-6 min-w-0">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="directory" className="flex items-center space-x-2">
@@ -632,6 +632,8 @@ export default function TrainingDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </DashboardLayout>
+    </CasinoAdminGuard>
   );
 }

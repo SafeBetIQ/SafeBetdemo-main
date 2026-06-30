@@ -124,6 +124,9 @@ export default function MainNavigation() {
                 </div>
               </div>
             </div>
+            <Link href="/about" className="text-gray-300 hover:text-brand-400 transition-colors">
+              About
+            </Link>
             <Link href="/contact" className="text-gray-300 hover:text-brand-400 transition-colors">
               Contact
             </Link>
@@ -173,6 +176,7 @@ export default function MainNavigation() {
               <Link href="/safeplay-connect" className="block text-gray-300 hover:text-brand-400 pl-4">SafeBet IQ Connect</Link>
               <Link href="/nova-iq" className="block text-gray-300 hover:text-brand-400 pl-4">Nova IQ</Link>
             </div>
+            <Link href="/about" className="block text-gray-300 hover:text-brand-400">About</Link>
             <Link href="/contact" className="block text-gray-300 hover:text-brand-400">Contact</Link>
             <Link href="/login">
               <Button variant="ghost" className="w-full text-gray-300">Sign In</Button>

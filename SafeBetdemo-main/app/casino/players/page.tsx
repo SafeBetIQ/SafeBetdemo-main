@@ -73,18 +73,20 @@ export default function PlayersPage() {
     try {
       setLoading(true);
       const casinoId = user?.casino_id;
-      if (!casinoId) return;
+      const isSuperAdmin = user?.role === 'super_admin';
+
+      const applyFilter = (q: any) => (casinoId && !isSuperAdmin) ? q.eq('casino_id', casinoId) : q;
 
       const [countRes, scoreRes, tableRes] = await Promise.all([
-        supabase.from('players').select('*', { count: 'exact', head: true }).eq('casino_id', casinoId),
-        supabase.from('players').select('risk_score, status').eq('casino_id', casinoId),
-        supabase.from('players').select('*').eq('casino_id', casinoId).order('risk_score', { ascending: false }).limit(1000),
+        applyFilter(supabase.from('players').select('*', { count: 'exact', head: true })),
+        applyFilter(supabase.from('players').select('risk_score, status')),
+        applyFilter(supabase.from('players').select('*')).order('risk_score', { ascending: false }).limit(1000),
       ]);
 
       const total = countRes.count ?? 0;
       setTotalCount(total);
 
-      const scores = scoreRes.data || [];
+      const scores = (scoreRes.data || []) as { status: string; risk_score: number }[];
       const active = scores.filter(p => p.status === 'active').length;
       const highRisk = scores.filter(p => p.risk_score >= 60).length;
       const criticalRisk = scores.filter(p => p.risk_score >= 80).length;
@@ -159,8 +161,8 @@ export default function PlayersPage() {
       <TooltipProvider>
       <div className="flex min-h-full flex-col">
         <PageHeader
-          title="Players"
-          subtitle="View and manage all casino players"
+          title="Player Risk Monitor"
+          subtitle="Who is at risk right now? Real-time AI risk scores across every registered player — click Investigate to drill into any individual."
           actions={
             <Button onClick={handleExport} variant="outline">
               <Download className="mr-2 h-4 w-4" />
@@ -344,9 +346,14 @@ export default function PlayersPage() {
                                   : 'Never'}
                               </TableCell>
                               <TableCell>
-                                <Link href={`/behavioral-risk-intelligence?player=${player.id}`}>
-                                  <Button variant="ghost" size="sm">
-                                    <Eye className="h-4 w-4" />
+                                <Link href={`/casino/players/${player.id}/investigate`}>
+                                  <Button
+                                    variant={player.risk_score >= 60 ? 'default' : 'outline'}
+                                    size="sm"
+                                    className={player.risk_score >= 60 ? 'bg-slate-800 hover:bg-slate-700 text-white' : ''}
+                                  >
+                                    <Eye className="h-3.5 w-3.5 mr-1.5" />
+                                    Investigate
                                   </Button>
                                 </Link>
                               </TableCell>

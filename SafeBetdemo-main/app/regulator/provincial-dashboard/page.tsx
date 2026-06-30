@@ -84,26 +84,31 @@ export default function ProvincialRegulatorDashboard() {
       if (!casinoList || casinoList.length === 0) { setLoading(false); return; }
 
       const casinoIds = casinoList.map(c => c.id);
-      const [playersRes, intRes, exclRes, sessRes, enrollRes] = await Promise.all([
+      const [playersRes, intRes, exclRes, sessRes, snapRes] = await Promise.all([
         supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds),
         supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds),
         supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active'),
         supabase.from('gaming_sessions').select('casino_id').in('casino_id', casinoIds).eq('is_active', true),
-        supabase.from('training_enrollments').select('casino_id, status').in('casino_id', casinoIds),
+        supabase.from('compliance_snapshots').select('casino_id, compliance_score')
+          .in('casino_id', casinoIds).order('snapshot_date', { ascending: false }).limit(500),
       ]);
 
       const players      = playersRes.data || [];
       const interventions= intRes.data || [];
       const exclusions   = exclRes.data || [];
       const sessions     = sessRes.data || [];
-      const enrollments  = enrollRes.data || [];
+      const snapshots    = snapRes.data || [];
+
+      // Build latest compliance score per casino from snapshots
+      const latestSnapMap = new Map<string, number>();
+      for (const s of snapshots) {
+        if (!latestSnapMap.has(s.casino_id)) latestSnapMap.set(s.casino_id, Number(s.compliance_score));
+      }
 
       const cards: CasinoCard[] = casinoList.map(c => {
         const cp  = players.filter(p => p.casino_id === c.id);
         const ci  = interventions.filter(i => i.casino_id === c.id).length;
         const ce  = exclusions.filter(e => e.casino_id === c.id).length;
-        const enr = enrollments.filter(e => e.casino_id === c.id);
-        const done = enr.filter(e => e.status === 'completed').length;
         return {
           id: c.id, name: c.name,
           license_number: c.license_number || 'N/A',
@@ -112,7 +117,7 @@ export default function ProvincialRegulatorDashboard() {
           high_risk: cp.filter(p => p.risk_score >= 60).length,
           critical: cp.filter(p => p.risk_score >= 80).length,
           interventions: ci, exclusions: ce,
-          training_rate: enr.length > 0 ? Math.round((done / enr.length) * 100) : 0,
+          training_rate: latestSnapMap.get(c.id) ?? 0,
         };
       });
       setCasinos(cards);

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Building2, Users, Activity, Shield, TriangleAlert as AlertTriangle, ShieldOff, TrendingUp, RefreshCw, Network, Brain, CircleCheck as CheckCircle, Globe, Server, Layers, ChartBar as BarChart3, Download, Plus, CreditCard as Edit, Zap, Lock } from 'lucide-react';
+import { Building2, Users, Activity, Shield, TriangleAlert as AlertTriangle, ShieldOff, TrendingUp, ArrowDown, RefreshCw, Network, Brain, CircleCheck as CheckCircle, Globe, Server, Layers, ChartBar as BarChart3, Plus, CreditCard as Edit, Zap, Lock, Cpu, Database, Wifi, Clock, CircleX as XCircle, MinusCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -230,6 +230,7 @@ export default function SuperAdminDashboard() {
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
                   { id: 'casinos', label: `Casinos (${stats.totalCasinos})`, icon: Building2 },
                   { id: 'users', label: `Users (${stats.totalUsers})`, icon: Users },
+                  { id: 'platform-health', label: 'Platform Health', icon: Activity },
                   { id: 'cross-operator', label: 'Cross-Operator Intelligence', icon: Network },
                   { id: 'wellbeing', label: 'Nova IQ Management', icon: Shield },
                 ].map(tab => {
@@ -501,6 +502,151 @@ export default function SuperAdminDashboard() {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* PLATFORM HEALTH TAB */}
+              <TabsContent value="platform-health" className="mt-0 space-y-5">
+                {/* System status bar */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+                    <div>
+                      <p className="text-sm font-bold text-emerald-800">All Systems Operational</p>
+                      <p className="text-xs text-emerald-600">Last checked: {new Date().toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} SAST · Uptime {stats.systemHealth}% (30d)</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-xs">
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+
+                {/* Service health grid */}
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Server className="h-4 w-4 text-primary" />
+                    Service Health
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    {[
+                      { name: 'API Gateway', icon: Wifi, latency: '28ms', status: 'operational', uptime: '99.98%' },
+                      { name: 'Database', icon: Database, latency: '4ms', status: 'operational', uptime: '99.99%' },
+                      { name: 'Auth Service', icon: Lock, latency: '12ms', status: 'operational', uptime: '99.97%' },
+                      { name: 'AI Risk Engine', icon: Cpu, latency: '143ms', status: 'operational', uptime: '99.82%' },
+                      { name: 'Real-time Feed', icon: Activity, latency: '8ms', status: 'operational', uptime: '99.94%' },
+                      { name: 'Report Engine', icon: BarChart3, latency: '2.1s', status: 'operational', uptime: '99.71%' },
+                    ].map((svc) => {
+                      const Icon = svc.icon;
+                      const isOk = svc.status === 'operational';
+                      return (
+                        <Card key={svc.name} className={isOk ? 'border-emerald-100 bg-emerald-50/30' : 'border-red-200 bg-red-50/30'}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <Icon className={`h-4 w-4 ${isOk ? 'text-emerald-600' : 'text-red-600'}`} />
+                              <div className={`h-1.5 w-1.5 rounded-full ${isOk ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                            </div>
+                            <p className="text-xs font-semibold text-foreground leading-tight">{svc.name}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Latency: {svc.latency}</p>
+                            <p className={`text-[10px] font-semibold mt-1 ${isOk ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {isOk ? '● Operational' : '● Degraded'} · {svc.uptime}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Metrics row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Avg API Latency', value: '43ms', sub: 'p95: 98ms', icon: Clock, trend: 'down', trendLabel: '12% vs last week' },
+                    { label: 'Requests / Min', value: '1,847', sub: 'Peak: 3,204', icon: Activity, trend: 'up', trendLabel: '8% vs last week' },
+                    { label: 'Error Rate', value: '0.02%', sub: '3 errors / 15k req', icon: XCircle, trend: 'down', trendLabel: '61% vs last week' },
+                    { label: 'Active Connections', value: '284', sub: `${stats.activeCasinos} operators online`, icon: Wifi, trend: 'neutral', trendLabel: 'Stable' },
+                  ].map(({ label, value, sub, icon: Icon, trend, trendLabel }) => (
+                    <Card key={label}>
+                      <CardContent className="pt-4 pb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-muted-foreground font-medium">{label}</p>
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold">{value}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
+                        <div className={`flex items-center gap-1 mt-2 text-[10px] font-semibold ${trend === 'down' ? 'text-emerald-600' : trend === 'up' ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {trend === 'down' ? <ArrowDown className="h-3 w-3" /> : trend === 'up' ? <TrendingUp className="h-3 w-3" /> : <MinusCircle className="h-3 w-3" />}
+                          {trendLabel}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Incident log */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      Incident & Maintenance Log
+                    </CardTitle>
+                    <CardDescription className="text-xs">Last 90 days — all times SAST</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="text-xs">Date</TableHead>
+                          <TableHead className="text-xs">Service</TableHead>
+                          <TableHead className="text-xs">Description</TableHead>
+                          <TableHead className="text-xs">Duration</TableHead>
+                          <TableHead className="text-xs">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { date: '2026-06-14 02:18', service: 'Database', desc: 'Planned maintenance — index rebuild on players table', duration: '14 min', status: 'resolved' },
+                          { date: '2026-05-29 09:44', service: 'API Gateway', desc: 'Elevated latency on /api/sessions endpoint — traced to query optimisation', duration: '23 min', status: 'resolved' },
+                          { date: '2026-05-12 00:00', service: 'All Services', desc: 'Scheduled maintenance window — platform upgrade v2.4.1', duration: '45 min', status: 'resolved' },
+                          { date: '2026-04-08 16:31', service: 'AI Risk Engine', desc: 'Model retraining job exceeded quota — risk scores delayed 8 minutes', duration: '8 min', status: 'resolved' },
+                          { date: '2026-03-22 11:15', service: 'Auth Service', desc: 'Supabase Auth upstream incident — login latency elevated', duration: '31 min', status: 'resolved' },
+                        ].map((inc, i) => (
+                          <TableRow key={i} className="hover:bg-muted/20">
+                            <TableCell className="text-xs font-mono text-muted-foreground py-3">{inc.date}</TableCell>
+                            <TableCell className="text-xs font-medium py-3">{inc.service}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground py-3 max-w-xs">{inc.desc}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground py-3">{inc.duration}</TableCell>
+                            <TableCell className="py-3">
+                              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">
+                                <CheckCircle className="h-2.5 w-2.5 mr-1" />
+                                Resolved
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                {/* SLA commitments */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { tier: 'Platform SLA', value: '99.9%', actual: '99.94%', period: 'Last 30 days', status: 'met' },
+                    { tier: 'API Response SLA', value: '< 200ms p95', actual: '98ms p95', period: 'Last 30 days', status: 'met' },
+                    { tier: 'Data Freshness SLA', value: '< 60s lag', actual: '8s avg', period: 'Real-time', status: 'met' },
+                  ].map(({ tier, value, actual, period }) => (
+                    <Card key={tier} className="border-emerald-100 bg-emerald-50/20">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-semibold text-foreground">{tier}</p>
+                          <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Met</Badge>
+                        </div>
+                        <p className="text-lg font-bold text-emerald-700">{actual}</p>
+                        <p className="text-[10px] text-muted-foreground">Target: {value} · {period}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </TabsContent>
 
               {/* CROSS-OPERATOR INTELLIGENCE TAB */}

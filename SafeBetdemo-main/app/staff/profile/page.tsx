@@ -63,6 +63,13 @@ export default function StaffProfilePage() {
         setIsViewingAsAdmin(true);
         await fetchStaffData(staffId);
       } else {
+        // Admin/super_admin roles navigating to /staff/profile without a staff ID
+        // should be redirected to the staff directory, not the homepage
+        if (user?.role === 'super_admin' || user?.role === 'casino_admin') {
+          router.push('/casino/staff');
+          return;
+        }
+
         const { data: staff, error: staffError } = await supabase
           .from('staff')
           .select('*')
@@ -70,8 +77,8 @@ export default function StaffProfilePage() {
           .maybeSingle();
 
         if (staffError || !staff) {
-          toast.error('Access denied: Staff profile not found');
-          router.push('/');
+          toast.error('Staff profile not found. Contact your administrator.');
+          router.push('/casino/dashboard');
           return;
         }
 

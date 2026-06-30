@@ -403,7 +403,18 @@ function maybeGenerateIntervention(event: LiveEvent, playerName: string): Interv
 
 export function CasinoDataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const casinoId = (user as unknown as Record<string, unknown>)?.casino_id as string | undefined;
+  const rawCasinoId = (user as unknown as Record<string, unknown>)?.casino_id as string | undefined;
+  const isSuperAdmin = (user as unknown as Record<string, unknown>)?.role === 'super_admin';
+  const [resolvedCasinoId, setResolvedCasinoId] = useState<string | undefined>(rawCasinoId);
+  const casinoId = resolvedCasinoId;
+
+  useEffect(() => {
+    if (rawCasinoId) { setResolvedCasinoId(rawCasinoId); return; }
+    if (isSuperAdmin) {
+      supabase.from('casinos').select('id').eq('is_active', true).order('name').limit(1).maybeSingle()
+        .then(({ data }) => { if (data?.id) setResolvedCasinoId(data.id); });
+    }
+  }, [rawCasinoId, isSuperAdmin]);
 
   const [data, setData] = useState<CasinoData>({
     liveEvents: [],

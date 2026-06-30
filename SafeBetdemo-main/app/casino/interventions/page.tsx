@@ -360,7 +360,7 @@ export default function InterventionsPage() {
               <div>
                 <h1 className="text-3xl font-bold">Intervention Engine</h1>
                 <p className="text-muted-foreground">
-                  Monitor risk thresholds, dispatch interventions, and track outcomes
+                  When does the platform act — and does it work? Real-time thresholds, automated dispatch, and 30-day outcome measurement.
                 </p>
               </div>
             </div>
@@ -603,9 +603,38 @@ export default function InterventionsPage() {
 
               <div className="space-y-3">
                 {thresholdRules.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-12 text-center text-muted-foreground">
-                      No threshold rules configured
+                  <Card className="border-dashed">
+                    <CardContent className="py-10">
+                      <div className="max-w-xl mx-auto text-center space-y-4">
+                        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto">
+                          <Settings2 className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-700 mb-1">No threshold rules configured for this operator</h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            Threshold rules automatically trigger responsible gambling interventions when a player's AI risk score crosses a defined level.
+                            In a live deployment, each casino configures rules such as:
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                          {[
+                            { score: '70+', type: 'Break Suggestion', channel: 'In-app + SMS', cooldown: '24h', auto: true },
+                            { score: '80+', type: 'Session Limit', channel: 'Email + WhatsApp', cooldown: '12h', auto: true },
+                            { score: '90+', type: 'Manual Compliance', channel: 'Phone + Email', cooldown: '48h', auto: false },
+                          ].map(ex => (
+                            <div key={ex.score} className="rounded-lg border bg-muted/30 p-3 text-xs space-y-1">
+                              <div className="flex items-center justify-between">
+                                <Badge className={`text-[10px] border-0 ${ex.score === '90+' ? 'bg-red-100 text-red-700' : ex.score === '80+' ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>{ex.score} risk</Badge>
+                                {ex.auto && <Badge className="text-[10px] bg-primary/10 text-primary border-0"><Zap className="h-2.5 w-2.5 mr-0.5" />Auto</Badge>}
+                              </div>
+                              <div className="font-medium text-slate-700">{ex.type}</div>
+                              <div className="text-muted-foreground">{ex.channel}</div>
+                              <div className="text-muted-foreground">{ex.cooldown} cooldown</div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Rules are seeded per casino during onboarding and managed by SafeBet IQ compliance administrators.</p>
+                      </div>
                     </CardContent>
                   </Card>
                 ) : (
@@ -767,8 +796,15 @@ export default function InterventionsPage() {
                       <TableBody>
                         {deliveryQueue.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
-                              No delivery records yet
+                            <TableCell colSpan={6} className="py-10">
+                              <div className="text-center space-y-2">
+                                <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
+                                <p className="font-medium text-slate-600">Delivery queue is clear</p>
+                                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                                  When an intervention is dispatched, each channel (email, SMS, WhatsApp, in-app) appears here with its delivery status and retry count.
+                                  An empty queue means all messages have been processed or no interventions have been sent yet.
+                                </p>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -886,8 +922,21 @@ export default function InterventionsPage() {
                       <TableBody>
                         {outcomes.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
-                              No outcome data yet — interventions will appear here after their 7-day measurement window
+                            <TableCell colSpan={7} className="py-12">
+                              <div className="text-center space-y-3 max-w-md mx-auto">
+                                <BarChart2 className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                                <div>
+                                  <p className="font-medium text-slate-600 text-sm">Awaiting 7-day measurement window</p>
+                                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                    After an intervention is delivered, the system tracks the player&apos;s risk score at Day 7 and Day 30. Once measurements are recorded, this table shows pre/post risk deltas, effectiveness scores, and improvement rates — giving compliance officers evidence of real-world impact.
+                                  </p>
+                                </div>
+                                <div className="flex justify-center gap-4 text-xs">
+                                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400 inline-block" />Improved</div>
+                                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-400 inline-block" />No Change</div>
+                                  <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400 inline-block" />Escalated</div>
+                                </div>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : (

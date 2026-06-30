@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
-import InteractiveCardGame from '@/components/wellbeing-games/InteractiveCardGame';
+const InteractiveCardGame = dynamic(
+  () => import('@/components/wellbeing-games/InteractiveCardGame'),
+  { ssr: false, loading: () => <div className="h-64 flex items-center justify-center text-white/40">Loading game...</div> }
+);
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

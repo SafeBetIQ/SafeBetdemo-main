@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Lock, Server, CircleCheck as CheckCircle, Eye, Layers, Key, Radio } from 'lucide-react';
+import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Shield, Globe, ChartBar as BarChart3, TriangleAlert as AlertTriangle, ShieldOff, Network, Lock, Server, CircleCheck as CheckCircle, Eye, Layers, Key, Radio, HelpCircle, BookOpen, Fingerprint } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
@@ -33,61 +33,80 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Core',
+    title: 'Dashboards',
     items: [
-      { title: 'Platform Overview',         href: '/admin',                          icon: LayoutDashboard,  roles: ['super_admin'] },
-      { title: 'Operator Compliance',        href: '/casino/dashboard',               icon: LayoutDashboard,  roles: ['casino_admin', 'compliance_officer'] },
-      { title: 'National Intelligence',      href: '/regulator/dashboard',            icon: LayoutDashboard,  roles: ['regulator', 'national_regulator'] },
-      { title: 'Provincial Intelligence',    href: '/regulator/provincial-dashboard', icon: LayoutDashboard,  roles: ['provincial_regulator'] },
-      { title: 'My Profile',                 href: '/staff/profile',                  icon: User,             roles: ['staff'] },
+      { title: 'Platform Overview',           href: '/admin',                            icon: LayoutDashboard,  roles: ['super_admin'] },
+      { title: 'Operator Compliance',          href: '/casino/dashboard',                 icon: LayoutDashboard,  roles: ['casino_admin', 'compliance_officer'] },
+      { title: 'National Intelligence',        href: '/regulator/dashboard',              icon: LayoutDashboard,  roles: ['regulator', 'national_regulator'] },
+      { title: 'Provincial Intelligence',      href: '/regulator/provincial-dashboard',   icon: LayoutDashboard,  roles: ['provincial_regulator'] },
+      { title: 'My Profile',                   href: '/staff/profile',                    icon: User,             roles: ['staff'] },
     ],
   },
   {
     title: 'Behavioural Intelligence',
     items: [
-      { title: 'Live Casino Feed',            href: '/casino/live-feed',               icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'], badge: 'LIVE' },
-      { title: 'Player Risk Monitor',        href: '/casino/players',                 icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
-      { title: 'Intervention Engine',        href: '/casino/interventions',           icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
-      { title: 'Session Analytics',          href: '/behavioral-risk-intelligence',   icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'Nova IQ Intelligence',        href: '/casino/nova-iq-intelligence',    icon: Eye,              roles: ['casino_admin', 'super_admin'] },
+      { title: 'Live Casino Feed',              href: '/casino/live-feed',                 icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'], badge: 'LIVE' },
+      { title: 'Player Risk Monitor',           href: '/casino/players',                   icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Intervention Engine',           href: '/casino/interventions',             icon: ShieldAlert,      roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Session Analytics',             href: '/behavioral-risk-intelligence',     icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Nova IQ Intelligence',           href: '/casino/nova-iq-intelligence',      icon: Eye,              roles: ['casino_admin', 'super_admin'] },
+      { title: 'AI Intelligence',               href: '/casino/ai-intelligence',           icon: BarChart3,        roles: ['casino_admin', 'super_admin'] },
     ],
   },
   {
-    title: 'Network Intelligence',
+    title: 'Regulator Intelligence',
     items: [
-      { title: 'Cross-Operator Intelligence',href: '/admin/integrations',             icon: Network,          roles: ['super_admin', 'regulator', 'national_regulator'] },
-      { title: 'Self-Exclusion Network',     href: '/regulator/wellbeing-compliance', icon: ShieldOff,        roles: ['regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
-      { title: 'High-Risk Player Analytics', href: '/regulator/dashboard',            icon: AlertTriangle,    roles: ['regulator', 'national_regulator', 'provincial_regulator'] },
+      { title: 'Cross-Operator Intelligence',   href: '/admin/integrations',               icon: Network,          roles: ['super_admin', 'regulator', 'national_regulator'] },
+      { title: 'Self-Exclusion Network',        href: '/regulator/wellbeing-compliance',   icon: ShieldOff,        roles: ['regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'High-Risk Analytics',           href: '/regulator/dashboard',              icon: AlertTriangle,    roles: ['regulator', 'national_regulator', 'provincial_regulator'] },
     ],
   },
   {
-    title: 'Compliance',
+    title: 'Compliance & Reports',
     items: [
-      { title: 'Compliance Reports',         href: '/admin/compliance-overview',      icon: FileText,         roles: ['super_admin', 'regulator', 'national_regulator'] },
-      { title: 'Compliance Controls',        href: '/admin/compliance',               icon: CheckCircle,      roles: ['super_admin', 'casino_admin'] },
+      { title: 'Reporting Centre',              href: '/casino/reports',                   icon: FileText,         roles: ['casino_admin', 'compliance_officer'] },
+      { title: 'Regulatory Reports',            href: '/regulator/reports',                icon: FileText,         roles: ['regulator', 'national_regulator', 'provincial_regulator', 'super_admin'] },
+      { title: 'Compliance Overview',           href: '/admin/compliance-overview',        icon: Shield,           roles: ['super_admin', 'regulator', 'national_regulator'] },
+      { title: 'Compliance Controls',           href: '/admin/compliance',                 icon: CheckCircle,      roles: ['super_admin', 'casino_admin'] },
+      { title: 'Audit Centre',                  href: '/admin/audit',                      icon: BookOpen,         roles: ['super_admin', 'casino_admin', 'compliance_officer', 'national_regulator', 'regulator'] },
     ],
   },
   {
-    title: 'Platform Management',
+    title: 'Integration & API',
     items: [
-      { title: 'Nova IQ',        href: '/casino/wellbeing-games',         icon: Shield,           roles: ['casino_admin', 'super_admin'] },
-      { title: 'Integrations',              href: '/casino/integrations',            icon: Plug,             roles: ['casino_admin'] },
-      { title: 'SafeBet IQ Connect (API)',    href: '/casino/safeplay-connect',        icon: Globe,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'API & Integration Centre',      href: '/casino/api-centre',                icon: Plug,             roles: ['casino_admin', 'super_admin'] },
+      { title: 'SafePlay Connect',              href: '/casino/safeplay-connect',          icon: Globe,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'Casino Integrations',           href: '/casino/integrations',              icon: Network,          roles: ['casino_admin'] },
+      { title: 'Wellbeing Games',               href: '/casino/wellbeing-games',           icon: Shield,           roles: ['casino_admin', 'super_admin'] },
+    ],
+  },
+  {
+    title: 'Staff & Training',
+    items: [
+      { title: 'Staff Management',              href: '/casino/staff',                     icon: Users,            roles: ['casino_admin', 'super_admin'] },
+      { title: 'Training Academy',              href: '/casino/training',                  icon: BookOpen,         roles: ['casino_admin', 'super_admin'] },
+      { title: 'My Training',                   href: '/staff/academy',                    icon: BookOpen,         roles: ['staff'] },
     ],
   },
   {
     title: 'Security & Admin',
     items: [
-      { title: 'Security Command Center',    href: '/security-command-center',        icon: ShieldAlert,      roles: ['super_admin'] },
-      { title: 'Module Management',          href: '/admin/casino-modules',           icon: Layers,           roles: ['super_admin'] },
-      { title: 'User Management',            href: '/admin/user-roles',               icon: Users,            roles: ['super_admin'] },
-      { title: 'Access Control',             href: '/admin/access-control',           icon: Key,              roles: ['super_admin'] },
-      { title: 'Data Governance',            href: '/admin/data-governance',          icon: Lock,             roles: ['super_admin'] },
-      { title: 'Infrastructure',             href: '/admin/infrastructure',           icon: Server,           roles: ['super_admin'] },
-      { title: 'Performance',                href: '/admin/performance',              icon: BarChart3,        roles: ['super_admin'] },
-      { title: 'Threat Monitoring',          href: '/admin/threat-monitoring',        icon: AlertTriangle,    roles: ['super_admin'] },
-      { title: 'Wellbeing Games Admin',      href: '/admin/wellbeing-games',          icon: Shield,           roles: ['super_admin'] },
-      { title: 'Integrations Admin',         href: '/admin/integrations',             icon: Plug,             roles: ['super_admin'] },
+      { title: 'Security Centre',               href: '/admin/security-centre',            icon: Fingerprint,      roles: ['super_admin', 'casino_admin'] },
+      { title: 'Security Audit Log',            href: '/admin/security',                   icon: Lock,             roles: ['super_admin', 'casino_admin', 'compliance_officer'] },
+      { title: 'Security Command Center',       href: '/security-command-center',          icon: ShieldAlert,      roles: ['super_admin'] },
+      { title: 'Module Management',             href: '/admin/casino-modules',             icon: Layers,           roles: ['super_admin'] },
+      { title: 'User Management',               href: '/admin/user-roles',                 icon: Users,            roles: ['super_admin'] },
+      { title: 'Access Control',                href: '/admin/access-control',             icon: Key,              roles: ['super_admin'] },
+      { title: 'Data Governance',               href: '/admin/data-governance',            icon: Lock,             roles: ['super_admin'] },
+      { title: 'Infrastructure',                href: '/admin/infrastructure',             icon: Server,           roles: ['super_admin'] },
+      { title: 'Performance',                   href: '/admin/performance',                icon: BarChart3,        roles: ['super_admin'] },
+      { title: 'Threat Monitoring',             href: '/admin/threat-monitoring',          icon: AlertTriangle,    roles: ['super_admin'] },
+    ],
+  },
+  {
+    title: 'Help & Support',
+    items: [
+      { title: 'Help Centre',                   href: '/help',                             icon: HelpCircle,       roles: ['super_admin', 'casino_admin', 'compliance_officer', 'national_regulator', 'provincial_regulator', 'regulator', 'staff'] },
     ],
   },
 ];

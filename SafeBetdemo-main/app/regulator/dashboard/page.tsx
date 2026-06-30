@@ -39,7 +39,7 @@ interface CasinoRow {
   high_risk: number;
   interventions: number;
   exclusions: number;
-  training_rate: number;
+  compliance_score: number;
 }
 
 export default function NationalRegulatorDashboard() {
@@ -69,14 +69,14 @@ export default function NationalRegulatorDashboard() {
       const casinoIds = casinoList.map(c => c.id);
 
       const [
-        playersRes, intRes, exclRes, sessRes, enrollRes,
+        playersRes, intRes, exclRes, sessRes, snapshotRes,
         totalPlayersRes, highRiskRes, criticalRes,
       ] = await Promise.all([
         supabase.from('players').select('casino_id, risk_score').in('casino_id', casinoIds).limit(5000),
         supabase.from('player_protection_interventions').select('casino_id').in('casino_id', casinoIds).limit(5000),
         supabase.from('self_exclusion_registry').select('casino_id').in('casino_id', casinoIds).eq('status', 'active').limit(2000),
         supabase.from('gaming_sessions').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).eq('is_active', true),
-        supabase.from('training_enrollments').select('casino_id, status').in('casino_id', casinoIds).limit(5000),
+        supabase.from('compliance_snapshots').select('casino_id, compliance_score').in('casino_id', casinoIds).order('snapshot_date', { ascending: false }).limit(500),
         supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds),
         supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).gte('risk_score', 60),
         supabase.from('players').select('*', { count: 'exact', head: true }).in('casino_id', casinoIds).gte('risk_score', 80),
@@ -85,15 +85,19 @@ export default function NationalRegulatorDashboard() {
       const players      = playersRes.data || [];
       const interventions= intRes.data || [];
       const exclusions   = exclRes.data || [];
-      const enrollments  = enrollRes.data || [];
+      const snapshots    = snapshotRes.data || [];
+
+      // Latest snapshot score per casino (snapshots already ordered desc by date)
+      const latestSnapMap = new Map<string, number>();
+      for (const s of snapshots) {
+        if (!latestSnapMap.has(s.casino_id)) latestSnapMap.set(s.casino_id, Number(s.compliance_score));
+      }
 
       const casinoRows: CasinoRow[] = casinoList.map(c => {
         const cp = players.filter(p => p.casino_id === c.id);
         const ci = interventions.filter(i => i.casino_id === c.id).length;
         const ce = exclusions.filter(e => e.casino_id === c.id).length;
-        const enr = enrollments.filter(e => e.casino_id === c.id);
-        const completed = enr.filter(e => e.status === 'completed').length;
-        const trainingRate = enr.length > 0 ? Math.round((completed / enr.length) * 100) : 0;
+        const complianceScore = latestSnapMap.get(c.id) ?? 0;
         return {
           id: c.id,
           name: c.name,
@@ -104,7 +108,7 @@ export default function NationalRegulatorDashboard() {
           high_risk: cp.filter(p => p.risk_score >= 60).length,
           interventions: ci,
           exclusions: ce,
-          training_rate: trainingRate,
+          compliance_score: complianceScore,
         };
       });
       setCasinos(casinoRows);
@@ -112,8 +116,8 @@ export default function NationalRegulatorDashboard() {
       const totalPlayers  = totalPlayersRes.count ?? players.length;
       const highRisk      = highRiskRes.count ?? players.filter(p => p.risk_score >= 60).length;
       const critical      = criticalRes.count ?? players.filter(p => p.risk_score >= 80).length;
-      const avgCompliance    = casinoRows.length > 0 ? Math.round(casinoRows.reduce((s, c) => s + c.training_rate, 0) / casinoRows.length) : 0;
-      const nonCompliant     = casinoRows.filter(c => c.training_rate < 80).length;
+      const avgCompliance    = casinoRows.length > 0 ? Math.round(casinoRows.reduce((s, c) => s + c.compliance_score, 0) / casinoRows.length) : 0;
+      const nonCompliant     = casinoRows.filter(c => c.compliance_score < 80).length;
 
       setSummary({
         totalCasinos: casinoList.length,
@@ -158,7 +162,7 @@ export default function NationalRegulatorDashboard() {
                   <h1 className="text-xl font-bold">National Regulator Intelligence</h1>
                   <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">National</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">National Gambling Board · All licensed operators nationwide</p>
+                <p className="text-sm text-muted-foreground">Are operators complying? Unified view of all licensed operators — compliance scores, active breaches, and intervention rates in one pane.</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -320,14 +324,14 @@ export default function NationalRegulatorDashboard() {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: `${c.training_rate}%`, backgroundColor: c.training_rate >= 80 ? '#10b981' : c.training_rate >= 60 ? '#eab308' : '#ef4444' }} />
+                                    <div className="h-full rounded-full" style={{ width: `${c.compliance_score}%`, backgroundColor: c.compliance_score >= 80 ? '#10b981' : c.compliance_score >= 60 ? '#eab308' : '#ef4444' }} />
                                   </div>
-                                  <span className="text-xs font-mono">{c.training_rate}%</span>
+                                  <span className="text-xs font-mono">{c.compliance_score}%</span>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Badge className={`border-0 text-xs ${c.training_rate >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                  {c.training_rate >= 80 ? 'Compliant' : 'Action Req.'}
+                                <Badge className={`border-0 text-xs ${c.compliance_score >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                  {c.compliance_score >= 80 ? 'Compliant' : 'Action Req.'}
                                 </Badge>
                               </TableCell>
                             </TableRow>
@@ -430,12 +434,12 @@ export default function NationalRegulatorDashboard() {
                         <div>
                           <div className="flex justify-between text-xs mb-1">
                             <span className="text-muted-foreground">Training Compliance</span>
-                            <span className={`font-medium ${c.training_rate >= 80 ? 'text-emerald-600' : c.training_rate >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{c.training_rate}%</span>
+                            <span className={`font-medium ${c.compliance_score >= 80 ? 'text-emerald-600' : c.compliance_score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{c.compliance_score}%</span>
                           </div>
-                          <Progress value={c.training_rate} className="h-1.5" />
+                          <Progress value={c.compliance_score} className="h-1.5" />
                         </div>
-                        <Badge className={`w-full justify-center border-0 text-xs ${c.training_rate >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {c.training_rate >= 80 ? 'Compliant' : 'Action Required'}
+                        <Badge className={`w-full justify-center border-0 text-xs ${c.compliance_score >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                          {c.compliance_score >= 80 ? 'Compliant' : 'Action Required'}
                         </Badge>
                       </CardContent>
                     </Card>

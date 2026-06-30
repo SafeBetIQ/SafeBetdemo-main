@@ -36,20 +36,21 @@ export default function AIIntelligencePage() {
     setLoading(true);
     setError(null);
     try {
-      if (!user?.casino_id) {
+      const casinoId = user?.casino_id;
+      const isSuperAdmin = user?.role === 'super_admin';
+
+      // super_admin has no casino_id — query all; other roles require casino_id
+      if (!casinoId && !isSuperAdmin) {
         setLoading(false);
         return;
       }
 
+      const applyFilter = (q: any) => casinoId ? q.eq('casino_id', casinoId) : q;
+
       const [metricsRes, reasonStacksRes, recommendationsRes, outcomesRes] = await Promise.all([
-        supabase
-          .from('ai_learning_metrics')
-          .select('*')
-          .eq('casino_id', user.casino_id)
+        applyFilter(supabase.from('ai_learning_metrics').select('*'))
           .order('period_start', { ascending: false }),
-        supabase
-          .from('ai_reason_stacks')
-          .select(`
+        applyFilter(supabase.from('ai_reason_stacks').select(`
             *,
             players (
               id,
@@ -57,13 +58,10 @@ export default function AIIntelligencePage() {
               last_name,
               player_id
             )
-          `)
-          .eq('casino_id', user.casino_id)
+          `))
           .order('created_at', { ascending: false })
           .limit(5),
-        supabase
-          .from('ai_intervention_recommendations')
-          .select(`
+        applyFilter(supabase.from('ai_intervention_recommendations').select(`
             *,
             players (
               id,
@@ -71,13 +69,10 @@ export default function AIIntelligencePage() {
               last_name,
               player_id
             )
-          `)
-          .eq('casino_id', user.casino_id)
+          `))
           .order('created_at', { ascending: false })
           .limit(5),
-        supabase
-          .from('ai_intervention_outcomes')
-          .select(`
+        applyFilter(supabase.from('ai_intervention_outcomes').select(`
             *,
             players (
               id,
@@ -85,10 +80,9 @@ export default function AIIntelligencePage() {
               last_name,
               player_id
             )
-          `)
-          .eq('casino_id', user.casino_id)
+          `))
           .order('applied_at', { ascending: false })
-          .limit(5)
+          .limit(5),
       ]);
 
       if (metricsRes.error) throw metricsRes.error;
@@ -110,13 +104,13 @@ export default function AIIntelligencePage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.casino_id]);
+  }, [user]);
 
   useEffect(() => {
-    if (user?.casino_id) {
+    if (user) {
       loadData();
     }
-  }, [user?.casino_id, loadData]);
+  }, [user, loadData]);
 
   const getPlayerName = (player: any) => {
     if (!player) return 'Unknown Player';

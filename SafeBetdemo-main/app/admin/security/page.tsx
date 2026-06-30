@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -36,16 +36,10 @@ interface SecurityEvent {
   ip_hash: string | null;
   resource: string | null;
   details: Record<string, unknown> | null;
-  resolved: boolean;
-  resolved_by: string | null;
+  is_resolved: boolean;
   resolved_at: string | null;
-  resolution_notes: string | null;
+  raw_metadata: Record<string, unknown> | null;
   created_at: string;
-}
-
-interface Casino {
-  id: string;
-  name: string;
 }
 
 interface EventStats {
@@ -109,12 +103,10 @@ function timeAgo(ts: string): string {
 export default function SecurityAuditLogPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
-  const [casinos, setCasinos] = useState<Casino[]>([]);
   const [stats, setStats] = useState<EventStats>({ total: 0, unresolved: 0, critical: 0, high: 0, last24h: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [selectedCasino, setSelectedCasino] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -126,11 +118,6 @@ export default function SecurityAuditLogPage() {
   const [resolving, setResolving] = useState(false);
 
   const isSuperAdmin = user?.role === 'super_admin';
-
-  const loadCasinos = useCallback(async () => {
-    const { data } = await supabase.from('casinos').select('id, name').eq('is_active', true).order('name');
-    if (data) setCasinos(data);
-  }, []);
 
   const loadEvents = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -145,8 +132,8 @@ export default function SecurityAuditLogPage() {
 
       if (severityFilter !== 'all') query = query.eq('severity', severityFilter);
       if (sourceFilter !== 'all') query = query.eq('source', sourceFilter);
-      if (statusFilter === 'resolved') query = query.eq('resolved', true);
-      if (statusFilter === 'unresolved') query = query.eq('resolved', false);
+      if (statusFilter === 'resolved') query = query.eq('is_resolved', true);
+      if (statusFilter === 'unresolved') query = query.eq('is_resolved', false);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -158,9 +145,9 @@ export default function SecurityAuditLogPage() {
       const day = 24 * 60 * 60 * 1000;
       setStats({
         total: allEvents.length,
-        unresolved: allEvents.filter(e => !e.resolved).length,
-        critical: allEvents.filter(e => e.severity === 'critical' && !e.resolved).length,
-        high: allEvents.filter(e => e.severity === 'high' && !e.resolved).length,
+        unresolved: allEvents.filter(e => !e.is_resolved).length,
+        critical: allEvents.filter(e => e.severity === 'critical' && !e.is_resolved).length,
+        high: allEvents.filter(e => e.severity === 'high' && !e.is_resolved).length,
         last24h: allEvents.filter(e => now - new Date(e.created_at).getTime() < day).length,
       });
     } catch (err) {
@@ -170,10 +157,6 @@ export default function SecurityAuditLogPage() {
       setRefreshing(false);
     }
   }, [severityFilter, sourceFilter, statusFilter]);
-
-  useEffect(() => {
-    loadCasinos();
-  }, [loadCasinos]);
 
   useEffect(() => {
     loadEvents();
@@ -198,10 +181,9 @@ export default function SecurityAuditLogPage() {
     const { error } = await supabase
       .from('security_events')
       .update({
-        resolved: true,
-        resolved_by: user?.email ?? 'unknown',
+        is_resolved: true,
         resolved_at: new Date().toISOString(),
-        resolution_notes: resolutionNotes.trim(),
+        raw_metadata: { resolution_notes: resolutionNotes.trim(), resolved_by: user?.email ?? 'unknown' },
       })
       .eq('id', selectedEvent.id);
 
@@ -396,8 +378,8 @@ export default function SecurityAuditLogPage() {
                           key={event.id}
                           className={cn(
                             'cursor-pointer hover:bg-slate-50 transition-colors',
-                            event.severity === 'critical' && !event.resolved && 'bg-red-50/40',
-                            event.severity === 'high' && !event.resolved && 'bg-orange-50/30',
+                            event.severity === 'critical' && !event.is_resolved && 'bg-red-50/40',
+                            event.severity === 'high' && !event.is_resolved && 'bg-orange-50/30',
                           )}
                           onClick={() => setSelectedEvent(event)}
                         >
@@ -447,7 +429,7 @@ export default function SecurityAuditLogPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {event.resolved ? (
+                            {event.is_resolved ? (
                               <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs flex items-center gap-1 w-fit">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Resolved
@@ -553,7 +535,7 @@ export default function SecurityAuditLogPage() {
                   </pre>
                 </div>
               )}
-              {selectedEvent.resolved ? (
+              {selectedEvent.is_resolved ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-green-700 font-semibold text-sm mb-2">
                     <CheckCircle2 className="h-4 w-4" />
@@ -562,16 +544,16 @@ export default function SecurityAuditLogPage() {
                   <div className="grid grid-cols-2 gap-3 text-xs text-green-800">
                     <div>
                       <div className="text-green-600 uppercase tracking-wide mb-0.5">Resolved By</div>
-                      <div>{selectedEvent.resolved_by ?? '—'}</div>
+                      <div>{(selectedEvent.raw_metadata?.resolved_by as string) ?? '—'}</div>
                     </div>
                     <div>
                       <div className="text-green-600 uppercase tracking-wide mb-0.5">Resolved At</div>
                       <div className="font-mono">{selectedEvent.resolved_at ? formatTimestamp(selectedEvent.resolved_at) : '—'}</div>
                     </div>
-                    {selectedEvent.resolution_notes && (
+                    {!!selectedEvent.raw_metadata?.resolution_notes && (
                       <div className="col-span-2">
                         <div className="text-green-600 uppercase tracking-wide mb-0.5">Resolution Notes</div>
-                        <div>{selectedEvent.resolution_notes}</div>
+                        <div>{String(selectedEvent.raw_metadata.resolution_notes)}</div>
                       </div>
                     )}
                   </div>

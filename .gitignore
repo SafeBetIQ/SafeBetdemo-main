@@ -1,0 +1,79 @@
+# ─── AWS audit export files ───────────────────────────────────────────────────
+# These files contain live production credentials (DATABASE_URL, Supabase keys,
+# RDS host/user/password). They must NEVER be committed to version control.
+# Delete from local disk and OneDrive immediately — see migration-artifacts/00-README.md
+
+eb-config.json
+eb-config-settings.json
+eb-config-settings-runtime.json
+eb-config-template-backup.json
+eb_env_config.json
+eb_envs.json
+eb_instances.json
+eb_sg.json
+eb-environment.json
+eb-resources.json
+eb-resources-runtime.json
+eb-instance-role.json
+eb-instance-attached-policies.json
+eb-instance-inline-policies.json
+eb-instance-ids.txt
+eb-service-role.json
+eb-service-attached-policies.json
+eb-service-inline-policies.json
+eb-taillog.txt
+eb-deploy.zip
+eb-deploy-src/
+
+secret-*.json
+secret-*.err
+secrets-list.json
+supabase-secret.json
+supabase-secret-v2.json
+existing-new-secret.json
+
+rds-instance.json
+rds-snapshot-*.json
+rds_conn_logs*.json
+rds_desc.json
+rds_log_15.txt
+rds_log_files.json
+rds_log_streams.json
+rds_params.json
+rds_recent_events.json
+rds_references.json
+rds_sg.json
+
+kms-aliases.json
+kms-secretsmanager-alias.json
+cloudtrail-bucket-policy.json
+cloudtrail-describe.json
+
+aws-inventory-*/
+aws-inventory-results-*.zip
+
+SafeBet_IQ_AWS_Audit_Findings.*
+SafeBet_IQ_Full_Audit.*
+SafeBet_IQ_Secret_Migration_Discovery_Report.md
+collect_aws_inventory.ps1
+generate_aws_audit_doc.py
+query_pg.py
+
+# ─── Claude Code session data ─────────────────────────────────────────────────
+.claude/
+
+# ─── Deployment build archives ────────────────────────────────────────────────
+deploy-bundle*.zip
+create_v*.py
+
+# ─── Local screenshots and browser captures ───────────────────────────────────
+*.png
+
+# ─── Migration planning artefacts ─────────────────────────────────────────────
+migration-artifacts/
+
+# ─── Next.js / Node ───────────────────────────────────────────────────────────
+SafeBetdemo-main/.next/
+SafeBetdemo-main/node_modules/
+SafeBetdemo-main/.env.local
+SafeBetdemo-main/.env*.local

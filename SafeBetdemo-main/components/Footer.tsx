@@ -101,7 +101,7 @@ export function Footer() {
             <div>
               <h3 className="font-semibold text-white mb-4 text-sm">Company</h3>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li><Link href="/contact" className="hover:text-brand-400 transition-colors">About SafeBet IQ</Link></li>
+                <li><Link href="/about" className="hover:text-brand-400 transition-colors">About SafeBet IQ</Link></li>
                 <li><Link href="/contact" className="hover:text-brand-400 transition-colors">Careers</Link></li>
                 <li><Link href="/contact" className="hover:text-brand-400 transition-colors">Partner Programme</Link></li>
                 <li><Link href="/contact" className="hover:text-brand-400 transition-colors">Press &amp; Media</Link></li>
