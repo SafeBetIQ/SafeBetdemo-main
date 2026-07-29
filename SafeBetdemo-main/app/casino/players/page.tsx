@@ -1,382 +1,111 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { PageHeader } from '@/components/saas/PageHeader';
-import { KPICard } from '@/components/saas/KPICard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Users, Search, TriangleAlert as AlertTriangle, TrendingUp, Download, Eye, Info } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+// ─── Player Risk Monitor (v1.5.1 convergence) ────────────────────────────────
+// Consumes the certified Consumer Platform live-floor view. The player
+// population here is identical to the Operator Dashboard, Live Casino Feed and
+// Explainability — ONE population, ONE risk source. No direct table reads.
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { exportBehavioralRiskData, type PlayerBehavioralRiskData } from '@/lib/exportUtils';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useAuth } from '@/contexts/AuthContext';
+import { cgGet } from '@/lib/consumerClient';
+import { Users, RefreshCw, Search, Lightbulb } from 'lucide-react';
 
-interface Player {
-  id: string;
-  player_id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  risk_score: number;
-  total_wagered: number;
-  total_won: number;
-  session_count: number;
-  avg_session_duration: number;
-  last_active: string;
-  status: string;
-  signup_date: string;
-  player_sessions?: any[];
-}
+type Rec = Record<string, unknown>;
+const n = (v: unknown) => (typeof v === 'number' ? v : Number(v ?? 0)) || 0;
+const tone = (lvl: string) => (lvl === 'critical' || lvl === 'high' ? 'destructive' : lvl === 'medium' ? 'default' : 'secondary');
 
-export default function PlayersPage() {
+export default function PlayerRiskMonitorPage() {
   const { user } = useAuth();
+  const casinoId = (user as unknown as Rec)?.casino_id as string | undefined;
+  const [players, setPlayers] = useState<Rec[]>([]);
   const [loading, setLoading] = useState(true);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [statsData, setStatsData] = useState({ active: 0, highRisk: 0, criticalRisk: 0, avgRiskScore: 0 });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [riskFilter, setRiskFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [q, setQ] = useState('');
+  const [tier, setTier] = useState<string>('all');
 
-  useEffect(() => {
-    if (user) {
-      loadPlayers();
-    }
-  }, [user]);
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const floor = await cgGet('live-floor', { casino_id: casinoId });
+    setPlayers(((floor?.players ?? []) as Rec[]));
+    setLoading(false);
+  }, [casinoId]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  async function loadPlayers() {
-    try {
-      setLoading(true);
-      const casinoId = user?.casino_id;
-      const isSuperAdmin = user?.role === 'super_admin';
+  const filtered = useMemo(() => players
+    .filter(p => tier === 'all' || p.riskLevel === tier)
+    .filter(p => !q || String(p.playerId).toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => n(b.riskScore) - n(a.riskScore)), [players, q, tier]);
 
-      const applyFilter = (q: any) => (casinoId && !isSuperAdmin) ? q.eq('casino_id', casinoId) : q;
-
-      const [countRes, scoreRes, tableRes] = await Promise.all([
-        applyFilter(supabase.from('players').select('*', { count: 'exact', head: true })),
-        applyFilter(supabase.from('players').select('risk_score, status')),
-        applyFilter(supabase.from('players').select('*')).order('risk_score', { ascending: false }).limit(1000),
-      ]);
-
-      const total = countRes.count ?? 0;
-      setTotalCount(total);
-
-      const scores = (scoreRes.data || []) as { status: string; risk_score: number }[];
-      const active = scores.filter(p => p.status === 'active').length;
-      const highRisk = scores.filter(p => p.risk_score >= 60).length;
-      const criticalRisk = scores.filter(p => p.risk_score >= 80).length;
-      const avgRiskScore = scores.length > 0
-        ? Math.round(scores.reduce((sum, p) => sum + (p.risk_score || 0), 0) / scores.length)
-        : 0;
-      setStatsData({ active, highRisk, criticalRisk, avgRiskScore });
-
-      setPlayers(tableRes.data || []);
-    } catch (error: any) {
-      setPlayers([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const getRiskBadge = (score: number) => {
-    if (score >= 80) return { label: 'Critical', className: 'bg-red-100 text-red-800 hover:bg-red-100' };
-    if (score >= 60) return { label: 'High', className: 'bg-orange-100 text-orange-800 hover:bg-orange-100' };
-    if (score >= 40) return { label: 'Medium', className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' };
-    return { label: 'Low', className: 'bg-green-100 text-green-800 hover:bg-green-100' };
-  };
-
-  const filteredPlayers = players.filter((player) => {
-    const matchesSearch =
-      player.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      player.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      player.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRisk =
-      riskFilter === 'all' ||
-      (riskFilter === 'critical' && player.risk_score >= 80) ||
-      (riskFilter === 'high' && player.risk_score >= 60 && player.risk_score < 80) ||
-      (riskFilter === 'medium' && player.risk_score >= 40 && player.risk_score < 60) ||
-      (riskFilter === 'low' && player.risk_score < 40);
-
-    const matchesStatus = statusFilter === 'all' || player.status === statusFilter;
-
-    return matchesSearch && matchesRisk && matchesStatus;
-  });
-
-  const stats = {
-    total: totalCount,
-    active: statsData.active,
-    highRisk: statsData.highRisk,
-    criticalRisk: statsData.criticalRisk,
-    avgRiskScore: statsData.avgRiskScore,
-  };
-
-  const handleExport = () => {
-    const exportData: PlayerBehavioralRiskData[] = filteredPlayers.map((player) => ({
-      playerId: player.id,
-      playerName: `${player.first_name} ${player.last_name}`,
-      game: 'Various',
-      betAmount: 0,
-      totalWagered: player.total_wagered || 0,
-      sessionDuration: player.avg_session_duration || 0,
-      riskScore: player.risk_score,
-      riskLevel: getRiskBadge(player.risk_score).label,
-      impulseLevel: 0,
-      fatigueIndex: 0,
-      trend: 'stable',
-      isActive: player.status === 'active',
-      lastBetTime: new Date(player.last_active),
-    }));
-
-    exportBehavioralRiskData(exportData, user?.casino_id || 'Casino');
-  };
+  const tiers = useMemo(() => {
+    const t = { critical: 0, high: 0, medium: 0, low: 0 } as Record<string, number>;
+    players.forEach(p => { t[String(p.riskLevel)] = (t[String(p.riskLevel)] ?? 0) + 1; });
+    return t;
+  }, [players]);
 
   return (
-    <DashboardLayout>
-      <TooltipProvider>
-      <div className="flex min-h-full flex-col">
-        <PageHeader
-          title="Player Risk Monitor"
-          subtitle="Who is at risk right now? Real-time AI risk scores across every registered player — click Investigate to drill into any individual."
-          actions={
-            <Button onClick={handleExport} variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Export Players
-            </Button>
-          }
-        />
-
-        <div className="flex-1 p-6 min-w-0">
-          <div className="space-y-6">
-            {/* Statistics Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <KPICard
-                title="Total Players"
-                value={stats.total}
-                icon={Users}
-                tooltip="Total number of registered players in your casino, including active, suspended, and self-excluded accounts."
-              />
-              <KPICard
-                title="Active Players"
-                value={stats.active}
-                change={{
-                  value: stats.total > 0 ? ((stats.active / stats.total) * 100) : 0,
-                  type: 'neutral',
-                  label: 'of total'
-                }}
-                icon={TrendingUp}
-                tooltip="Number of players currently active on the platform with no restrictions or exclusions applied to their accounts."
-              />
-              <KPICard
-                title="High Risk Players"
-                value={stats.highRisk}
-                change={{
-                  value: stats.total > 0 ? ((stats.highRisk / stats.total) * 100) : 0,
-                  type: stats.highRisk > 5 ? 'increase' : 'neutral',
-                  label: 'of total'
-                }}
-                icon={AlertTriangle}
-                tooltip="Players with risk scores of 60 or higher, indicating elevated gambling harm patterns that require monitoring and potential intervention."
-              />
-              <KPICard
-                title="Average Risk Score"
-                value={stats.avgRiskScore}
-                icon={Eye}
-                tooltip="Mean risk score across all players, calculated using AI analysis of betting patterns, session behaviors, and other risk indicators."
-              />
+    <CasinoAdminGuard>
+      <DashboardLayout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6" /> Player Risk Monitor</h1>
+              <p className="text-muted-foreground">{players.length} active players · certified Consumer Platform (live-floor)</p>
             </div>
-
-            {/* Players Table */}
-            <Card className="relative">
-              <div className="absolute top-4 right-4 z-10">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>Comprehensive list of all casino players with real-time risk scoring, activity monitoring, and filtering options. Use this to identify players who may need support or interventions.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <CardHeader>
-                <CardTitle>All Players</CardTitle>
-                <CardDescription>
-                  View detailed information about all registered players
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Filters */}
-                <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search players by name or email..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                  <Select value={riskFilter} onValueChange={setRiskFilter}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Filter by risk" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Risk Levels</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-                      <SelectItem value="excluded">Self-Excluded</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Table */}
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-                      <p className="mt-4 text-sm text-muted-foreground">Loading players...</p>
-                    </div>
-                  </div>
-                ) : filteredPlayers.length === 0 ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-4 text-lg font-semibold">No players found</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {searchTerm || riskFilter !== 'all' || statusFilter !== 'all'
-                          ? 'Try adjusting your filters'
-                          : 'No players registered yet'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Player</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Risk Score</TableHead>
-                          <TableHead className="text-right">Total Wagered</TableHead>
-                          <TableHead className="text-right">Sessions</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Last Active</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredPlayers.map((player) => {
-                          const riskBadge = getRiskBadge(player.risk_score);
-                          return (
-                            <TableRow key={player.id}>
-                              <TableCell>
-                                <div className="font-medium">{player.first_name} {player.last_name}</div>
-                                <div className="font-mono text-xs text-muted-foreground">{player.player_id}</div>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {player.email}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold">{player.risk_score}</span>
-                                  <Badge className={riskBadge.className}>
-                                    {riskBadge.label}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                R{(player.total_wagered || 0).toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {player.session_count || 0}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    player.status === 'active'
-                                      ? 'default'
-                                      : player.status === 'suspended'
-                                      ? 'secondary'
-                                      : 'destructive'
-                                  }
-                                >
-                                  {player.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {player.last_active
-                                  ? new Date(player.last_active).toLocaleDateString()
-                                  : 'Never'}
-                              </TableCell>
-                              <TableCell>
-                                <Link href={`/casino/players/${player.id}/investigate`}>
-                                  <Button
-                                    variant={player.risk_score >= 60 ? 'default' : 'outline'}
-                                    size="sm"
-                                    className={player.risk_score >= 60 ? 'bg-slate-800 hover:bg-slate-700 text-white' : ''}
-                                  >
-                                    <Eye className="h-3.5 w-3.5 mr-1.5" />
-                                    Investigate
-                                  </Button>
-                                </Link>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-
-                {/* Results Summary */}
-                {!loading && filteredPlayers.length > 0 && (
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    Showing {filteredPlayers.length} of {players.length} players
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <Button variant="outline" onClick={refresh} disabled={loading}><RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            {['all', 'critical', 'high', 'medium', 'low'].map(t => (
+              <Button key={t} size="sm" variant={tier === t ? 'default' : 'outline'} onClick={() => setTier(t)}>
+                {t === 'all' ? `All (${players.length})` : `${t} (${tiers[t] ?? 0})`}
+              </Button>
+            ))}
+            <div className="ml-auto relative">
+              <Search className="h-4 w-4 absolute left-2 top-2.5 text-muted-foreground" />
+              <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search SB-PLR…" className="pl-8 w-64 font-mono" />
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Players</CardTitle></CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Player (SB-PLR)</TableHead><TableHead>Game</TableHead>
+                    <TableHead className="text-right">Total wagered</TableHead>
+                    <TableHead className="text-right">Session (min)</TableHead>
+                    <TableHead className="text-right">Risk</TableHead><TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Loading…</TableCell></TableRow>}
+                  {!loading && filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No players match.</TableCell></TableRow>}
+                  {filtered.map((p) => (
+                    <TableRow key={String(p.id)}>
+                      <TableCell className="font-mono text-xs">{String(p.playerId)}</TableCell>
+                      <TableCell>{String(p.game)}</TableCell>
+                      <TableCell className="text-right tabular-nums">R {n(p.totalWagered).toLocaleString()}</TableCell>
+                      <TableCell className="text-right tabular-nums">{Math.round(n(p.sessionDuration) / 60)}</TableCell>
+                      <TableCell className="text-right"><Badge variant={tone(String(p.riskLevel)) as never}>{n(p.riskScore)}</Badge></TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="ghost"><Link href={`/casino/players/${encodeURIComponent(String(p.playerId))}/investigate`}><Lightbulb className="h-4 w-4" /></Link></Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-      </TooltipProvider>
-    </DashboardLayout>
+      </DashboardLayout>
+    </CasinoAdminGuard>
   );
 }

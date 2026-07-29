@@ -33,7 +33,7 @@ function LiveFeedInner() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">Live Casino Feed</h1>
+              <h1 className="text-2xl font-bold">Live Casino Feed</h1>
               <Badge className={`text-xs border-0 ${data.realtimeConnected ? 'bg-emerald-500 text-white animate-pulse' : 'bg-muted text-muted-foreground'}`}>
                 {data.realtimeConnected ? 'LIVE' : 'Connecting…'}
               </Badge>
@@ -99,7 +99,7 @@ function LiveFeedInner() {
             </div>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="p-6 space-y-5">
             <LiveBettingFeed />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <LiveActivityChart />

@@ -182,19 +182,31 @@ export default function AuditCentrePage() {
   const [dateFilter, setDateFilter] = useState('30d');
 
   const loadChain = useCallback(async () => {
+    // Genuine verification of the certified audit_events chain (per tenant),
+    // computed server-side by sbiq_verify_audit_chain — NOT a client-side guess.
+    const { data: heads } = await supabase
+      .from('audit_chain_head')
+      .select('chain_scope, chain_sequence, head_hash, schema_version, updated_at')
+      .order('chain_sequence', { ascending: false });
+    const scopes = (heads ?? []).map((h: { chain_scope: string }) => h.chain_scope);
+    let allVerified = scopes.length > 0;
+    for (const scope of scopes) {
+      const { data: res } = await supabase.rpc('sbiq_verify_audit_chain', { p_scope: scope });
+      if (!res || res.status !== 'verified') { allVerified = false; }
+    }
+    setChainVerified(scopes.length === 0 ? null : allVerified);
+    // Show the real chained events (populated hashes) in the chain tab.
     const { data } = await supabase
-      .from('audit_logs')
-      .select('id, chain_sequence, log_type, action, severity, entry_hash, previous_hash, created_at')
+      .from('audit_events')
+      .select('id, chain_scope, chain_sequence, event_type, severity, hash, previous_hash, created_at')
+      .not('chain_sequence', 'is', null)
       .order('chain_sequence', { ascending: true })
       .limit(200);
-    const entries = data ?? [];
-    setChainEntries(entries);
-    // Verify the chain: each entry's previous_hash must equal the prior entry's entry_hash
-    let intact = true;
-    for (let i = 1; i < entries.length; i++) {
-      if (entries[i].previous_hash !== entries[i - 1].entry_hash) { intact = false; break; }
-    }
-    setChainVerified(entries.length > 1 ? intact : null);
+    setChainEntries((data ?? []).map((e: Record<string, unknown>) => ({
+      id: String(e.id), chain_sequence: Number(e.chain_sequence), log_type: String(e.chain_scope ?? ''),
+      action: String(e.event_type ?? ''), severity: String(e.severity ?? 'info'),
+      entry_hash: String(e.hash ?? ''), previous_hash: String(e.previous_hash ?? ''), created_at: String(e.created_at ?? ''),
+    })) as ChainEntry[]);
   }, []);
 
   const loadEvents = useCallback(async (isRefresh = false) => {
@@ -297,7 +309,7 @@ export default function AuditCentrePage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold">Audit Centre</h1>
+                  <h1 className="text-2xl font-bold">Audit Centre</h1>
                   <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs flex items-center gap-1">
                     <Lock className="h-3 w-3" />
                     Tamper-Evident

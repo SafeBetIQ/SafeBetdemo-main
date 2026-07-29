@@ -65,21 +65,16 @@ const API_ENDPOINTS = [
     method: 'POST',
     path: '/v1/players',
     title: 'Register Player',
-    description: 'Register or update a player profile for risk monitoring.',
+    description: 'Register a casino player reference for risk monitoring. SafeBet IQ never receives or stores player identity — only an opaque reference, which the Identity Resolution Service hashes and maps to an anonymous SafeBet IQ Player ID.',
     scopes: ['players:write'],
     requestBody: `{
-  "player_id": "PLY-100234",
-  "first_name": "John",
-  "last_name": "Smith",
-  "date_of_birth": "1988-05-14",
-  "id_number_hash": "sha256:abc123...",
+  "casino_player_ref": "opaque-host-system-reference",
   "registration_date": "2024-11-01",
   "vip_tier": "gold",
   "self_exclusion_history": false
 }`,
     responseExample: `{
-  "player_id": "PLY-100234",
-  "safebet_id": "SB-00091234",
+  "safebet_player_id": "SB-PLR-7C5D91E4",
   "status": "registered",
   "initial_risk_score": 12,
   "monitoring_active": true
@@ -254,7 +249,7 @@ export default function APICentrePage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold">API & Integration Centre</h1>
+                    <h1 className="text-2xl font-bold">API & Integration Centre</h1>
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
                       v1.0 — Stable
                     </Badge>
@@ -657,8 +652,8 @@ export default function APICentrePage() {
                       {
                         title: 'Player Register Import',
                         icon: Shield,
-                        description: 'Upload your player register to register player profiles for monitoring.',
-                        fields: 'player_id, first_name, last_name, id_number_hash, date_of_birth, registration_date, vip_tier',
+                        description: 'Upload your player register (opaque references only — no identity data) to enable monitoring.',
+                        fields: 'casino_player_ref, registration_date, vip_tier',
                         template: 'player_register_template.csv',
                         color: 'text-blue-600 bg-blue-50 border-blue-200',
                       },

@@ -13,6 +13,7 @@ interface SendInvitationRequest {
   campaign_id?: string;
   channel: 'email' | 'whatsapp';
   expires_in_hours?: number;
+  app_url?: string;
 }
 
 interface TwilioConfig {
@@ -39,7 +40,8 @@ Deno.serve(async (req: Request) => {
       game_concept_id,
       campaign_id,
       channel,
-      expires_in_hours = 72
+      expires_in_hours = 72,
+      app_url,
     }: SendInvitationRequest = await req.json();
 
     if (!player_id || !game_concept_id || !channel) {
@@ -54,7 +56,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: player, error: playerError } = await supabase
       .from('players')
-      .select('id, first_name, email, phone, casino_id')
+      .select('id, player_id, email, phone, casino_id')
       .eq('id', player_id)
       .single();
 
@@ -114,17 +116,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const gameUrl = `${supabaseUrl.replace('/v1', '')}/wellbeing-game/play/${secureToken}`;
+    // app_url is sent by the client (window.location.origin).
+    // Fallback to APP_URL env var, then to the demo origin.
+    // NEVER use supabaseUrl here — that's the Supabase API host, not the app.
+    const appBaseUrl = (app_url || Deno.env.get("APP_URL") || "https://demo.safebetiq.com").replace(/\/$/, "");
+    const gameUrl = `${appBaseUrl}/wellbeing-game/play/${secureToken}`;
 
-    const message = createMessage(player.first_name, gameConcept, gameUrl);
+    const message = createMessage(gameConcept, gameUrl);
 
     let sendResult = null;
     let deliveryStatus = 'simulation';
 
     if (channel === 'email') {
-      console.log(`[EMAIL SIMULATION] To: ${player.email}`);
-      console.log(`Subject: Quick wellbeing check-in - ${gameConcept.name}`);
-      console.log(`Body: ${message}`);
+      console.log(`[EMAIL SIMULATION] player_id=${player_id} game=${gameConcept.name}`);
       console.log(`Link: ${gameUrl}`);
       deliveryStatus = 'simulated';
     } else if (channel === 'whatsapp') {
@@ -138,13 +142,13 @@ Deno.serve(async (req: Request) => {
             message
           );
           deliveryStatus = sendResult.success ? 'sent' : 'failed';
-          console.log(`[WHATSAPP] Message ${deliveryStatus} to ${player.phone}`);
+          console.log(`[WHATSAPP] Message ${deliveryStatus} player_id=${player_id}`);
         } catch (error) {
           console.error(`[WHATSAPP ERROR]`, error);
           deliveryStatus = 'error';
         }
       } else {
-        console.log(`[WHATSAPP SIMULATION] To: ${player.phone || 'no phone'}`);
+        console.log(`[WHATSAPP SIMULATION] player_id=${player_id}`);
         console.log(`Message: ${message}`);
         deliveryStatus = 'simulated';
       }
@@ -253,11 +257,10 @@ async function sendWhatsAppMessage(
 }
 
 function createMessage(
-  playerName: string,
   gameConcept: any,
   gameUrl: string
 ): string {
-  return `Hi ${playerName},
+  return `SafeBet IQ — Wellbeing Check-in
 
 Take a quick ${gameConcept.duration_minutes}-minute game to reflect on how you're playing.
 

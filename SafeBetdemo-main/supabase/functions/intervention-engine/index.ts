@@ -184,7 +184,7 @@ async function handleDispatch(
 ) {
   const { data: player } = await supabase
     .from('players')
-    .select('phone, email, first_name, last_name')
+    .select('phone, email')
     .eq('id', payload.player_id)
     .maybeSingle();
 
@@ -277,12 +277,6 @@ async function checkThresholds(
 
   if (!rules || rules.length === 0) return { triggered: false };
 
-  const { data: player } = await supabase
-    .from('players')
-    .select('first_name, last_name, phone, email')
-    .eq('id', playerId)
-    .maybeSingle();
-
   const triggered = [];
 
   for (const rule of rules) {
@@ -300,9 +294,9 @@ async function checkThresholds(
 
     if (recent) continue;
 
-    const playerName = player ? `${player.first_name} ${player.last_name}` : 'Valued Player';
+    // Privacy-by-design: intervention messages never contain player names.
     const message = (rule.message_template || '')
-      .replace('{player_name}', playerName)
+      .replace('{player_name}', 'Valued Player')
       .replace('{risk_score}', String(riskScore));
 
     const { data: ivRow } = await supabase
@@ -457,7 +451,7 @@ Deno.serve(async (req: Request) => {
       if (action === 'history' && casinoId) {
         const { data, error } = await supabase
           .from('intervention_history')
-          .select('*, players(player_id, first_name, last_name, phone, email)')
+          .select('*, players(player_id)')
           .eq('casino_id', casinoId)
           .order('triggered_at', { ascending: false })
           .limit(100);

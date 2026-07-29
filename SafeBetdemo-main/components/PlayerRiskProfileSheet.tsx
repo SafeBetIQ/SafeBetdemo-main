@@ -22,6 +22,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { formatPlayerId, playerAvatarChars } from '@/lib/playerIdentity';
 
 interface PlayerRiskProfileSheetProps {
   open: boolean;
@@ -111,11 +112,11 @@ export function PlayerRiskProfileSheet({
               <SheetHeader className="pb-4">
                 <SheetTitle className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted font-semibold text-sm uppercase">
-                    {player.first_name?.[0]}{player.last_name?.[0]}
+                    {playerAvatarChars(player.player_id ?? player.id)}
                   </div>
                   <div>
-                    <div>{player.first_name} {player.last_name}</div>
-                    <div className="font-mono text-xs font-normal text-muted-foreground">{player.player_id}</div>
+                    <div className="font-mono">{formatPlayerId(player.player_id ?? player.id)}</div>
+                    <div className="text-xs font-normal text-muted-foreground">SafeBet IQ Player ID</div>
                   </div>
                 </SheetTitle>
                 <SheetDescription>Behavioral risk profile — live analysis</SheetDescription>

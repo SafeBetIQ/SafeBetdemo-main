@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { useCasinoData } from '@/contexts/CasinoDataContext';
+import { formatPlayerId, playerAvatarChars } from '@/lib/playerIdentity';
 
 export const LiveCasinoFeed = memo(function LiveCasinoFeed() {
   const { data } = useCasinoData();
@@ -56,14 +57,11 @@ export const LiveCasinoFeed = memo(function LiveCasinoFeed() {
             >
               <div className="flex items-center space-x-4 flex-1">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
-                  {bet.playerName.split(' ').map(n => n[0]).join('')}
+                  {playerAvatarChars(bet.playerId)}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <span className="font-semibold text-gray-900">{bet.playerName}</span>
-                    <Badge variant="outline" className="text-xs border-gray-200 text-gray-600">
-                      {bet.playerId}
-                    </Badge>
+                    <span className="font-semibold text-gray-900 font-mono">{formatPlayerId(bet.playerId)}</span>
                   </div>
                   <div className="flex items-center space-x-3 mt-1 text-sm text-gray-500">
                     <span>{bet.game}</span>

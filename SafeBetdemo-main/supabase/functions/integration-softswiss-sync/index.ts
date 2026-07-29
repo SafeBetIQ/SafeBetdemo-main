@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getIdentityService } from "../../../lib/playerIdentity/index.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -192,15 +193,14 @@ async function syncPlayers(
     let failed = 0;
 
     for (const player of players) {
+      // IRS: opaque platform reference → stable anonymous SB-PLR id. No PII stored.
+      const safebetId = await getIdentityService().resolveIdentity(String(player.id), { casinoId: localCasinoId, client: supabase });
       const { error } = await supabase
         .from('players')
         .upsert({
           casino_id: localCasinoId,
           external_id: player.id,
-          email: player.email,
-          first_name: player.first_name,
-          last_name: player.last_name,
-          phone: player.phone,
+          player_id: safebetId,
           registration_date: player.created_at,
           country: player.country,
           vip_tier: player.vip_level || 'standard'

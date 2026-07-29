@@ -5,14 +5,19 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ModuleProvider } from '@/contexts/ModuleContext';
 import { Toaster } from '@/components/ui/sonner';
 import AIMonitoringIndicator from '@/components/AIMonitoringIndicator';
+import { DemoBanner } from '@/components/DemoBanner';
+
+const IS_DEMO = process.env.NEXT_PUBLIC_SAFEBET_ENV !== 'production';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.safebetiq.com'),
   title: {
-    default: 'SafeBet IQ — Responsible Gambling Intelligence Platform',
-    template: '%s | SafeBet IQ',
+    default: IS_DEMO
+      ? 'SafeBet IQ Demo (Non-Production) — Responsible Gambling Intelligence Platform'
+      : 'SafeBet IQ — Responsible Gambling Intelligence Platform',
+    template: IS_DEMO ? '%s | SafeBet IQ Demo' : '%s | SafeBet IQ',
   },
   description:
     "South Africa's AI-driven responsible gambling compliance platform. Real-time player risk intelligence, automated interventions, and live regulatory oversight for licensed casino operators and the National Gambling Board.",
@@ -48,6 +53,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-black`}>
         <AuthProvider>
           <ModuleProvider>
+            <DemoBanner />
             {children}
             <Toaster />
             <AIMonitoringIndicator />

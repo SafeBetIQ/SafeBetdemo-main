@@ -1,0 +1,74 @@
+# SafeBet IQ — demo.safebetiq.com reproducible Linux Node 20 build (AWS CodeBuild)
+# ─────────────────────────────────────────────────────────────────────────────
+# Produces the Elastic Beanstalk deployment artifact for the `safebet-iq-demo`
+# environment, built under Amazon-Linux/Ubuntu Node.js 20 so the .next SSR
+# runtime matches the EB Node 20 platform (a local Node 24 build fails with the
+# "reading 'workers'" SSR TypeError).
+#
+# Public build inputs (safe — NEXT_PUBLIC_* only; NEVER the service-role key)
+# are provided as env overrides at start-build time:
+#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+#   NEXT_PUBLIC_ENV=demo, SAFEBET_GIT_COMMIT, SAFEBET_EB_VERSION
+#
+# Output: a forward-slash ZIP with package.json at its ROOT, .next (minus cache),
+# public, next.config.js, Procfile, .platform, and .ebextensions WITHOUT the
+# on-instance build config (this build is prebuilt, so no on-instance build).
+
+version: 0.2
+
+env:
+  variables:
+    NEXT_PUBLIC_ENV: "demo"
+    NEXT_PUBLIC_SAFEBET_ENV: "demo"
+    NODE_OPTIONS: "--max-old-space-size=4096"
+    # SAFEBET_GIT_COMMIT / SAFEBET_EB_VERSION / NEXT_PUBLIC_SUPABASE_URL /
+    # NEXT_PUBLIC_SUPABASE_ANON_KEY are supplied via --environment-variables-override.
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "== build env ==" && node --version && npm --version && uname -a
+  pre_build:
+    commands:
+      - rm -rf .next node_modules
+      - npm ci
+  build:
+    commands:
+      - echo "== typecheck + next build under Node $(node --version) =="
+      - npm run build            # tsc --noEmit && next build
+      - test -f .next/BUILD_ID && test -d .next/server && test -d .next/static
+      - echo "BUILD_ID=$(cat .next/BUILD_ID)"
+  post_build:
+    commands:
+      - echo "== regression suite (advisory, captured) =="
+      - node --test "tests/**/*.test.mjs" 2>&1 | tail -60 || echo "TESTS_EXIT_NONZERO"
+      - echo "== stage clean EB bundle =="
+      - mkdir -p deploy_stage
+      - cp -r .next public package.json package-lock.json next.config.js Procfile .ebextensions .platform deploy_stage/
+      - rm -rf deploy_stage/.next/cache
+      - rm -f deploy_stage/.ebextensions/02_build.config   # prebuilt: no on-instance build
+      # Generate runtime version.json read by /api/version (safe provenance only)
+      - |
+        cat > deploy_stage/version.json <<JSON
+        {
+          "service": "safebet-iq",
+          "environment": "${NEXT_PUBLIC_ENV}",
+          "environmentClass": "non-production",
+          "dataClass": "synthetic",
+          "gitCommit": "${SAFEBET_GIT_COMMIT:-unknown}",
+          "buildId": "$(cat .next/BUILD_ID)",
+          "deploymentVersion": "${SAFEBET_EB_VERSION:-unknown}",
+          "builtWithNode": "$(node --version | sed 's/^v//')",
+          "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        JSON
+      - cat deploy_stage/version.json
+      - test -f deploy_stage/.next/BUILD_ID
+      - test ! -e deploy_stage/.ebextensions/02_build.config && echo "on-instance build config excluded OK"
+
+artifacts:
+  base-directory: deploy_stage
+  files:
+    - '**/*'

@@ -318,7 +318,7 @@ async function handleGetAlerts(
     .from('cross_operator_alerts')
     .select(`
       *,
-      player:players(id, first_name, last_name, player_id, risk_score)
+      player:players(id, player_id, risk_score)
     `)
     .order('detected_at', { ascending: false })
     .limit(100);

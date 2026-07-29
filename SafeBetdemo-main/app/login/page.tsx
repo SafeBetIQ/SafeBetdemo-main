@@ -169,8 +169,7 @@ export default function LoginPage() {
         case 'compliance_officer': redirectPath = '/casino/dashboard'; break;
         case 'regulator':
         case 'national_regulator': redirectPath = '/regulator/dashboard'; break;
-        case 'provincial_regulator': redirectPath = '/regulator/provincial-dashboard'; break;
-        case 'staff': redirectPath = '/staff/profile'; break;
+        case 'provincial_regulator': redirectPath = '/regulator/intelligence'; break;
       }
 
       router.replace(redirectPath);
@@ -198,21 +197,6 @@ export default function LoginPage() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#7ED321]/5 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col h-full px-12 py-10">
-          {/* Logo */}
-          <div className="mb-16">
-            <Link href="/">
-              <Image
-                src="/safebet_website_logo copy copy.png"
-                alt="SafeBet IQ"
-                width={220}
-                height={60}
-                className="h-12 w-auto object-contain"
-                style={{ mixBlendMode: 'lighten' }}
-                priority
-              />
-            </Link>
-          </div>
-
           {/* Headline */}
           <div className="mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#7ED321]/10 border border-[#7ED321]/20 mb-6">
@@ -250,8 +234,8 @@ export default function LoginPage() {
             {[
               { icon: Users, text: 'Real-time player behavioural risk classification across all operators' },
               { icon: BarChart3, text: 'Cross-casino intelligence and provincial heat-map analytics' },
-              { icon: ShieldCheck, text: 'Automated intervention workflows aligned to NGA §26 and SARGF standards' },
-              { icon: Activity, text: 'Tamper-evident audit trails with ISO 27001 / POPIA compliance controls' },
+              { icon: ShieldCheck, text: 'Automated intervention workflows triggered by AI-driven risk scoring' },
+              { icon: Activity, text: 'Tamper-evident audit trails for every player interaction and regulatory action' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-start gap-3">
                 <div className="mt-0.5 flex-shrink-0 h-5 w-5 rounded-md bg-[#7ED321]/10 flex items-center justify-center">
@@ -272,8 +256,8 @@ export default function LoginPage() {
                 { step: '1', label: 'Platform Overview', path: '/casino/dashboard' },
                 { step: '2', label: 'Player Risk Monitor', path: '/casino/players' },
                 { step: '3', label: 'Investigate Player', path: '/casino/players/…/investigate' },
-                { step: '4', label: 'Intervention Engine', path: '/casino/interventions' },
-                { step: '5', label: 'Nova IQ Intelligence', path: '/nova-iq' },
+                { step: '4', label: 'Case Management', path: '/casino/cases' },
+                { step: '5', label: 'Explainable Intelligence', path: '/casino/explainability' },
                 { step: '6', label: 'Regulator Dashboard', path: '/regulator/dashboard' },
                 { step: '7', label: 'Audit Centre', path: '/admin/audit' },
                 { step: '8', label: 'Evidence Pack PDF', path: 'Print from investigate' },
@@ -289,45 +273,21 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Trust badges */}
-          <div className="mt-auto">
-            <p className="text-[10px] text-white/25 uppercase tracking-widest font-semibold mb-3">
-              Compliance Standards
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: 'ISO 27001', sub: 'Information Security' },
-                { label: 'POPIA §8', sub: 'Data Protection' },
-                { label: 'NGA §26', sub: 'Responsible Gambling' },
-                { label: 'SARGF', sub: 'Risk Framework' },
-              ].map(({ label, sub }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10"
-                >
-                  <ShieldCheck className="h-3 w-3 text-[#7ED321] flex-shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-white/70 leading-none">{label}</div>
-                    <div className="text-[9px] text-white/30 leading-none mt-0.5">{sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <div className="mt-auto" />
         </div>
       </div>
 
       {/* Right panel — login form */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 bg-[#0a0f0d]">
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-10">
+        {/* Logo */}
+        <div className="mb-10">
           <Link href="/">
             <Image
               src="/safebet_website_logo copy copy.png"
               alt="SafeBet IQ"
-              width={200}
-              height={54}
-              className="h-10 w-auto object-contain mx-auto"
+              width={320}
+              height={86}
+              className="h-20 w-auto object-contain mx-auto"
               style={{ mixBlendMode: 'lighten' }}
               priority
             />
@@ -417,7 +377,7 @@ export default function LoginPage() {
           <div className="mt-4 flex items-center justify-center gap-1.5">
             <ShieldCheck className="h-3 w-3 text-[#7ED321]/60" />
             <span className="text-[11px] text-white/25">
-              256-bit TLS encryption · All access audited · ISO 27001 aligned
+              256-bit TLS encryption · All access audited
             </span>
           </div>
 

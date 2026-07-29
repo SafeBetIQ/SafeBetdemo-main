@@ -54,14 +54,6 @@ export function ModuleGuard({ slug, children, fallbackHref = '/casino/dashboard'
                 for your account. Contact your Super Administrator to activate this module.
               </p>
             </div>
-            {userRole === 'super_admin' && (
-              <Button
-                size="sm"
-                onClick={() => router.push('/admin/casino-modules')}
-              >
-                Manage Modules
-              </Button>
-            )}
             <Button
               variant="ghost"
               size="sm"

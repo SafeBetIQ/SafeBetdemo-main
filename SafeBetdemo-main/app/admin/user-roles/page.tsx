@@ -164,7 +164,7 @@ export default function UserRolesManagementPage() {
       });
 
       toast.success(`Logged in as ${member.first_name} ${member.last_name}`);
-      router.push('/staff/profile');
+      router.push('/casino/dashboard');
     } catch (error: any) {
       toast.error('Failed to impersonate user');
     }

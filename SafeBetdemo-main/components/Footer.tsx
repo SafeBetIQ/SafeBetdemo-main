@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Shield, Mail, Phone, MapPin, ExternalLink } from 'lucide-react';
+import { Shield, Mail, Phone, MapPin } from 'lucide-react';
 
 const COMPLIANCE_BADGES = [
   'ISO 27001 Aligned',
@@ -74,8 +74,6 @@ export function Footer() {
                 <li><Link href="/features/casinos" className="hover:text-brand-400 transition-colors">For Casinos</Link></li>
                 <li><Link href="/features/regulators" className="hover:text-brand-400 transition-colors">For Regulators</Link></li>
                 <li><Link href="/technology" className="hover:text-brand-400 transition-colors">AI Technology</Link></li>
-                <li><Link href="/nova-iq" className="hover:text-brand-400 transition-colors">Nova IQ Engine</Link></li>
-                <li><Link href="/safeplay-connect" className="hover:text-brand-400 transition-colors">SafeBet IQ Connect</Link></li>
               </ul>
             </div>
 
@@ -83,13 +81,6 @@ export function Footer() {
             <div>
               <h3 className="font-semibold text-white mb-4 text-sm">Resources</h3>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li>
-                  <Link href="/safeplay-connect" className="hover:text-brand-400 transition-colors flex items-center gap-1">
-                    API Documentation
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </li>
-                <li><Link href="/health" className="hover:text-brand-400 transition-colors">System Status</Link></li>
                 <li><Link href="/contact" className="hover:text-brand-400 transition-colors">Support</Link></li>
                 <li><Link href="/privacy" className="hover:text-brand-400 transition-colors">Privacy Policy</Link></li>
                 <li><Link href="/terms" className="hover:text-brand-400 transition-colors">Terms of Service</Link></li>

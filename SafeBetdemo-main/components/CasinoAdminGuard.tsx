@@ -25,12 +25,11 @@ export function CasinoAdminGuard({ children }: CasinoAdminGuardProps) {
 
   useEffect(() => {
     if (settled && user) {
-      if (user.role === 'casino_staff') {
-        router.push('/staff/profile');
-      } else if (user.role === 'regulator' || user.role === 'national_regulator' || user.role === 'provincial_regulator') {
+      if (user.role === 'regulator' || user.role === 'national_regulator' || user.role === 'provincial_regulator') {
         router.push('/regulator/dashboard');
-      } else if (user.role === 'staff') {
-        router.push('/staff/profile');
+      } else if (user.role === 'casino_staff' || user.role === 'staff') {
+        // Staff roles have no operator surface after the v1.5 rationalisation.
+        router.push('/login');
       }
     } else if (settled && !user) {
       router.push('/login');

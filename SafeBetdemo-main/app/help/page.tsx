@@ -266,7 +266,7 @@ export default function HelpCentrePage() {
               <HelpCircle className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Help Centre</h1>
+              <h1 className="text-2xl font-bold">Help Centre</h1>
               <p className="text-sm text-muted-foreground">Guides, documentation, and platform knowledge base</p>
             </div>
           </div>
@@ -356,12 +356,12 @@ export default function HelpCentrePage() {
                     <div className="grid md:grid-cols-2 gap-2">
                       {[
                         { label: 'View Player Risk Scores', path: '/casino/players', icon: Activity },
-                        { label: 'Dispatch Intervention', path: '/casino/interventions', icon: Bell },
+                        { label: 'Manage Interventions', path: '/casino/cases', icon: Bell },
                         { label: 'Generate Compliance Report', path: '/casino/reports', icon: FileText },
                         { label: 'Review Audit Log', path: '/admin/audit', icon: Shield },
                         { label: 'Self-Exclusion Register', path: '/casino/dashboard', icon: ShieldOff },
                         { label: 'Manage API Keys', path: '/casino/api-centre', icon: Key },
-                        { label: 'Manage Staff & Training', path: '/casino/staff', icon: Users },
+                        { label: 'Open Case Management', path: '/casino/cases', icon: Users },
                         { label: 'Security Settings', path: '/admin/security', icon: Lock },
                       ].map((link, i) => {
                         const Icon = link.icon;

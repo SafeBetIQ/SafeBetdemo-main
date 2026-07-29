@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { TriangleAlert as AlertTriangle, Clock, TrendingUp, Zap, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useCasinoData, LiveEvent } from '@/contexts/CasinoDataContext';
+import { useCasinoData } from '@/contexts/CasinoDataContext';
+import { formatPlayerId } from '@/lib/playerIdentity';
 
 const FLAG_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   loss_chasing:    { label: 'Loss Chasing',    icon: TrendingUp,    color: 'text-red-600 bg-red-50 border-red-200' },
@@ -21,12 +22,6 @@ interface AlertRow {
   game: string;
   betAmount: number;
   timestamp: string;
-}
-
-function playerNameFromEvent(event: LiveEvent): string {
-  const meta = event.metadata as Record<string, unknown>;
-  if (typeof meta?.player_name === 'string') return meta.player_name;
-  return `Player …${event.player_id.slice(-4)}`;
 }
 
 function AlertCard({ alert }: { alert: AlertRow }) {
@@ -85,7 +80,7 @@ export function LiveRiskOverlay() {
         seen.add(e.player_id);
         acc.push({
           playerId: e.player_id,
-          playerName: playerNameFromEvent(e),
+          playerName: formatPlayerId(e.player_id),
           riskScore: e.risk_score,
           flags: e.risk_flags || [],
           game: e.game_type || 'Unknown',
