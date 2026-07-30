@@ -34,6 +34,38 @@ forward-slash ZIP with `package.json` at the root and `.next` (minus cache),
 excludes the on-instance build config, and injects `version.json` provenance
 served at `/api/version`.
 
+## Six-casino production-scale synthetic demo (staged)
+
+**Frontend release:** commit `a9ba933` → EB version `demo-node20-20260729-a9ba933`
+(buildId `uuRP7KSTgVdv9t1efzvCa`, node 20.20.0, ZIP sha256
+`f17bca3bad9ec18b0493f4dca51af96da786e3728140955c084b4214ef4eefcc`) — adds the
+six-casino login selector (email-only, demo-gated; removed hardcoded passwords).
+
+**Six demo account → tenant mappings** (passwords random/owner-set; never printed):
+
+| Casino | Demo login | Tenant id |
+|---|---|---|
+| Prestige Casino (Demo) | demo.prestige@safebetiq.com (+ legacy demo.casino@) | a1b2c3d4-0000-0000-0000-000000000001 |
+| SunBet | demo.sunbet@safebetiq.com | cc000001-0000-0000-0000-000000000001 |
+| Hollywoodbets | demo.hollywoodbets@safebetiq.com | cc000002-0000-0000-0000-000000000002 |
+| Betway | demo.betway@safebetiq.com | cc000003-0000-0000-0000-000000000003 |
+| Gold Rush | demo.goldrush@safebetiq.com | cc000004-0000-0000-0000-000000000004 |
+| Royal Palace | demo.royalpalace@safebetiq.com | cc000005-0000-0000-0000-000000000005 |
+| Regulator (National) | demo.regulator@safebetiq.com | jurisdiction ZA |
+
+**Scale data:** producer `safebet-demo-scale-simulator-v1` (seed `s1`), migration
+`20260729160000_demo_scale_simulator` (commits `0410485` + `27f1f59`). Fully
+removable via `sbiq_demo_scale_cleanup()`.
+
+**Stage 1 (accepted):** ~30,398 registered players (5,000+/casino, differentiated);
+2,599 active-now; GGR today ~R682,299 (Hollywoodbets R207k … Royal Palace R42k).
+All 15 gates green: risk/session/activity/machine/financial reconciliations (6
+casinos), regulator aggregate = sum, 7 audit chains verified, tenant isolation
+(Betway sees only Betway, cross-tenant 0), partitions secure, reversible.
+
+**Stage 2 / Stage 3:** pending (target ~101,500 registered; 90-day history needs
+back-partitions 2026_04/05/06 via the hardened `sbiq_ensure_event_partition`).
+
 ## Notes
 - Not committed to the release: `node_modules`, `.next`, `.env*`, `*.pem`,
   deployment bundles — enforced by `.gitignore` and `git archive` (tracked-only).
