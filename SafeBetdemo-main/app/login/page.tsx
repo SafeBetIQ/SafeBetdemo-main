@@ -7,16 +7,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CircleAlert as AlertCircle,
-  Copy,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Shield,
-  Building2,
-  MapPin,
   Eye,
   EyeOff,
   ShieldCheck,
@@ -25,74 +17,11 @@ import {
   Activity,
   Users,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
-
-interface Credential {
-  label: string;
-  email: string;
-  password: string;
-  sub?: string;
-}
-
-const SUPER_ADMIN: Credential[] = [
-  { label: 'SafeBet IQ Administrator', email: 'admin@safebetiq.com',      password: 'Admin@SafeBet1', sub: 'Full platform access' },
-  { label: 'Demo Administrator',        email: 'demo.admin@safebetiq.com', password: 'Admin@SafeBet1', sub: 'Full platform access' },
-];
-
-// 6 operators in the demo database
-const CASINO_ADMINS: Credential[] = [
-  { label: 'Prestige Casino (Demo)', email: 'demo.casino@safebetiq.com', password: 'Casino@Demo1', sub: 'Sandton, Gauteng' },
-];
-
-const NATIONAL_REGULATOR: Credential[] = [
-  { label: 'National Gambling Board', email: 'demo.regulator@safebetiq.com', password: 'Regulator@Demo1', sub: 'All provinces — full oversight' },
-];
-
-function CredentialRow({ cred, onFill }: { cred: Credential; onFill: (email: string, password: string) => void }) {
-  const [copied, setCopied] = useState<'email' | null>(null);
-
-  const copy = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
-    setCopied('email');
-    setTimeout(() => setCopied(null), 1500);
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={() => onFill(cred.email, cred.password)}
-      className="w-full text-left group rounded-lg border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 transition-all px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#7ED321]/50"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-white truncate">{cred.label}</p>
-          {cred.sub && (
-            <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1">
-              <MapPin className="h-2.5 w-2.5 shrink-0" />
-              {cred.sub}
-            </p>
-          )}
-          <p className="text-[10px] text-white/30 font-mono mt-1 truncate">{cred.email}</p>
-        </div>
-        <div
-          className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            title="Copy email"
-            onClick={() => copy(cred.email)}
-            className="p-1 rounded text-white/30 hover:text-white/70"
-          >
-            {copied === 'email' ? <Check className="h-3 w-3 text-[#7ED321]" /> : <Copy className="h-3 w-3" />}
-          </button>
-        </div>
-      </div>
-    </button>
-  );
-}
+import { DemoOperatorSelector } from '@/components/DemoOperatorSelector';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -101,13 +30,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
 
-  const fillCredential = (e: string, p: string) => {
+  // Demo selector pre-fills ONLY the email; the password field stays empty and
+  // must be entered manually. The casino/role/tenant is resolved server-side
+  // from the verified identity after authentication — never from this selection.
+  const fillEmailOnly = (e: string) => {
     setEmail(e);
-    setPassword(p);
+    setPassword('');
     setError('');
-    setShowCredentials(false);
   };
 
   const handleSubmit = async (ev: React.FormEvent) => {
@@ -162,6 +92,7 @@ export default function LoginPage() {
         supabase.from('users').update({ last_login: new Date().toISOString() }).eq('id', profile.id).then(() => {});
       }
 
+      // Role/tenant come from the verified server-side profile, NOT the selector.
       let redirectPath = '/';
       switch (profile?.role) {
         case 'super_admin': redirectPath = '/admin'; break;
@@ -184,7 +115,6 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a0f0d] flex">
       {/* Left panel — brand & trust */}
       <div className="hidden lg:flex lg:w-[52%] xl:w-[56%] flex-col relative overflow-hidden bg-gradient-to-br from-[#0d1a10] via-[#0a1a12] to-[#060d08]">
-        {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.04]"
           style={{
@@ -192,12 +122,9 @@ export default function LoginPage() {
             backgroundSize: '48px 48px',
           }}
         />
-
-        {/* Glow effect */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#7ED321]/5 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col h-full px-12 py-10">
-          {/* Headline */}
           <div className="mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#7ED321]/10 border border-[#7ED321]/20 mb-6">
               <span className="h-1.5 w-1.5 rounded-full bg-[#7ED321] animate-pulse" />
@@ -214,10 +141,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Platform stats */}
           <div className="grid grid-cols-3 gap-4 mb-12">
             {[
-              { icon: Building2, value: '6', label: 'Licensed Operators' },
+              { icon: Building2, value: '6', label: 'Demo Operators' },
               { icon: Globe, value: '9', label: 'Provincial Boards' },
               { icon: Activity, value: '24/7', label: 'Live Monitoring' },
             ].map(({ icon: Icon, value, label }) => (
@@ -229,7 +155,6 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* Capability bullets */}
           <div className="space-y-3 mb-12">
             {[
               { icon: Users, text: 'Real-time player behavioural risk classification across all operators' },
@@ -246,41 +171,19 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* Demo Flow Guide */}
-          <div className="mb-10">
-            <p className="text-[10px] text-white/25 uppercase tracking-widest font-semibold mb-3">
-              Recommended Demo Flow
+          <div className="mt-auto rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
+            <p className="text-[11px] text-amber-200/80 leading-snug">
+              <span className="font-semibold">Non-production demo · synthetic data.</span> This environment demonstrates
+              certified monitoring, evidence and audit workflows against a synthetic six-casino dataset. It does not
+              process real operator traffic and is not a statement of production readiness or regulatory approval.
             </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                { step: '1', label: 'Platform Overview', path: '/casino/dashboard' },
-                { step: '2', label: 'Player Risk Monitor', path: '/casino/players' },
-                { step: '3', label: 'Investigate Player', path: '/casino/players/…/investigate' },
-                { step: '4', label: 'Case Management', path: '/casino/cases' },
-                { step: '5', label: 'Explainable Intelligence', path: '/casino/explainability' },
-                { step: '6', label: 'Regulator Dashboard', path: '/regulator/dashboard' },
-                { step: '7', label: 'Audit Centre', path: '/admin/audit' },
-                { step: '8', label: 'Evidence Pack PDF', path: 'Print from investigate' },
-              ].map(({ step, label, path }) => (
-                <div key={step} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                  <span className="flex-shrink-0 h-4 w-4 rounded-full bg-[#7ED321]/20 text-[#7ED321] text-[9px] font-bold flex items-center justify-center">{step}</span>
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-semibold text-white/60 leading-none truncate">{label}</div>
-                    <div className="text-[9px] text-white/20 leading-none mt-0.5 truncate">{path}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
-
-          <div className="mt-auto" />
         </div>
       </div>
 
       {/* Right panel — login form */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 bg-[#0a0f0d]">
-        {/* Logo */}
-        <div className="mb-10">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 bg-[#0a0f0d] overflow-y-auto">
+        <div className="mb-8">
           <Link href="/">
             <Image
               src="/safebet_website_logo copy copy.png"
@@ -294,8 +197,7 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div className="w-full max-w-[420px]">
-          {/* Header */}
+        <div className="w-full max-w-[460px]">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-1.5">Sign in to your account</h2>
             <p className="text-sm text-white/40">
@@ -303,7 +205,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <Alert className="bg-red-950/40 border-red-900/60">
@@ -313,9 +214,7 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-white/70 text-sm font-medium">
-                Email Address
-              </Label>
+              <Label htmlFor="email" className="text-white/70 text-sm font-medium">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -329,9 +228,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-white/70 text-sm font-medium">
-                Password
-              </Label>
+              <Label htmlFor="password" className="text-white/70 text-sm font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -373,97 +270,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Security note */}
           <div className="mt-4 flex items-center justify-center gap-1.5">
             <ShieldCheck className="h-3 w-3 text-[#7ED321]/60" />
-            <span className="text-[11px] text-white/25">
-              256-bit TLS encryption · All access audited
-            </span>
+            <span className="text-[11px] text-white/25">256-bit TLS encryption · All access audited</span>
           </div>
 
-          {/* Demo credentials */}
-          <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowCredentials(!showCredentials)}
-              className="w-full flex items-center justify-between px-4 py-3.5 text-sm text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors"
-            >
-              <span className="flex items-center gap-2 font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#7ED321] animate-pulse" />
-                Demo Credentials
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-white/30">
-                Click any role to autofill
-                {showCredentials ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </span>
-            </button>
-
-            {showCredentials && (
-              <div className="px-4 pb-4 border-t border-white/10">
-                <Tabs defaultValue="super_admin" className="w-full mt-3">
-                  <TabsList className="w-full bg-white/5 border border-white/10 h-auto flex-wrap gap-1 p-1 rounded-lg mb-3">
-                    <TabsTrigger
-                      value="super_admin"
-                      className="flex-1 text-[10px] data-[state=active]:bg-[#7ED321] data-[state=active]:text-black text-white/40 py-1.5 rounded font-semibold"
-                    >
-                      Super Admin
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="casinos"
-                      className="flex-1 text-[10px] data-[state=active]:bg-[#7ED321] data-[state=active]:text-black text-white/40 py-1.5 rounded font-semibold"
-                    >
-                      Casinos
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="national"
-                      className="flex-1 text-[10px] data-[state=active]:bg-[#7ED321] data-[state=active]:text-black text-white/40 py-1.5 rounded font-semibold"
-                    >
-                      National
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="super_admin" className="mt-0 space-y-1.5">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Shield className="h-3 w-3 text-white/30" />
-                      <span className="text-[10px] text-white/30 uppercase tracking-wide font-semibold">
-                        Full platform access
-                      </span>
-                    </div>
-                    {SUPER_ADMIN.map((c) => (
-                      <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                    ))}
-                  </TabsContent>
-
-                  <TabsContent value="casinos" className="mt-0">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Building2 className="h-3 w-3 text-white/30" />
-                      <span className="text-[10px] text-white/30 uppercase tracking-wide font-semibold">
-                        Demo operator — click to autofill
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {CASINO_ADMINS.map((c) => (
-                        <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                      ))}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="national" className="mt-0 space-y-1.5">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <Shield className="h-3 w-3 text-white/30" />
-                      <span className="text-[10px] text-white/30 uppercase tracking-wide font-semibold">
-                        National Gambling Board
-                      </span>
-                    </div>
-                    {NATIONAL_REGULATOR.map((c) => (
-                      <CredentialRow key={c.email} cred={c} onFill={fillCredential} />
-                    ))}
-                  </TabsContent>
-
-                </Tabs>
-              </div>
-            )}
-          </div>
+          {/* Six-casino demo selector (email-only pre-fill; demo environment only) */}
+          <DemoOperatorSelector onSelectEmail={fillEmailOnly} />
 
           <p className="text-center text-[11px] text-white/20 mt-6">
             &copy; {new Date().getFullYear()} SafeBet IQ &middot; Powered by AI-driven responsible gaming technology
