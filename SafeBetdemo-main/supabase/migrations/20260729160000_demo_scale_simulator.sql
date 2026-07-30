@@ -31,7 +31,10 @@ as $function$
 declare
   prod   constant text := 'safebet-demo-scale-simulator-v1';
   sv     text := p_seed_version;
-  c4     text := upper(substr(replace(p_casino::text,'-',''),1,4));
+  -- FULL casino hex (unique per tenant). A 4-char prefix collides across the
+  -- cc0000xx casinos (all -> 'CC00'), which cross-links session/machine ids
+  -- between tenants and makes the projection upsert reject the batch.
+  cfull  text := replace(p_casino::text,'-','');
   now_ts timestamptz := now();
   v_players jsonb; v_sessions jsonb; v_machines jsonb; v_ok boolean;
 begin
@@ -60,8 +63,8 @@ begin
          when a < 40          then now_ts - ((2 + a) || ' hours')::interval
          else now_ts - ((3 + (a % 20)) || ' days')::interval end as last_at,
     (50 + amt)::numeric as stake_unit,
-    'SC-SES-'||c4||'-'||g as session_id,
-    'SC-MC-'||c4||'-'||g  as machine_id
+    'SC-SES-'||cfull||'-'||g as session_id,
+    'SC-MC-'||cfull||'-'||g  as machine_id
   from base;
 
   -- 1) Identity resolution (idempotent).
