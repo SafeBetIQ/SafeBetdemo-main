@@ -57,14 +57,35 @@ six-casino login selector (email-only, demo-gated; removed hardcoded passwords).
 `20260729160000_demo_scale_simulator` (commits `0410485` + `27f1f59`). Fully
 removable via `sbiq_demo_scale_cleanup()`.
 
-**Stage 1 (accepted):** ~30,398 registered players (5,000+/casino, differentiated);
-2,599 active-now; GGR today ~R682,299 (Hollywoodbets R207k … Royal Palace R42k).
-All 15 gates green: risk/session/activity/machine/financial reconciliations (6
-casinos), regulator aggregate = sum, 7 audit chains verified, tenant isolation
-(Betway sees only Betway, cross-tenant 0), partitions secure, reversible.
+**Seed versions (stage-independent, each removable via `sbiq_demo_scale_cleanup('<seed>')`):**
+`stage1-v1` (producer `safebet-demo-scale-stage1-v1`, 30,000), `stage2-v1`
+(`…-stage2-v1`, 34,500, 30-day history), `stage3-v1` (`…-stage3-v1`, 37,000,
+90-day history). Seed-scoped migration `20260731090000_demo_scale_simulator_seed_scoped`.
 
-**Stage 2 / Stage 3:** pending (target ~101,500 registered; 90-day history needs
-back-partitions 2026_04/05/06 via the hardened `sbiq_ensure_event_partition`).
+**Final production-scale synthetic dataset (all three stages accepted):**
+
+| Casino | Registered | Stage target |
+|---|---|---|
+| Hollywoodbets | 28,064 | 28,000 |
+| Betway | 22,035 | 22,000 |
+| Prestige Casino (Demo) | 18,152 | 18,000 |
+| SunBet | 14,567 | 14,500 |
+| Gold Rush | 10,546 | 10,500 |
+| Royal Palace | 8,534 | 8,500 |
+| **Total (incl. 398 baseline)** | **101,898** | ~101,500 |
+
+Aggregate: active-now **9,637**, daily-active **22,318**, open sessions **10,044**,
+machines **9,884**, certified events (90-day) **236,322**, GGR today ~**R2,691,919**
+(differentiated). Historical partitions `2026_04/05/06` created born-secure.
+
+**All Stage 3 hard gates green:** risk/session/activity/machine/financial
+reconciliations (6 casinos), regulator aggregate = sum of six, 7 audit chains
+verified, tenant isolation (per casino, cross-tenant 0), every event-log partition
+secure, 90-day window queries, ZAR/Africa-Johannesburg, financial status Partial,
+synthetic disclosed, voids/reversals unavailable (null), `/api/health` + `/api/version`
+healthy, EB Ready/Green, regression 495/495. Each stage independently reversible.
+
+**Data/DB tag:** `demo-db-2026-07-31-production-scale-synthetic`.
 
 ## Notes
 - Not committed to the release: `node_modules`, `.next`, `.env*`, `*.pem`,
