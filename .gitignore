@@ -78,3 +78,6 @@ SafeBetdemo-main/node_modules/
 SafeBetdemo-main/.env.local
 SafeBetdemo-main/.env*.local
 SafeBetdemo-main/deploy/e2e/screenshots/
+
+# demo walkthrough credentials (never commit)
+**/.env.demo-walkthrough
