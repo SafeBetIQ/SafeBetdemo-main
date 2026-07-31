@@ -164,7 +164,7 @@ export default function OperatorDashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Players active now" value={cell(available, n(kpi?.players_active_now))} sub={available ? `${n(kpi?.active_players)} observed` : undefined} icon={<Users className="h-8 w-8" />} href="/casino/players" />
               <Stat label="Active sessions" value={cell(available, n(kpi?.active_sessions))} sub="fresh — recent activity" icon={<Activity className="h-8 w-8" />} href="/casino/live-feed" />
-              <Stat label="Machines in play" value={cell(available, n(kpi?.machines_in_play))} sub={available ? `${n(kpi?.registered_machines)} registered` : undefined} icon={<Gauge className="h-8 w-8" />} href="/casino/operations" />
+              <Stat label="Machines / endpoints in play" value={cell(available, n(kpi?.machines_in_play))} sub={available ? `${n(kpi?.registered_machines)} registered` : undefined} icon={<Gauge className="h-8 w-8" />} href="/casino/operations" />
               <Stat
                 label={`GGR — ${FIN_PERIODS[finPeriod][0].toLowerCase()}`}
                 value={financial ? money(financial[FIN_PERIODS[finPeriod][1]]) : '—'}
@@ -203,9 +203,9 @@ export default function OperatorDashboardPage() {
           {/* ── Machine posture (in play + stale = active; registered total) ─── */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Machine posture</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gaming machines &amp; endpoints</h2>
               {available && (
-                <span className="text-xs text-muted-foreground">offline / faulted not in certified telemetry</span>
+                <span className="text-xs text-muted-foreground">physical machines &amp; online/simulated endpoints · offline / faulted not in certified telemetry</span>
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

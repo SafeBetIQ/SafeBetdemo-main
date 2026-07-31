@@ -87,6 +87,36 @@ healthy, EB Ready/Green, regression 495/495. Each stage independently reversible
 
 **Data/DB tag:** `demo-db-2026-07-31-production-scale-synthetic`.
 
+### Closure evidence (2026-07-31)
+
+**Population scale (persistent synthetic dataset):** 101,898 registered synthetic
+players · 9,637 active-now · 22,318 daily-active · 10,044 open sessions · 236,322
+certified synthetic events · six-casino totals as above · five reconciliations
+green for all six casinos · seven audit chains verified · six-tenant isolation
+(each account reaches only its casino, cross-tenant 0) · regulator aggregate =
+sum of the six casinos.
+
+**Throughput validation (separate, isolated, temporary — cleaned up):** measured
+with producer `safebet-demo-throughput-test` (removed afterward, 0 permanent
+records): sustained certified ingestion **~5,860 events/sec** (single connection),
+audit-chain insert **~61 ms**, projection lag **synchronous (~0)**, evidence API
+**~0.3 s**, operator dashboard **~0.7–1.0 s**, regulator aggregate RPC **~4.3 s @ 101k**
+(candidate for materialised rollup), DB connections **8 stable**, error rate **0%**,
+recovery to baseline immediate.
+
+> **Distinction — population vs throughput:** the 236,322-event dataset demonstrates
+> population *scale*, NOT sustained production transaction *throughput*. Throughput
+> was validated separately with temporary, cleaned-up test evidence (above). The
+> existing dataset is not a claim of production transaction rate.
+
+> **Distinction — machines vs endpoints:** the "machines" metric spans BOTH physical
+> gaming machines (bricks-and-mortar operators) and online/simulated endpoints
+> (online-style operators). The dashboard label reads "Gaming machines & endpoints"
+> / "Machines / endpoints in play" to avoid implying physical machines only.
+
+**Machines/endpoints label:** casino dashboard renamed (`Machine posture` →
+`Gaming machines & endpoints`; `Machines in play` → `Machines / endpoints in play`).
+
 ## Notes
 - Not committed to the release: `node_modules`, `.next`, `.env*`, `*.pem`,
   deployment bundles — enforced by `.gitignore` and `git archive` (tracked-only).

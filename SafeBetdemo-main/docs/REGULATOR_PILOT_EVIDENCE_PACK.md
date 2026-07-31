@@ -81,3 +81,14 @@ Managed non-production/production cloud deployment; backup + restore proof; DR p
 
 ## 30. Formal readiness recommendation
 **Proceed with conditions — to a controlled, NON-PRODUCTION, SYNTHETIC-DATA regulator EVALUATION only.** SafeBet IQ's certified dashboard, evidence API, and tamper-evident audit chain are implemented and verified on the Demo environment and are suitable for demonstrating integrity, reconciliation, and oversight to a regulator using synthetic data. **It is NOT ready for a production or real-data pilot**: the operational, deployment, integration, and legal requirements in §29 are outstanding and several are hard blockers (see scorecard). No production environment was touched; no demo capability is represented as production.
+
+## 31. Production-scale synthetic demonstration (2026-07-31)
+A production-scale synthetic six-casino dataset was generated additively through the certified event-log → projection pipeline (three gated stages; every hard gate green).
+
+**Population scale:** 101,898 registered synthetic players · 9,637 active-now · 22,318 daily-active · 10,044 open sessions · 236,322 certified synthetic events · six casinos (Hollywoodbets 28,064 · Betway 22,035 · Prestige 18,152 · SunBet 14,567 · Gold Rush 10,546 · Royal Palace 8,534). Five reconciliations green for all six casinos; seven audit chains verified; six-tenant isolation (each account reaches only its casino, cross-tenant 0); regulator aggregate = sum of the six casinos; ZAR / Africa-Johannesburg; financial status Partial; synthetic disclosed; voids/reversals unavailable (null).
+
+**Population scale ≠ throughput.** Throughput was validated separately with temporary, producer-tagged, cleaned-up test evidence: ~5,860 certified events/sec sustained (single connection), audit-chain insert ~61 ms, projection lag synchronous, evidence API ~0.3 s, operator dashboard ~0.7–1.0 s, regulator aggregate ~4.3 s @ 101k, DB connections 8 stable, error rate 0%, recovery to baseline immediate. The 236,322-event dataset is NOT a claim of production transaction throughput.
+
+**Machines vs endpoints.** The "machines" metric spans physical gaming machines AND online/simulated endpoints; the dashboard label reads "Gaming machines & endpoints".
+
+Supported claim: *SafeBet IQ demonstrates certified monitoring, evidence and audit workflows against a production-scale synthetic six-casino dataset in a managed non-production environment.* Not production-ready, not real casino traffic, not regulator-approved.
