@@ -77,3 +77,4 @@ SafeBetdemo-main/.next/
 SafeBetdemo-main/node_modules/
 SafeBetdemo-main/.env.local
 SafeBetdemo-main/.env*.local
+SafeBetdemo-main/deploy/e2e/screenshots/

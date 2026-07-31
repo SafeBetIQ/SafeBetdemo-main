@@ -1,19 +1,20 @@
-// SafeBet IQ Demo — authenticated browser walkthrough (Playwright/Chromium).
+// SafeBet IQ Demo — full authenticated six-casino browser walkthrough (Playwright).
 //
-// This is a READY-TO-RUN harness. It is NOT executed in the current environment
-// because (1) Playwright is not installed and (2) no demo-account credentials are
-// supplied. Run it where both are available:
+// Playwright + Chromium are installed. This runs the literal walkthrough once
+// credentials are supplied via environment variables (never hard-coded/logged):
 //
-//   npm i -D playwright && npx playwright install chromium
-//   SAFEBET_DEMO_URL=https://demo.safebetiq.com \
-//   OP_EMAIL=demo.casino@safebetiq.com     OP_PASSWORD=***  \
-//   REG_EMAIL=demo.regulator@safebetiq.com REG_PASSWORD=*** \
-//   ADM_EMAIL=demo.admin@safebetiq.com     ADM_PASSWORD=*** \
+//   DEMO_PRESTIGE_EMAIL / DEMO_PRESTIGE_PASSWORD
+//   DEMO_SUNBET_EMAIL / DEMO_SUNBET_PASSWORD
+//   DEMO_HOLLYWOODBETS_EMAIL / DEMO_HOLLYWOODBETS_PASSWORD
+//   DEMO_GOLDRUSH_EMAIL / DEMO_GOLDRUSH_PASSWORD
+//   DEMO_BETWAY_EMAIL / DEMO_BETWAY_PASSWORD
+//   DEMO_ROYALPALACE_EMAIL / DEMO_ROYALPALACE_PASSWORD
+//   DEMO_REGULATOR_EMAIL / DEMO_REGULATOR_PASSWORD
+//   DEMO_ADMIN_EMAIL / DEMO_ADMIN_PASSWORD
+//
 //   node deploy/e2e/demo-walkthrough.mjs
 //
-// Credentials come ONLY from environment variables — never hard-coded or logged.
-// Screenshots are written to deploy/e2e/screenshots/ and must be reviewed to
-// ensure they contain no passwords, tokens, or unnecessary player-level data.
+// Screenshots -> deploy/e2e/screenshots/ (review for no secrets/PII before sharing).
 
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -23,66 +24,75 @@ const BASE = process.env.SAFEBET_DEMO_URL ?? 'https://demo.safebetiq.com';
 const OUT = path.join(process.cwd(), 'deploy', 'e2e', 'screenshots');
 mkdirSync(OUT, { recursive: true });
 
-const need = (k) => {
-  const v = process.env[k];
-  if (!v) throw new Error(`Missing required env var ${k} (credentials must be supplied via env).`);
-  return v;
-};
+const CASINOS = [
+  ['prestige', 'Prestige Casino', 'DEMO_PRESTIGE_EMAIL', 'DEMO_PRESTIGE_PASSWORD'],
+  ['sunbet', 'SunBet', 'DEMO_SUNBET_EMAIL', 'DEMO_SUNBET_PASSWORD'],
+  ['hollywoodbets', 'Hollywoodbets', 'DEMO_HOLLYWOODBETS_EMAIL', 'DEMO_HOLLYWOODBETS_PASSWORD'],
+  ['goldrush', 'Gold Rush', 'DEMO_GOLDRUSH_EMAIL', 'DEMO_GOLDRUSH_PASSWORD'],
+  ['betway', 'Betway', 'DEMO_BETWAY_EMAIL', 'DEMO_BETWAY_PASSWORD'],
+  ['royalpalace', 'Royal Palace', 'DEMO_ROYALPALACE_EMAIL', 'DEMO_ROYALPALACE_PASSWORD'],
+];
+
+const env = (k) => { const v = process.env[k]; if (!v) throw new Error(`Missing env ${k}`); return v; };
 
 async function login(page, email, password) {
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole('button', { name: /sign in|log ?in/i }).click();
+  await page.locator('#email').fill(email);
+  await page.locator('#password').fill(password);
+  await page.getByRole('button', { name: /Sign in securely/i }).click();
   await page.waitForLoadState('networkidle');
 }
-
-async function shot(page, name) {
-  await page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: true });
-}
+async function logout(ctx) { await ctx.close(); }
+const shot = (page, name) => page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: true });
 
 async function run() {
   const browser = await chromium.launch();
   const results = [];
   try {
-    // ── Operator ──
-    let ctx = await browser.newContext();
-    let page = await ctx.newPage();
-    await login(page, need('OP_EMAIL'), need('OP_PASSWORD'));
-    await page.goto(`${BASE}/casino/dashboard`, { waitUntil: 'networkidle' });
-    await shot(page, 'operator-dashboard');
-    for (const p of ['/casino/players', '/casino/reports', '/casino/evidence']) {
-      await page.goto(`${BASE}${p}`, { waitUntil: 'networkidle' });
-      await shot(page, `operator-${p.split('/').pop()}`);
+    // ── Six operators ──
+    for (const [slug, name, ek, pk] of CASINOS) {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      await login(page, env(ek), env(pk));
+      await page.goto(`${BASE}/casino/dashboard`, { waitUntil: 'networkidle' });
+      await shot(page, `operator-${slug}-dashboard`);
+      // Other casinos must not appear in this operator's dashboard.
+      for (const [, other] of CASINOS) {
+        if (other !== name && await page.getByText(other, { exact: false }).count() > 0) {
+          throw new Error(`Tenant leak: ${name} dashboard shows ${other}`);
+        }
+      }
+      for (const p of ['/casino/players', '/casino/reports', '/casino/evidence']) {
+        await page.goto(`${BASE}${p}`, { waitUntil: 'networkidle' });
+        await shot(page, `operator-${slug}-${p.split('/').pop()}`);
+      }
+      results.push(`operator ${name}: dashboard + reconciliations + evidence captured; no cross-tenant leak`);
+      await logout(ctx);
     }
-    results.push('operator: dashboard + reconciliations + evidence drill-downs captured');
-    await ctx.close();
 
     // ── Regulator ──
-    ctx = await browser.newContext();
-    page = await ctx.newPage();
-    await login(page, need('REG_EMAIL'), need('REG_PASSWORD'));
+    let ctx = await browser.newContext();
+    let page = await ctx.newPage();
+    await login(page, env('DEMO_REGULATOR_EMAIL'), env('DEMO_REGULATOR_PASSWORD'));
+    await page.goto(`${BASE}/regulator/dashboard`, { waitUntil: 'networkidle' });
+    await shot(page, 'regulator-overview');
     await page.goto(`${BASE}/regulator/audit-verification`, { waitUntil: 'networkidle' });
     await shot(page, 'regulator-audit-verification');
-    results.push('regulator: dashboard + audit-verification captured');
-    await ctx.close();
+    results.push('regulator: six-casino overview + audit-verification captured');
+    await logout(ctx);
 
     // ── Super Admin ──
     ctx = await browser.newContext();
     page = await ctx.newPage();
-    await login(page, need('ADM_EMAIL'), need('ADM_PASSWORD'));
+    await login(page, env('DEMO_ADMIN_EMAIL'), env('DEMO_ADMIN_PASSWORD'));
     await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
     await shot(page, 'admin-platform-health');
     results.push('super-admin: platform health + audit centre captured');
-    await ctx.close();
+    await logout(ctx);
 
     console.log('WALKTHROUGH OK\n' + results.join('\n') + `\nScreenshots: ${OUT}`);
   } finally {
     await browser.close();
   }
 }
-
-run().catch((e) => {
-  console.error('WALKTHROUGH FAILED:', e.message);
-  process.exit(1);
-});
+run().catch((e) => { console.error('WALKTHROUGH FAILED:', e.message); process.exit(1); });
