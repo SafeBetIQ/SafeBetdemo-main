@@ -75,9 +75,11 @@ export async function POST(req: Request) {
     try { if (new URL(origin).host !== host) return generic(403); } catch { return generic(403); }
   }
 
-  // 3) Rate limit (per IP, per account).
+  // 3) Rate limit (per IP, per account). 20/IP/10min accommodates a full demo
+  //    tour (six casinos + regulator = 7 logins) plus a re-run, while still
+  //    blocking abuse; 5/account/min blocks targeting a single account.
   const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown';
-  if (limited(ipHits, ip, 10, 10 * 60_000)) return generic(429);
+  if (limited(ipHits, ip, 20, 10 * 60_000)) return generic(429);
 
   // 4) Parse + allowlist the slug. Only a slug is accepted — never email/pw/role/casino/redirect.
   let slug = '';
