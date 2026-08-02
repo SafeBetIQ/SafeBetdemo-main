@@ -31,9 +31,9 @@ try {
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
 
   assert(await page.getByText('Choose a Demo Operator').isVisible(), 'selector heading renders');
-  const buttons = page.getByRole('button', { name: 'Select Casino Demo' });
-  assert((await buttons.count()) === 6, 'six "Select Casino Demo" buttons');
-  assert(await page.getByRole('button', { name: /Select Regulator Demo/i }).isVisible(), 'regulator demo entry');
+  const buttons = page.getByRole('button', { name: 'Enter Casino Demo' });
+  assert((await buttons.count()) === 6, 'six "Enter Casino Demo" buttons');
+  assert(await page.getByRole('button', { name: /Enter Regulator Demo/i }).isVisible(), 'regulator demo entry');
   assert((await page.getByText('Synthetic Demo').count()) >= 6, 'synthetic-demo labels present');
   assert(await page.getByText(/Non-Production|Synthetic Data/i).first().isVisible(), 'non-production banner');
 
@@ -41,12 +41,12 @@ try {
     assert(await page.getByText(casino, { exact: false }).first().isVisible(), `card present: ${casino}`);
   }
 
-  // Selecting the first card pre-fills ONLY the email; password stays empty.
-  await buttons.first().click();
-  const emailVal = await page.locator('#email').inputValue();
+  // The password field is never populated by the selector (one-click server login).
   const pwVal = await page.locator('#password').inputValue();
-  assert(emailVal === EXPECTED[0][1], `card fills email (${emailVal})`);
-  assert(pwVal === '', 'password field remains EMPTY after selecting a card');
+  assert(pwVal === '', 'password field is EMPTY (never populated by the selector)');
+  // No demo password appears anywhere in the page HTML.
+  const html = await page.content();
+  assert(!/DEMO_[A-Z]+_PASSWORD|Casino@Demo1|Regulator@Demo1/.test(html), 'no demo password in page HTML');
 
   await page.screenshot({ path: path.join(OUT, 'login-six-casino-cards.png'), fullPage: true });
   console.log(`\nLOGIN SELECTOR CHECK: PASS  (screenshot: ${path.join(OUT, 'login-six-casino-cards.png')})`);

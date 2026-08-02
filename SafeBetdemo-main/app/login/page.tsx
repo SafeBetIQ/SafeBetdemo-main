@@ -31,15 +31,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Demo selector pre-fills ONLY the email; the password field stays empty and
-  // must be entered manually. The casino/role/tenant is resolved server-side
-  // from the verified identity after authentication — never from this selection.
-  const fillEmailOnly = (e: string) => {
-    setEmail(e);
-    setPassword('');
-    setError('');
-  };
-
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setError('');
@@ -275,8 +266,8 @@ export default function LoginPage() {
             <span className="text-[11px] text-white/25">256-bit TLS encryption · All access audited</span>
           </div>
 
-          {/* Six-casino demo selector (email-only pre-fill; demo environment only) */}
-          <DemoOperatorSelector onSelectEmail={fillEmailOnly} />
+          {/* Six-casino demo selector (secure one-click server-side login; demo only) */}
+          <DemoOperatorSelector />
 
           <p className="text-center text-[11px] text-white/20 mt-6">
             &copy; {new Date().getFullYear()} SafeBet IQ &middot; Powered by AI-driven responsible gaming technology
