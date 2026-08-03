@@ -118,6 +118,20 @@ export async function POST(req: Request) {
   // 8) Audit success on the correct tamper-evident chain.
   await writeAudit(slug, cfg, data.user.id, true, correlationId);
 
+  // 8b) Activate a Demo showcase window (fast state insert only — the background
+  //     pg_cron simulator detects it and boosts activity; NO event batch here, so
+  //     login latency stays low). Casino → its tenant; regulator → jurisdiction ZA.
+  try {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const scope = cfg.casino ? `casino:${cfg.casino}` : 'jurisdiction:ZA';
+      const minutes = cfg.casino ? 30 : 45;
+      await admin.rpc('sbiq_demo_activate_showcase', {
+        p_scope: scope, p_casino: cfg.casino ?? null, p_profile: 'showcase',
+        p_minutes: minutes, p_account: data.user.id, p_correlation: correlationId,
+      });
+    }
+  } catch { /* never let showcase activation affect login */ }
+
   // 9) Return ONLY a success + fixed server-controlled redirect + the session the
   //    localStorage Supabase client needs. No password. No service key. No profile dump.
   const s = data.session;
