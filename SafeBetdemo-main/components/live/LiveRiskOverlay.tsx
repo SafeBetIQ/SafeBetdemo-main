@@ -143,7 +143,7 @@ export function LiveRiskOverlay() {
       </div>
 
       <div className="px-4 py-2 border-t border-border bg-muted/20 text-xs text-muted-foreground flex justify-between">
-        <span>Monitoring {kpi.active_players} active players</span>
+        <span>Monitoring {kpi.active_players} observed players</span>
         <span>{alerts.length} flagged</span>
       </div>
     </div>

@@ -34,7 +34,10 @@ const n = (v: unknown): Num => (typeof v === 'number' ? v : Number(v ?? 0)) || 0
 
 interface OperatorRollup {
   casino_id: string; casino_name: string; province: string | null;
-  active_players: Num; active_sessions: Num; active_machines: Num;
+  active_players: Num;                 // observed
+  players_active_now?: Num;            // certified freshness-based active-now
+  players_idle?: Num; players_stale?: Num;
+  active_sessions: Num; active_machines: Num;
   risk_critical: Num; risk_high: Num; risk_medium: Num; risk_low: Num;
   total_wagered: Num; ggr: Num; players_monitored: Num; interventions: Num;
   last_event_at: string | null;
@@ -45,12 +48,13 @@ interface OperatorRollup {
 export interface NationalOverviewView {
   jurisdiction: string;
   operators: Num;
-  activePlayers: Num;                 // recorded fact (projected)
+  activePlayers: Num;                 // ACTIVE NOW — certified freshness-based (sum of casino active_now)
+  observedPlayers: Num;              // OBSERVED — sum of each casino's observed players
   riskTiers: { critical: Num; high: Num; medium: Num; low: Num };
   playersMonitored: Num;              // compliance-view membership (projected)
   interventions: Num;                 // recorded interventions
   ggr: Num;
-  operatorHealth: { casinoId: string; name: string; activePlayers: Num; riskCritical: Num; monitored: Num; lastEventAt: string | null }[];
+  operatorHealth: { casinoId: string; name: string; activeNow: Num; observed: Num; activePlayers: Num; riskCritical: Num; monitored: Num; lastEventAt: string | null }[];
   emergingRisks: { code: string; detail: string }[];   // derived from projected tiers
   evidence: Record<string, EvidenceClass>;
   generatedAt: string;
@@ -67,18 +71,23 @@ export function shapeNationalOverview(national: Record<string, unknown>): Nation
   return {
     jurisdiction: String(national.jurisdiction ?? ''),
     operators: n(national.operators),
-    activePlayers: n(national.active_players),
+    // ACTIVE NOW is the certified freshness-based sum; OBSERVED is shown separately.
+    activePlayers: n(national.players_active_now),
+    observedPlayers: n(national.observed_players ?? national.active_players),
     riskTiers: { critical, high: n(national.risk_high), medium: n(national.risk_medium), low: n(national.risk_low) },
     playersMonitored: monitored,
     interventions: n(national.interventions),
     ggr: n(national.ggr),
     operatorHealth: ops.map(o => ({
-      casinoId: o.casino_id, name: o.casino_name, activePlayers: n(o.active_players),
+      casinoId: o.casino_id, name: o.casino_name,
+      activeNow: n(o.players_active_now),
+      observed: n(o.active_players),
+      activePlayers: n(o.active_players),   // back-compat alias (= observed) for other regulator/admin views
       riskCritical: n(o.risk_critical), monitored: n(o.players_monitored), lastEventAt: o.last_event_at,
     })),
     emergingRisks,
     evidence: {
-      activePlayers: 'recorded-fact', riskTiers: 'recorded-fact', playersMonitored: 'recorded-fact',
+      activePlayers: 'recorded-fact', observedPlayers: 'recorded-fact', riskTiers: 'recorded-fact', playersMonitored: 'recorded-fact',
       interventions: 'recorded-fact', ggr: 'recorded-fact', emergingRisks: 'derived-intelligence',
     },
     generatedAt: new Date().toISOString(),

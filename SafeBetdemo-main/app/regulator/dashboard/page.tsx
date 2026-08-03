@@ -46,9 +46,11 @@ export default function NationalIntelligencePage() {
 
         {!loading && !nat && <Card><CardContent className="pt-6 text-sm text-muted-foreground">Unable to load — verify your regulator access.</CardContent></Card>}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.operators)}</div><div className="text-xs uppercase text-muted-foreground">Operators</div></div>
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div></div>
+          {/* Active now = certified freshness-based sum of each casino's active-now (NOT observed). */}
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active now</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.observedPlayers)}</div><div className="text-xs uppercase text-muted-foreground">Observed</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">activity projection</div></div>
           <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.playersMonitored)}</div><div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
           <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.interventions)}</div><div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
         </div>
@@ -69,7 +71,7 @@ export default function NationalIntelligencePage() {
               {health.map((o, i) => (
                 <div key={i} className="flex items-center justify-between text-sm border-b py-1 last:border-0">
                   <span className="font-medium">{String(o.name)}</span>
-                  <span className="flex items-center gap-3 text-muted-foreground"><span>{n(o.activePlayers)} players</span><Badge variant={n(o.riskCritical) > 0 ? 'destructive' : 'secondary'}>{n(o.riskCritical)} critical</Badge></span>
+                  <span className="flex items-center gap-3 text-muted-foreground"><span>{n(o.activeNow)} active · {n(o.observed)} observed</span><Badge variant={n(o.riskCritical) > 0 ? 'destructive' : 'secondary'}>{n(o.riskCritical)} critical</Badge></span>
                 </div>
               ))}
             </CardContent>

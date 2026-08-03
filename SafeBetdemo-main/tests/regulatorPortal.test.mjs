@@ -19,17 +19,17 @@ const P2 = 'SB-PLR-AAAA1111BBBB2222CCCC3333';
 function nationalRollup() {
   return {
     jurisdiction: 'ZA', operators: 2,
-    active_players: 40, active_sessions: 30, active_machines: 28,
+    active_players: 40, observed_players: 40, players_active_now: 6, active_sessions: 30, active_machines: 28,
     risk_critical: 2, risk_high: 5, risk_medium: 12, risk_low: 21,
     total_wagered: 500000, ggr: 90000, players_monitored: 7, interventions: 4,
     last_event_at: '2026-07-14T12:00:00Z',
     operators_detail: [
       { casino_id: 'a1b2c3d4-0000-0000-0000-000000000001', casino_name: 'Prestige Casino', province: 'Gauteng',
-        active_players: 25, active_sessions: 18, active_machines: 16,
+        active_players: 25, players_active_now: 4, active_sessions: 18, active_machines: 16,
         risk_critical: 2, risk_high: 3, risk_medium: 8, risk_low: 12,
         total_wagered: 300000, ggr: 55000, players_monitored: 5, interventions: 3, last_event_at: '2026-07-14T12:00:00Z' },
       { casino_id: 'cc000003-0000-0000-0000-000000000003', casino_name: 'Royal Palace', province: 'KwaZulu-Natal',
-        active_players: 15, active_sessions: 12, active_machines: 12,
+        active_players: 15, players_active_now: 2, active_sessions: 12, active_machines: 12,
         risk_critical: 0, risk_high: 2, risk_medium: 4, risk_low: 9,
         total_wagered: 200000, ggr: 35000, players_monitored: 2, interventions: 1, last_event_at: '2026-07-14T11:00:00Z' },
     ],
@@ -41,7 +41,8 @@ function nationalRollup() {
 test('national overview aggregates projected facts and classifies evidence', () => {
   const v = shapeNationalOverview(nationalRollup());
   assert.equal(v.operators, 2);
-  assert.equal(v.activePlayers, 40);
+  assert.equal(v.activePlayers, 6);      // ACTIVE NOW (freshness) = sum of per-casino active-now
+  assert.equal(v.observedPlayers, 40);   // OBSERVED = sum of per-casino observed
   assert.deepEqual(v.riskTiers, { critical: 2, high: 5, medium: 12, low: 21 });
   assert.equal(v.playersMonitored, 7);
   assert.equal(v.interventions, 4);
