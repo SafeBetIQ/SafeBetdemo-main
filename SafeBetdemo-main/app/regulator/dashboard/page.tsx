@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { rpGet } from '@/lib/consumerClient';
+import { SnapshotAge } from '@/components/SnapshotAge';
 import { LayoutDashboard, RefreshCw, Building2, AlertTriangle, Network, Scale } from 'lucide-react';
 
 type Rec = Record<string, unknown>;
@@ -32,6 +33,10 @@ export default function NationalIntelligencePage() {
   const tiers = (nat?.riskTiers ?? { critical: 0, high: 0, medium: 0, low: 0 }) as Rec;
   const health = (nat?.operatorHealth ?? []) as Rec[];
   const emerging = (nat?.emergingRisks ?? []) as Rec[];
+  // Certified snapshot = most recent certified event across operators (never browser time).
+  const snapshotAt = health
+    .map((o) => (o.lastEventAt ? new Date(String(o.lastEventAt)).getTime() : 0))
+    .reduce((a, b) => Math.max(a, b), 0);
 
   return (
     <DashboardLayout>
@@ -41,7 +46,10 @@ export default function NationalIntelligencePage() {
             <h1 className="text-2xl font-bold flex items-center gap-2"><LayoutDashboard className="h-6 w-6" /> National Intelligence</h1>
             <p className="text-muted-foreground">Jurisdiction-wide posture from the certified Regulator Portal — anonymous, evidence-classified.</p>
           </div>
-          <Button variant="outline" onClick={refresh} disabled={loading}><RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button variant="outline" onClick={refresh} disabled={loading}><RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
+            {snapshotAt > 0 && <SnapshotAge asOf={snapshotAt} />}
+          </div>
         </div>
 
         {!loading && !nat && <Card><CardContent className="pt-6 text-sm text-muted-foreground">Unable to load — verify your regulator access.</CardContent></Card>}

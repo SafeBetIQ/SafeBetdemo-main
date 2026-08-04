@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
+import { DemoSimulationHealth } from '@/components/admin/DemoSimulationHealth';
 
 interface PlatformStats {
   totalCasinos: number;
@@ -465,6 +466,9 @@ export default function SuperAdminDashboard() {
 
               {/* PLATFORM HEALTH TAB */}
               <TabsContent value="platform-health" className="mt-0 space-y-5">
+                {/* Demo simulator operations (super-admin only; renders nothing outside demo) */}
+                <DemoSimulationHealth />
+
                 {/* System status bar — no fabricated uptime; the flow is operational because it is serving certified data */}
                 <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/50 border border-emerald-200">
                   <div className="flex items-center gap-3">

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrendingUp, Users, Zap, Activity, Shield, DollarSign } from 'lucide-react';
 import { useCasinoData } from '@/contexts/CasinoDataContext';
+import { SnapshotAge } from '@/components/SnapshotAge';
 
 function AnimatedNumber({ value, prefix = '', decimals = 0 }: { value: number; prefix?: string; decimals?: number }) {
   const [displayed, setDisplayed] = useState(value);
@@ -96,12 +97,11 @@ export function LiveKPIStrip() {
   const winRate = kpi.total_wagered > 0 ? (kpi.total_won / kpi.total_wagered) * 100 : 0;
   const ggr = kpi.total_wagered - kpi.total_won;
 
-  const asOf = kpi.snapshot_at ? new Date(kpi.snapshot_at) : null;
-
   return (
     <div className="space-y-2">
-    <div className="flex items-center justify-end text-[11px] text-muted-foreground/70">
-      Certified snapshot{asOf ? ` · as of ${asOf.toLocaleTimeString()}` : ''} · active-now uses the freshness window
+    <div className="flex items-center justify-end gap-2 text-[11px] text-muted-foreground/70">
+      <SnapshotAge asOf={kpi.snapshot_at} />
+      <span className="hidden lg:inline">· active-now uses the freshness window</span>
     </div>
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       {/* Certified freshness-based active-now (NOT observed). observed = active_now + idle + stale. */}

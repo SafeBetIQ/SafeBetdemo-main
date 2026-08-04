@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
+import { SnapshotAge } from '@/components/SnapshotAge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -108,7 +109,6 @@ export default function OperatorDashboardPage() {
   // Read-only reconciliation of the projected KPI (never recomputed here).
   const recon = reconcileOperatorKpi(kpi);
   const available = !loadFailed && kpi != null;
-  const snapshotAt = kpi?.snapshot_at ? new Date(kpi.snapshot_at).toLocaleString('en-ZA') : null;
 
   // Risk posture: the five bands that must reconcile to active players.
   const RISK_BANDS: [string, keyof LiveKpiView, string, string][] = [
@@ -377,7 +377,7 @@ export default function OperatorDashboardPage() {
           {/* ── Data provenance & freshness ────────────────────────────────── */}
           <div className="text-[11px] text-muted-foreground/70 border-t pt-3 flex flex-wrap gap-x-4 gap-y-1">
             <span>Source: certified Consumer Platform (live-floor · summary)</span>
-            <span>Snapshot: {snapshotAt ?? '—'}</span>
+            <span className="inline-flex items-center gap-1">Snapshot: <SnapshotAge asOf={kpi?.snapshot_at} /></span>
             <span>Scope: {casinoId ? `casino ${String(casinoId).slice(0, 8)}…` : '—'}</span>
             <span>Status: {loadFailed ? 'Unavailable' : recon.ok ? 'Healthy' : 'Degraded (reconciliation)'}</span>
           </div>
