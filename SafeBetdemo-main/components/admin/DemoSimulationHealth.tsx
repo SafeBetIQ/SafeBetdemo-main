@@ -78,6 +78,10 @@ export function DemoSimulationHealth() {
   const missing = (rd.missing ?? []) as string[];
   const insecure = (rd.insecure ?? []) as string[];
   const partitionsOk = rd.ok !== false && missing.length === 0 && insecure.length === 0;
+  const fmtTime = (v: unknown) => v ? new Date(String(v)).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+  // Next expected tick = last successful tick + the 5-minute cron interval.
+  const nextTick = o['last_successful_tick'] ? new Date(new Date(String(o['last_successful_tick'])).getTime() + 5 * 60_000) : null;
+  const estMonthly = N(u['est_daily_events']) * 30;
 
   return (
     <div className="space-y-4">
@@ -94,8 +98,8 @@ export function DemoSimulationHealth() {
         <Tile label="Simulator" value={data.emergency.simulator_enabled ? 'Enabled' : 'Disabled'}
           sub={`Showcase ${data.emergency.showcase_enabled ? 'on' : 'off'} · cron ${o['cron_active'] ? 'active' : 'inactive'}`}
           urgent={!data.emergency.simulator_enabled} />
-        <Tile label="Last successful tick" value={o['last_successful_tick'] ? new Date(String(o['last_successful_tick'])).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
-          sub={o['tick_late'] ? 'LATE' : 'on schedule'} urgent={!!o['tick_late']} />
+        <Tile label="Last successful tick" value={fmtTime(o['last_successful_tick'])}
+          sub={`Next expected ~${nextTick ? fmtTime(nextTick.toISOString()) : '—'} · ${o['tick_late'] ? 'LATE' : 'on schedule'}`} urgent={!!o['tick_late']} />
         <Tile label="Events today" value={N(o['events_today']).toLocaleString()}
           sub={`${dayPct}% of hard limit (${N(o['day_hardstop_limit']).toLocaleString()})`} urgent={dayPct >= 100} warn={dayPct >= 62.5} />
         <Tile label="Active showcase windows" value={String(o['active_windows'] ?? 0)}
@@ -109,7 +113,10 @@ export function DemoSimulationHealth() {
             <Row k="Last 15 min" v={N(u['events_15m']).toLocaleString()} />
             <Row k="Last hour" v={N(u['events_1h']).toLocaleString()} />
             <Row k="Est. daily" v={N(u['est_daily_events']).toLocaleString()} />
+            <Row k="Est. monthly" v={estMonthly.toLocaleString()} />
             <Row k="This month" v={N(u['events_month']).toLocaleString()} />
+            <Row k="Daily warning" v={N(u['day_warning_limit']).toLocaleString()} warn={N(o['events_today']) >= N(u['day_warning_limit'])} />
+            <Row k="Daily hard limit" v={N(u['day_hardstop_limit']).toLocaleString()} bad={N(o['events_today']) >= N(u['day_hardstop_limit'])} />
             <Row k="Failures 24h" v={String(u['failures_24h'] ?? 0)} bad={N(u['failures_24h']) > 0} />
           </CardContent></Card>
         <Card><CardHeader className="pb-1"><CardTitle className="text-xs flex items-center gap-1.5"><HardDrive className="h-3.5 w-3.5" />Storage</CardTitle></CardHeader>
