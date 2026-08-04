@@ -14,14 +14,47 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 
 | Field | Value |
 |---|---|
-| Runtime source commit | recorded by `/api/version` (git HEAD of this release on branch `Demo`) |
+| **Runtime application commit** | **`8b28c54`** — reported by `/api/version` (`gitCommit`) |
+| Prior runtime commit | `27df8fd` (governance milestone; superseded during positive-path verification — see below) |
+| Validation & Playwright-only commits | `8721f70` (governance check), `8377963` (super-admin positive-path check) |
 | Branch | `Demo` |
 | Elastic Beanstalk application | `safebet-iq-app` (eu-west-1) |
 | Elastic Beanstalk environment | `safebet-iq-demo` |
-| EB application version | `demo-node20-20260803-<sha>` (see completion report / EB console) |
-| Node version (build) | `20.x` (Linux, `aws/codebuild/standard:7.0`) |
+| **EB application version (current)** | `demo-node20-202608041808-8b28c54` — Ready/Green |
+| Prior EB version | `demo-node20-202608041535-27df8fd` |
+| Node version (build) | `20.20.0` (Linux, `aws/codebuild/standard:7.0`) |
 | Demo Supabase project | `uexdjngogzunjxkpxwll` (demo; **not** production `ilibvipqbkugqkppzdmh`) |
 | Rollback version (retain) | `demo-node20-20260803-d57e82c` |
+
+> **Runtime-commit note:** the governance milestone shipped as `27df8fd`. The Super Admin
+> positive-path verification found three required Demo Simulation Health fields not
+> rendering (next expected tick, daily **warning** limit, estimated monthly events); per
+> the milestone's own "redeploy only for a genuine runtime defect" rule, these were added
+> (commit `8b28c54`, component-only — no API/DB change) and redeployed. `/api/version` now
+> reports `8b28c54`. All other runtime behaviour, migrations, crons and certified
+> semantics are unchanged from `27df8fd`.
+
+## Super Admin positive-path verification (2026-08-04)
+
+- **Account:** `demo.admin@safebetiq.com` — demo-only, `super_admin`, no casino/jurisdiction
+  scope, not banned, **not** in the quick-login allowlist, no public Super Admin card on `/login`.
+  Password reset to a strong random value stored **only** in git-ignored
+  `deploy/e2e/.env.demo-walkthrough` (never printed, committed, logged or screenshotted).
+- **Manual login** (email+password form, no quick-login, no auto-login) → `/admin`.
+- **Rendered:** Platform Health → Demo Simulation Health panel with overall status, simulator
+  + showcase enabled state, last successful + next expected tick, daily events, daily warning
+  + hard limits, estimated monthly events, storage, partition readiness, projection lag,
+  active showcase windows, open alerts, emergency-disable state, six-casino table; Audit Centre.
+- **API authorization:** super_admin **200**, operator **403**, regulator **403**, anonymous **401**;
+  no credentials/tokens/service-role key in the page or the response.
+- **Value parity:** panel figures match `/api/admin/simulation-health` and DB (events_today,
+  overall_health verified equal).
+- **Screenshots (safe, no secrets):** `deploy/e2e/screenshots/admin-platform-health.png`,
+  `admin-sim-health-panel.png`, `admin-sim-six-casino.png`, `admin-sim-alerts-partitions.png`,
+  `admin-audit-centre.png`.
+- **Post-walkthrough integrity:** five reconciliations Green; seven audit chains verified;
+  regulator active-now = Σ, observed = Σ; **0 open alerts**; simulator enabled; overall health
+  Healthy; EB Ready/Green; `/api/health` 200. Production + marketing untouched (200, unchanged).
 
 ## Simulator (unchanged core + governance)
 
