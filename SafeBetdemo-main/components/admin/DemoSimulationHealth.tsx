@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Activity, TriangleAlert as AlertTriangle, HardDrive, Layers, Clock, RefreshCw } from 'lucide-react';
 import { supabase, readAccessTokenFast } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
 import { SnapshotAge } from '@/components/SnapshotAge';
 import { slowMessage, showRetryAt, shouldPoll } from '@/lib/demoSimHealthClient';
 
@@ -43,21 +42,9 @@ function classBadge(state: string) {
 
 const POLL_MS = 30000;
 
-// Lock-free token read (no getSession() auth-lock wait); fall back to getSession
-// only if nothing is persisted yet. The server always re-validates the token.
-async function getTokenFast(): Promise<string | null> {
-  const t = readAccessTokenFast();
-  if (t) return t;
-  try { const { data } = await supabase.auth.getSession(); return data.session?.access_token ?? null; }
-  catch { return null; }
-}
-
 export function DemoSimulationHealth() {
-  const { user, loading: authLoading } = useAuth();
-  const isSuperAdmin = (user as { role?: string } | null)?.role === 'super_admin';
-
   const [data, setData] = useState<Health | null>(null);
-  const [phase, setPhase] = useState<'verifying' | 'loading' | 'ready' | 'error' | 'unavailable'>('verifying');
+  const [phase, setPhase] = useState<'verifying' | 'loading' | 'ready' | 'error' | 'unavailable'>('loading');
   const [refreshing, setRefreshing] = useState(false);
   const [slow, setSlow] = useState(0);                 // 0 | 5 | 10 | 15 (seconds elapsed on first load)
   const [correlationId, setCorrelationId] = useState<string | null>(null);
@@ -76,13 +63,21 @@ export function DemoSimulationHealth() {
       setSlow(0);
       timers = [setTimeout(() => setSlow(5), 5000), setTimeout(() => setSlow(10), 10000), setTimeout(() => setSlow(15), 15000)];
     }
+    const endpoint = `/api/admin/simulation-health${opts?.fresh ? '?fresh=1' : ''}`;
+    const call = (t: string) => fetch(endpoint, { headers: { authorization: `Bearer ${t}` }, cache: 'no-store', signal: ac.signal });
     try {
-      const token = await getTokenFast();
-      if (!token) { if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); } return; }
-      const res = await fetch(`/api/admin/simulation-health${opts?.fresh ? '?fresh=1' : ''}`, {
-        headers: { authorization: `Bearer ${token}` }, cache: 'no-store', signal: ac.signal,
-      });
-      if (res.status === 404) { setPhase('unavailable'); return; }
+      // Lock-free token from the persisted session — do NOT wait on AuthContext or
+      // getSession() (both contend the auth-token lock ~10-20s on first paint).
+      let token = readAccessTokenFast();
+      let res = token ? await call(token) : null;
+      if (!res || res.status === 401) {
+        // Missing/stale token (rare): refresh via getSession once, then retry.
+        const { data: sess } = await supabase.auth.getSession();
+        token = sess.session?.access_token ?? null;
+        if (!token) { if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); } return; }
+        res = await call(token);
+      }
+      if (res.status === 404 || res.status === 403) { setPhase('unavailable'); return; } // not demo / not super-admin
       if (!res.ok) { if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); } return; }
       const json = (await res.json()) as Health;
       setData(json); setPhase('ready'); setCorrelationId(null); firstDone.current = true;
@@ -95,11 +90,10 @@ export function DemoSimulationHealth() {
     }
   }, []);
 
-  // Start as soon as AuthContext is verified + super_admin. Poll AFTER the first
-  // load, one timer only, paused when the tab is hidden, cancelled on unmount.
+  // Start IMMEDIATELY on mount (the required client state — a persisted token — is
+  // available synchronously). Poll AFTER the first load: one timer, paused when the
+  // tab is hidden, in-flight aborted, cancelled on unmount. The server enforces role.
   useEffect(() => {
-    if (authLoading) { setPhase('verifying'); return; }
-    if (!isSuperAdmin) return;                           // API also enforces this server-side
     load();
     const interval = setInterval(() => {
       if (shouldPoll(document.hidden, firstDone.current)) load({ isRefresh: true });
@@ -111,10 +105,9 @@ export function DemoSimulationHealth() {
       document.removeEventListener('visibilitychange', onVis);
       inflight.current?.abort();
     };
-  }, [authLoading, isSuperAdmin, load]);
+  }, [load]);
 
-  if (phase === 'unavailable') return null;              // not a demo env
-  if (!authLoading && user && !isSuperAdmin) return null; // defence-in-depth (API is the authority)
+  if (phase === 'unavailable') return null;              // not a demo env / not super-admin (API is the authority)
 
   // Structured skeleton + staged status while first load / verifying.
   if (!data && (phase === 'verifying' || phase === 'loading')) {
