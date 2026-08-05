@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { readTokenFromStore } from './demoSimHealthClient';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -11,6 +12,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
   },
 });
+
+// Read the current access token synchronously from the persisted session, WITHOUT
+// calling supabase.auth.getSession() — which acquires the auth-token navigator
+// lock and can block for many seconds on first load while AuthContext/token
+// refresh hold it. autoRefreshToken keeps the persisted token current; the server
+// still fully re-validates it, so this is a performance read only, not an auth
+// decision. Returns null if no session is stored.
+export function readAccessTokenFast(): string | null {
+  if (typeof window === 'undefined') return null;
+  return readTokenFromStore(window.localStorage);
+}
 
 export type UserRole =
   | 'super_admin'

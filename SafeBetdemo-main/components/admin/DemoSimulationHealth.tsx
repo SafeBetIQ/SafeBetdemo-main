@@ -6,13 +6,16 @@
 // readiness, showcase state, emergency-disable state, open alerts, and a
 // six-casino operational table. Read-only — no controls are exposed here.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Activity, TriangleAlert as AlertTriangle, HardDrive, Layers, Clock } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Activity, TriangleAlert as AlertTriangle, HardDrive, Layers, Clock, RefreshCw } from 'lucide-react';
+import { supabase, readAccessTokenFast } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { SnapshotAge } from '@/components/SnapshotAge';
+import { slowMessage, showRetryAt, shouldPoll } from '@/lib/demoSimHealthClient';
 
 type Health = {
   ok: boolean; as_of: string;
@@ -38,35 +41,98 @@ function classBadge(state: string) {
   return <Badge variant="outline" className={cls}>{state}</Badge>;
 }
 
-export function DemoSimulationHealth() {
-  const [data, setData] = useState<Health | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+const POLL_MS = 30000;
 
-  const load = useCallback(async () => {
+// Lock-free token read (no getSession() auth-lock wait); fall back to getSession
+// only if nothing is persisted yet. The server always re-validates the token.
+async function getTokenFast(): Promise<string | null> {
+  const t = readAccessTokenFast();
+  if (t) return t;
+  try { const { data } = await supabase.auth.getSession(); return data.session?.access_token ?? null; }
+  catch { return null; }
+}
+
+export function DemoSimulationHealth() {
+  const { user, loading: authLoading } = useAuth();
+  const isSuperAdmin = (user as { role?: string } | null)?.role === 'super_admin';
+
+  const [data, setData] = useState<Health | null>(null);
+  const [phase, setPhase] = useState<'verifying' | 'loading' | 'ready' | 'error' | 'unavailable'>('verifying');
+  const [refreshing, setRefreshing] = useState(false);
+  const [slow, setSlow] = useState(0);                 // 0 | 5 | 10 | 15 (seconds elapsed on first load)
+  const [correlationId, setCorrelationId] = useState<string | null>(null);
+  const inflight = useRef<AbortController | null>(null);
+  const firstDone = useRef(false);
+
+  const load = useCallback(async (opts?: { fresh?: boolean; isRefresh?: boolean }) => {
+    inflight.current?.abort();                           // never duplicate an in-flight request
+    const ac = new AbortController();
+    inflight.current = ac;
+    const cid = crypto.randomUUID();
+    if (opts?.isRefresh) setRefreshing(true);
+    else if (!firstDone.current) setPhase('loading');
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    if (!firstDone.current) {                            // staged slow-load messaging (first load only)
+      setSlow(0);
+      timers = [setTimeout(() => setSlow(5), 5000), setTimeout(() => setSlow(10), 10000), setTimeout(() => setSlow(15), 15000)];
+    }
     try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) { setErr('Not authenticated'); setLoading(false); return; }
-      const res = await fetch('/api/admin/simulation-health', {
-        headers: { authorization: `Bearer ${token}` }, cache: 'no-store',
+      const token = await getTokenFast();
+      if (!token) { if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); } return; }
+      const res = await fetch(`/api/admin/simulation-health${opts?.fresh ? '?fresh=1' : ''}`, {
+        headers: { authorization: `Bearer ${token}` }, cache: 'no-store', signal: ac.signal,
       });
-      if (res.status === 404) { setErr('unavailable'); setLoading(false); return; }
-      if (!res.ok) { setErr('Unable to load simulation health'); setLoading(false); return; }
-      setData(await res.json()); setErr(null);
-    } catch { setErr('Unable to load simulation health'); }
-    finally { setLoading(false); }
+      if (res.status === 404) { setPhase('unavailable'); return; }
+      if (!res.ok) { if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); } return; }
+      const json = (await res.json()) as Health;
+      setData(json); setPhase('ready'); setCorrelationId(null); firstDone.current = true;
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return;   // superseded — keep prior data
+      if (!firstDone.current) { setPhase('error'); setCorrelationId(cid); }
+    } finally {
+      timers.forEach(clearTimeout);
+      setRefreshing(false);
+    }
   }, []);
 
+  // Start as soon as AuthContext is verified + super_admin. Poll AFTER the first
+  // load, one timer only, paused when the tab is hidden, cancelled on unmount.
   useEffect(() => {
+    if (authLoading) { setPhase('verifying'); return; }
+    if (!isSuperAdmin) return;                           // API also enforces this server-side
     load();
-    const id = setInterval(load, 30000);
-    return () => clearInterval(id);
-  }, [load]);
+    const interval = setInterval(() => {
+      if (shouldPoll(document.hidden, firstDone.current)) load({ isRefresh: true });
+    }, POLL_MS);
+    const onVis = () => { if (!document.hidden && firstDone.current) load({ isRefresh: true }); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+      inflight.current?.abort();
+    };
+  }, [authLoading, isSuperAdmin, load]);
 
-  if (err === 'unavailable') return null; // not a demo env
-  if (loading && !data) return <Card><CardContent className="py-6 text-sm text-muted-foreground">Loading Demo simulation health…</CardContent></Card>;
-  if (err) return <Card><CardContent className="py-6 text-sm text-muted-foreground">{err}</CardContent></Card>;
+  if (phase === 'unavailable') return null;              // not a demo env
+  if (!authLoading && user && !isSuperAdmin) return null; // defence-in-depth (API is the authority)
+
+  // Structured skeleton + staged status while first load / verifying.
+  if (!data && (phase === 'verifying' || phase === 'loading')) {
+    return <HealthSkeleton message={slowMessage(phase, slow)} showRetry={showRetryAt(slow)} onRetry={() => load({ fresh: true })} />;
+  }
+  if (!data && phase === 'error') {
+    return (
+      <Card>
+        <CardContent className="py-6 space-y-3">
+          <p className="text-sm text-muted-foreground">Demo Simulation Health could not be loaded.</p>
+          {correlationId && <p className="text-[11px] text-muted-foreground/70">Reference: {correlationId}</p>}
+          <Button size="sm" variant="outline" onClick={() => load({ fresh: true })}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
   if (!data) return null;
 
   const o = data.overall ?? {};
@@ -90,7 +156,10 @@ export function DemoSimulationHealth() {
           <Activity className="h-4 w-4 text-primary" />
           Demo Simulation Health {classBadge(overall)}
         </h3>
-        <SnapshotAge asOf={data.as_of} staleAfterSeconds={90} />
+        <div className="flex items-center gap-2">
+          {refreshing && <RefreshCw className="h-3 w-3 text-muted-foreground/60 animate-spin" aria-label="Refreshing" />}
+          <SnapshotAge asOf={data.as_of} staleAfterSeconds={90} />
+        </div>
       </div>
 
       {/* Top status tiles */}
@@ -192,6 +261,39 @@ export function DemoSimulationHealth() {
             </Table>
           </div>
         </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Structured skeleton that mirrors the real panel layout (overall bar, four
+// tiles, four cards, six-casino table) with a staged status message.
+function HealthSkeleton({ message, showRetry, onRetry }: { message: string; showRetry?: boolean; onRetry?: () => void }) {
+  const blk = 'animate-pulse rounded bg-muted';
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Demo Simulation Health</span>
+          <span className="text-xs text-muted-foreground">· {message}</span>
+        </div>
+        {showRetry && <Button size="sm" variant="outline" onClick={onRetry}><RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry</Button>}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}><CardContent className="pt-3 pb-2 space-y-2"><div className={`${blk} h-3 w-20`} /><div className={`${blk} h-6 w-24`} /><div className={`${blk} h-2.5 w-28`} /></CardContent></Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        {['Event volume', 'Storage', 'Partition readiness', 'Integrity'].map((t) => (
+          <Card key={t}><CardHeader className="pb-1"><CardTitle className="text-xs">{t}</CardTitle></CardHeader>
+            <CardContent className="space-y-1.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className={`${blk} h-2.5 w-full`} />)}</CardContent></Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Per-casino simulation</CardTitle></CardHeader>
+        <CardContent className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className={`${blk} h-6 w-full`} />)}</CardContent>
       </Card>
     </div>
   );
