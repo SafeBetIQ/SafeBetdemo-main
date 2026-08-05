@@ -118,6 +118,7 @@ export default function SuperAdminDashboard() {
       totalPlayers: Number(p.active_now ?? s.totalPlayers),
       criticalPlayers: Number(r.critical ?? s.criticalPlayers),
       highRiskPlayers: Number(r.high ?? s.highRiskPlayers),
+      totalUsers: Number(p.platform_users ?? s.totalUsers),
       monitoredPlayers: workflow.monitored,
       pendingInterventions: workflow.monitored,
       totalInterventions: workflow.interventions,
@@ -206,7 +207,7 @@ export default function SuperAdminDashboard() {
                 {[
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
                   { id: 'casinos', label: `Casinos (${stats.totalCasinos})`, icon: Building2 },
-                  { id: 'users', label: usersLoaded ? `Users (${stats.totalUsers})` : 'Users', icon: Users },
+                  { id: 'users', label: stats.totalUsers > 0 ? `Users (${stats.totalUsers})` : 'Users', icon: Users },
                   { id: 'platform-health', label: 'Platform Health', icon: Activity },
                   { id: 'cross-operator', label: 'Cross-Operator Intelligence', icon: Network },
                 ].map(tab => {

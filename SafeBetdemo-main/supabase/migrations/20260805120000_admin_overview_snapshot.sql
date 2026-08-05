@@ -80,6 +80,7 @@ begin
     'status', case when chains_ok=chains_total and bool_and(active_players=players_active_now+players_idle+players_stale) then 'Healthy' else 'Attention' end,
     'casinos_monitored', count(*),
     'regulators', 1,
+    'platform_users', (select count(*) from public.users),
     'registered_players', coalesce(sum(registered),0),
     'observed_players', coalesce(sum(active_players),0),
     'active_now', coalesce(sum(players_active_now),0),

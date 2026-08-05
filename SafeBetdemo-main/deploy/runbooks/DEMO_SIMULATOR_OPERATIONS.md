@@ -134,3 +134,35 @@ The panel loads via `/api/admin/simulation-health` → one RPC `sbiq_demo_sim_he
   the browser means the session/role is wrong, not a health-data problem. The short
   (6s) server cache holds only non-secret health data and is returned only after a
   fresh per-request super-admin check.
+
+## Super Admin Overview troubleshooting
+The Overview loads via `/api/admin/overview` → one RPC `sbiq_admin_overview_snapshot(false)`
+(core) + a deferred `?section=financial` and a deferred `national-overview`.
+
+- **Overview stuck loading:** check the core RPC directly —
+  `select public.sbiq_admin_overview_snapshot(false);` should return in **< 2.5s**
+  (cold) / **< 1s** (warm/cached). The client reads the token lock-free and starts
+  immediately; a spinner beyond ~5s means the API, not the client.
+- **Consolidated API failure:** the hook keeps prior data and surfaces a retry with a
+  correlation reference; `?fresh=1` bypasses the 8s core / 20s financial cache. A
+  failed core request never logs the user out and never exposes stacks.
+- **Partial widget rendering:** critical KPIs come from the core snapshot; the GGR
+  (financial) and interventions/monitored/emerging (national-overview) load **deferred**
+  — a brief gap there is expected and does not block first paint.
+- **Cache bypass:** append `?fresh=1`. Core cache 8s, financial 20s; both hold only
+  non-secret metrics and are served only after a per-request super-admin check.
+- **Role-denial:** anonymous 401, operator/regulator 403, super_admin 200 — validated
+  every request. A browser 403 means the session isn't super-admin.
+- **Polling failure:** one 45s timer, paused when the tab is hidden; a failed refresh
+  keeps the last good snapshot visible with its certified age (subtle spinner only).
+- **Snapshot age not updating:** the age reflects the certified `as_of` in the payload;
+  if it stops advancing, the cache may be serving (≤8s) or polling is paused (hidden
+  tab). Force with the manual refresh button (`?fresh=1`).
+- **Overview metrics differ from Platform Health:** both read the same certified
+  projections but at **different snapshot instants** and different cache windows
+  (Overview core 8s, Sim Health 6s). Small differences are expected; compare the
+  certified snapshot-age on each. Registered ≠ active-now by design (observed =
+  active_now + idle + stale).
+- **Registered count looks stale:** `sbiq_admin_registered_counts` caches the static
+  demo population, refreshed only when older than 6h; force with
+  `select public.sbiq_admin_refresh_registered();`.
