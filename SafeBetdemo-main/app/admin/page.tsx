@@ -10,14 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Building2, Users, Activity, Shield, TriangleAlert as AlertTriangle, ShieldOff, TrendingUp, RefreshCw, Network, Brain, Globe, Server, Layers, ChartBar as BarChart3, Plus, CreditCard as Edit, Zap, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { rpGet } from '@/lib/consumerClient';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from 'recharts';
-import { toast } from 'sonner';
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
 import { DemoSimulationHealth } from '@/components/admin/DemoSimulationHealth';
+import { useAdminOverview } from '@/hooks/useAdminOverview';
 
 interface PlatformStats {
   totalCasinos: number;
@@ -46,7 +45,6 @@ const SEVERITY_COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981'];
 const PROVINCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899'];
 
 export default function SuperAdminDashboard() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<PlatformStats>({
     totalCasinos: 0, activeCasinos: 0, totalPlayers: 0, criticalPlayers: 0,
@@ -57,89 +55,86 @@ export default function SuperAdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [riskDistribution, setRiskDistribution] = useState<any[]>([]);
   const [provinceData, setProvinceData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [workflow, setWorkflow] = useState({ interventions: 0, monitored: 0, emerging: 0 });
 
-  const loadData = useCallback(async () => {
+  // ONE consolidated primary request for all critical Overview metrics
+  // (platform, players, risk, sessions, endpoints, governance, simulator, alerts,
+  // per-casino) — replaces the previous casinos/users/national-overview fan-out.
+  const ov = useAdminOverview();
+  const loading = !ov.data && ov.phase === 'loading';
+  const refreshing = ov.refreshing;
+
+  // Secondary workflow metrics (interventions / monitored / emerging) — DEFERRED,
+  // non-critical; from the certified Regulator Portal national-overview.
+  const loadWorkflow = useCallback(async () => {
     try {
-      // Casinos + users are the tenant/identity registry (administration plane).
-      // ALL runtime intelligence (players, risk, interventions) comes from the
-      // certified Regulator Portal national-overview — the SAME source as every
-      // other screen. No legacy players / interventions / exclusion reads.
-      const [casinosRes, usersRes] = await Promise.all([
-        supabase.from('casinos').select('id, name, province, license_number, is_active').order('name'),
-        supabase.from('users').select('id, email, full_name, role, casino_id, is_active').limit(100),
-      ]);
-      const national = (await rpGet('national-overview')) as Record<string, any> | null;
-
-      const casinoList = casinosRes.data || [];
-      const userList = usersRes.data || [];
-      setCasinos(casinoList);
-      setUsers(userList);
-
-      const tiers = (national?.riskTiers ?? { critical: 0, high: 0, medium: 0, low: 0 }) as Record<string, number>;
-      const totalPlayers = Number(national?.activePlayers ?? 0);
-      const critical = Number(tiers.critical ?? 0);
-      const highRisk = Number(tiers.high ?? 0);
-      const medium = Number(tiers.medium ?? 0);
-      const low = Number(tiers.low ?? 0);
-      const totalInterventions = Number(national?.interventions ?? 0);
-      const monitored = Number(national?.playersMonitored ?? 0);
-      const operatorHealth = (national?.operatorHealth ?? []) as Array<Record<string, any>>;
-
-      setRiskDistribution([
-        { name: 'Critical (80-100)', value: critical, fill: '#ef4444' },
-        { name: 'High (60-79)', value: highRisk, fill: '#f97316' },
-        { name: 'Medium (40-59)', value: medium, fill: '#eab308' },
-        { name: 'Low (0-39)', value: Math.max(low, 0), fill: '#10b981' },
-      ]);
-
-      const healthById = new Map(operatorHealth.map(o => [o.casinoId, o]));
-      const byProvince = casinoList.reduce((acc: Record<string, { casinos: number; players: number; critical: number }>, c) => {
-        const prov = c.province || 'Unknown';
-        if (!acc[prov]) acc[prov] = { casinos: 0, players: 0, critical: 0 };
-        acc[prov].casinos++;
-        const h = healthById.get(c.id);
-        acc[prov].players += Number(h?.activePlayers ?? 0);
-        acc[prov].critical += Number(h?.riskCritical ?? 0);
-        return acc;
-      }, {});
-
-      setProvinceData(
-        Object.entries(byProvince)
-          .map(([province, d]) => ({ province: province.replace(' Province', ''), ...d }))
-          .sort((a, b) => b.players - a.players)
-      );
-
-
-      setStats({
-        totalCasinos: casinoList.length,
-        activeCasinos: casinoList.filter(c => c.is_active).length,
-        totalPlayers,
-        criticalPlayers: critical,
-        totalInterventions,
-        pendingInterventions: monitored,
-        highRiskPlayers: highRisk,
-        monitoredPlayers: monitored,
-        totalUsers: userList.length,
-        emergingRisks: ((national?.emergingRisks ?? []) as unknown[]).length,
+      const n = (await rpGet('national-overview')) as Record<string, any> | null;
+      if (n) setWorkflow({
+        interventions: Number(n.interventions ?? 0),
+        monitored: Number(n.playersMonitored ?? 0),
+        emerging: ((n.emergingRisks ?? []) as unknown[]).length,
       });
-    } catch {
-      toast.error('Failed to load platform data');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch { /* secondary metric — ignore */ }
   }, []);
+  useEffect(() => { loadWorkflow(); }, [loadWorkflow]);
 
+  // Derive Overview view-models from the consolidated snapshot (critical first paint).
   useEffect(() => {
-    if (user) loadData();
-  }, [user, loadData]);
+    const d = ov.data;
+    if (!d) return;
+    const r = d.risk as Record<string, number>;
+    const cs = d.casinos as Array<Record<string, any>>;
+    setCasinos(cs.map((c) => ({
+      id: String(c.casino_id), name: String(c.casino_name), province: String(c.province ?? ''),
+      license_number: String(c.license_number ?? ''), is_active: !!c.is_active,
+      player_count: Number(c.observed_players ?? 0), high_risk: 0,
+    })));
+    setRiskDistribution([
+      { name: 'Critical (80-100)', value: Number(r.critical ?? 0), fill: '#ef4444' },
+      { name: 'High (60-79)', value: Number(r.high ?? 0), fill: '#f97316' },
+      { name: 'Medium (40-59)', value: Number(r.medium ?? 0), fill: '#eab308' },
+      { name: 'Low (0-39)', value: Math.max(Number(r.low ?? 0), 0), fill: '#10b981' },
+    ]);
+    const byProvince = cs.reduce((acc: Record<string, { casinos: number; players: number; critical: number }>, c) => {
+      const prov = String(c.province || 'Unknown');
+      if (!acc[prov]) acc[prov] = { casinos: 0, players: 0, critical: 0 };
+      acc[prov].casinos++; acc[prov].players += Number(c.active_now ?? 0);
+      return acc;
+    }, {});
+    setProvinceData(Object.entries(byProvince)
+      .map(([province, dd]) => ({ province: province.replace(' Province', ''), ...dd }))
+      .sort((a, b) => b.players - a.players));
+  }, [ov.data]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-  };
+  // Merge snapshot + deferred workflow metrics into the KPI stat block.
+  useEffect(() => {
+    const p = (ov.data?.platform ?? {}) as Record<string, number>;
+    const r = (ov.data?.risk ?? {}) as Record<string, number>;
+    setStats((s) => ({
+      ...s,
+      totalCasinos: Number(p.casinos_monitored ?? s.totalCasinos),
+      activeCasinos: (ov.data?.casinos ?? []).filter((c: Record<string, unknown>) => c.is_active).length || s.activeCasinos,
+      totalPlayers: Number(p.active_now ?? s.totalPlayers),
+      criticalPlayers: Number(r.critical ?? s.criticalPlayers),
+      highRiskPlayers: Number(r.high ?? s.highRiskPlayers),
+      monitoredPlayers: workflow.monitored,
+      pendingInterventions: workflow.monitored,
+      totalInterventions: workflow.interventions,
+      emergingRisks: workflow.emerging,
+    }));
+  }, [ov.data, workflow]);
+
+  // Users list is DEFERRED — loaded only when the Users tab is opened (never on
+  // Overview first paint), so it is not part of the initial Overview fan-out.
+  useEffect(() => {
+    if (activeTab !== 'users' || usersLoaded) return;
+    setUsersLoaded(true);
+    supabase.from('users').select('id, email, full_name, role, casino_id, is_active').limit(100)
+      .then(({ data }) => { const list = data ?? []; setUsers(list); setStats((s) => ({ ...s, totalUsers: list.length })); });
+  }, [activeTab, usersLoaded]);
+
+  const handleRefresh = () => { ov.refresh(); loadWorkflow(); };
 
   const KPI = ({ icon: Icon, label, value, sub, urgent }: {
     icon: React.ElementType; label: string; value: string | number;
@@ -211,7 +206,7 @@ export default function SuperAdminDashboard() {
                 {[
                   { id: 'overview', label: 'Overview', icon: BarChart3 },
                   { id: 'casinos', label: `Casinos (${stats.totalCasinos})`, icon: Building2 },
-                  { id: 'users', label: `Users (${stats.totalUsers})`, icon: Users },
+                  { id: 'users', label: usersLoaded ? `Users (${stats.totalUsers})` : 'Users', icon: Users },
                   { id: 'platform-health', label: 'Platform Health', icon: Activity },
                   { id: 'cross-operator', label: 'Cross-Operator Intelligence', icon: Network },
                 ].map(tab => {
