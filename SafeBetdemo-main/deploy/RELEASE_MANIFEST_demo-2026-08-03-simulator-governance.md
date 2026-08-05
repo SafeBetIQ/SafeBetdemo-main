@@ -14,9 +14,9 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 
 | Field | Value |
 |---|---|
-| **Runtime application commit** | **`8b28c54`** — reported by `/api/version` (`gitCommit`) |
-| Prior runtime commit | `27df8fd` (governance milestone; superseded during positive-path verification — see below) |
-| Validation & Playwright-only commits | `8721f70` (governance check), `8377963` (super-admin positive-path check) |
+| **Runtime application commit** | **`9d7f9cd`** — reported by `/api/version` (`gitCommit`); see *Platform Health load optimisation* below |
+| Prior runtime commits | `8b28c54` (Sim Health fields), `27df8fd` (governance milestone) |
+| Validation & Playwright-only commits | `8721f70`, `8377963`, `c3f0430` (perf + runbook) |
 | Branch | `Demo` |
 | Elastic Beanstalk application | `safebet-iq-app` (eu-west-1) |
 | Elastic Beanstalk environment | `safebet-iq-demo` |
@@ -33,6 +33,55 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 > (commit `8b28c54`, component-only — no API/DB change) and redeployed. `/api/version` now
 > reports `8b28c54`. All other runtime behaviour, migrations, crons and certified
 > semantics are unchanged from `27df8fd`.
+
+## Platform Health load optimisation (2026-08-05)
+
+**Previous runtime commit:** `8b28c54` · **Optimised runtime commit:** `9d7f9cd`
+(intermediate `1067606` = RPC/index/cache + client; `9d7f9cd` = AuthContext decoupling)
+**EB version:** `demo-node20-202608051350-9d7f9cd` (Ready/Green, `/api/version` = 9d7f9cd).
+**Rollback:** `demo-node20-202608041808-8b28c54`.
+
+**Root cause (measured):** `/api/admin/simulation-health` took **~9–14s** because
+`sbiq_demo_sim_health_overall` re-evaluated `projection_casino_state` (~1.7s over
+101,982 rows) 3–4×, `sbiq_demo_storage_status` (~735ms full-table scan) 2×, plus
+unbounded per-casino `max(occurred_at)` scans and 6 un-indexed producer counts. The
+client added the rest: the panel called `supabase.auth.getSession()` (and, after the
+first fix, waited on AuthContext's `getCurrentUser()→getUser()`), both contending the
+`sb-<ref>-auth-token` navigator lock on first paint.
+
+**Fixes:**
+- **DB:** new `sbiq_demo_sim_health_snapshot()` RPC — reads the active-cohort freshness
+  **once** (~10k active rows via `sbiq_session_policy`, verified exact parity with
+  `projection_casino_state`) and the event log **once** (single month-bounded grouped
+  scan); storage from the catalog + run-log daily estimate. Indexes
+  `casino_event_log(producer,occurred_at)` and `projection_player_state(casino_id,status,last_event_at)`.
+  Migration `20260804120000_demo_sim_health_snapshot_fast`. **~10s → ~0.5s.**
+- **API:** one RPC call (was 7 re-scanning view reads) + short **6s private in-memory
+  cache** of non-secret health data (`?fresh=1` bypass). Per-request super_admin
+  validation unchanged (never cached).
+- **Client:** lock-free `readAccessTokenFast()`; fetch starts **immediately on mount**
+  (no AuthContext/getSession dependency); structured skeleton + staged messages;
+  5/10/15s timeout stages with retry + correlation id; single polling timer that starts
+  after first load, pauses on hidden tab, aborts in-flight, keeps prior data on refresh.
+
+**Measured result (Playwright, 5 runs, real-user click):**
+| Metric | Before | After |
+|---|---|---|
+| API response | ~9–14s | ~0.6s cached / ~2.7s fresh |
+| First meaningful content (warm median) | ~10–20s | **1,636ms** |
+| Six-casino panel (warm median) | ~10–20s | **1,651ms** |
+| Cold first content | — | 3,491ms |
+| Max observed (cold) | — | 3,512ms |
+
+**Note:** end-to-end also depends on the heavy `/admin` page's Overview tab (~18 fetches
+on mount) causing layout shift; that delays Playwright's *default* `.click()` actionability
+(a test artifact), not a user-perceived block (main-thread long-tasks totalled 143ms). A
+real-user click reaches the panel in ~1.6s. Reducing the Overview tab's fetch fan-out is a
+separate, out-of-scope follow-up.
+
+**Security preserved:** anonymous 401, operator 403, regulator 403, super_admin 200;
+no cross-account cache exposure; no token/service-key exposure. Tests **525/525** (+6).
+Five reconciliations Green; seven chains verified; simulator enabled; Demo Ready/Green.
 
 ## Super Admin positive-path verification (2026-08-04)
 
