@@ -101,3 +101,36 @@ Snapshot of `sbiq_demo_sim_health_overall`, the relevant `sbiq_demo_sim_alerts` 
 ## Distinguishing simulator failure from dashboard caching
 - **Simulator failure:** `sbiq_demo_sim_run_log` shows `outcome<>'ok'` or no recent row; `last_successful_tick` stale; alert raised.
 - **Dashboard caching:** run log healthy and `players_active_now` non-zero in SQL, but a page shows an old number — compare the page's **snapshot-age** indicator; small cross-page differences are expected when snapshots have different timestamps. Refresh the page; do not touch the simulator.
+
+## Platform Health load / API troubleshooting (Super Admin)
+The panel loads via `/api/admin/simulation-health` → one RPC `sbiq_demo_sim_health_snapshot()`.
+
+- **Panel stuck on the loading skeleton / "This is taking longer than expected":**
+  the client reads the token lock-free (no `getSession()` wait) and starts as soon as
+  AuthContext is verified. If it stalls, check the API directly:
+  `select public.sbiq_demo_sim_health_snapshot();` should return in **< 1s**. A retry
+  button appears at 15s and hits `?fresh=1` (cache bypass). Retrying does not create
+  duplicate polling loops (one timer; in-flight requests are aborted).
+- **Supabase auth-lock delay (historical):** the old panel called
+  `supabase.auth.getSession()`, which blocked on the `sb-<ref>-auth-token`
+  navigator lock held by AuthContext/token-refresh on first paint (~10-20s). The
+  panel now uses `readAccessTokenFast()` (synchronous localStorage read); the server
+  still fully re-validates the token. If you must debug, confirm the token exists in
+  `localStorage` under a `*-auth-token` key.
+- **API slow (> 2s):** run `explain (analyze) select public.sbiq_demo_sim_health_snapshot();`.
+  Expected cost is one `projection_casino_state` active-cohort read (~0.3s) + one
+  month-bounded event-log scan. If slow, verify the indexes exist:
+  `casino_event_log(producer, occurred_at)` and
+  `projection_player_state(casino_id, status, last_event_at)`.
+- **API timeout:** the client aborts via `AbortController` and shows a retry with a
+  correlation reference. A slow API never logs the user out and never exposes stacks.
+- **Duplicate requests:** a new load aborts any in-flight one; polling waits for the
+  first load and pauses when the tab is hidden — there should never be two concurrent
+  health requests from one panel.
+- **Failed polling refresh:** previous valid data stays visible (with its certified
+  snapshot age); only a subtle refreshing indicator shows. No blank flash.
+- **Role-denial errors:** the API validates the caller **every** request (never from
+  cache): anonymous → 401, operator/regulator → 403, super_admin → 200. A 401/403 in
+  the browser means the session/role is wrong, not a health-data problem. The short
+  (6s) server cache holds only non-secret health data and is returned only after a
+  fresh per-request super-admin check.
