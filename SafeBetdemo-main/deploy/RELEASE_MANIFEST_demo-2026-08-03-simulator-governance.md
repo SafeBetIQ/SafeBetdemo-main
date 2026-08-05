@@ -14,9 +14,9 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 
 | Field | Value |
 |---|---|
-| **Runtime application commit** | **`9d7f9cd`** — reported by `/api/version` (`gitCommit`); see *Platform Health load optimisation* below |
-| Prior runtime commits | `8b28c54` (Sim Health fields), `27df8fd` (governance milestone) |
-| Validation & Playwright-only commits | `8721f70`, `8377963`, `c3f0430` (perf + runbook) |
+| **Runtime application commit** | **`8dc740d`** — reported by `/api/version` (`gitCommit`); see *Admin Overview consolidation* below |
+| Prior runtime commits | `22a34ea` (Overview consolidation), `9d7f9cd` (Platform Health load), `8b28c54`, `27df8fd` |
+| Validation & Playwright-only commits | `8721f70`, `8377963`, `c3f0430` |
 | Branch | `Demo` |
 | Elastic Beanstalk application | `safebet-iq-app` (eu-west-1) |
 | Elastic Beanstalk environment | `safebet-iq-demo` |
@@ -33,6 +33,51 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 > (commit `8b28c54`, component-only — no API/DB change) and redeployed. `/api/version` now
 > reports `8b28c54`. All other runtime behaviour, migrations, crons and certified
 > semantics are unchanged from `27df8fd`.
+
+## Admin Overview consolidation (2026-08-05)
+
+**Previous runtime commit:** `9d7f9cd` · **Optimised runtime commits:** `22a34ea` (consolidation) + `8dc740d` (platform_users KPI).
+**EB version:** `demo-node20-202608051914-8dc740d` (Ready/Green, `/api/version` = 8dc740d).
+**Rollback:** `demo-node20-202608051350-9d7f9cd`.
+
+**Problem:** the `/admin` Overview fired **~8 data requests** on mount with duplicates
+(`casinos`, `users`, `national-overview` each **2×** — AuthContext fired `loadData` twice)
+plus `software_modules` and the auth profile lookup, causing fan-out + layout shift.
+
+**Consolidated endpoint / RPC:** `GET /api/admin/overview` → one RPC
+`sbiq_admin_overview_snapshot(p_include_financial)` (migration `20260805120000`). Reads
+`projection_casino_state` **once** (certified per-casino metrics, exact parity), registered
+counts from a tiny **static-population cache** `sbiq_admin_registered_counts` (refreshed only
+when >6h — avoids a ~1.8s scan), platform_users count, governance (7 chains, alerts,
+partitions), simulator summary, per-casino set. Financial GGR
+(`projection_financial_posture` ~5s over 130k events) is **optional/deferred**.
+
+**Indexes added:** none new (reused `casino_event_log(producer,occurred_at)` and
+`projection_player_state(casino_id,status,last_event_at)` from the Platform Health work).
+Query-plan finding: core snapshot ~2s cold / ~0.5s cached; financial ~5–6s (deferred).
+
+**Cache:** private in-memory — core **8s**, financial **20s**, `?fresh=1` bypass; auth
+validated every request (never cached).
+
+**Frontend:** `useAdminOverview()` — one primary request (lock-free token, immediate,
+schema-validated `admin-overview-v1`, aborts stale, single 45s visibility-paused poll,
+keeps prior data), + **deferred** financial + **deferred** `national-overview`
+(interventions/monitored/emerging — not replicated). Users list **deferred to the Users tab**.
+
+| Metric | Before | After |
+|---|---|---|
+| Initial Overview data requests | ~8 (casinos/users/national **2× each**) | **3 bounded** (1 core + 1 deferred financial + 1 deferred national) |
+| Direct `casinos` / `users` fetch on first paint | 2× / 2× | **0 / 0** |
+| API (core) | — | ~0.5s cached / ~2.7s fresh |
+| First meaningful content (warm median) | — | **1,472ms** (min 993ms) |
+| Cold first content | — | ~3,430ms (one 7.9s cache-miss outlier observed) |
+| Layout shift | high (18 incremental fills) | reduced (one consolidated snapshot fill) |
+
+**Security:** anonymous 401, operator 403, regulator 403, super_admin 200; no secrets/tokens
+in the response; no CDN cache. **Metric definitions unchanged** (observed = active_now+idle+stale;
+open sessions = active+idle+stale; endpoints = in_play+stale; GGR = stakes−winnings; risk =
+crit+high+med+low+unclassified). Tests **533/533** (+8). Five reconciliations Green; seven
+chains verified; regulator active-now/observed = Σ; Demo Ready/Green.
 
 ## Platform Health load optimisation (2026-08-05)
 
