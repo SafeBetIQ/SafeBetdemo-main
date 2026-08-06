@@ -165,4 +165,34 @@ The Overview loads via `/api/admin/overview` → one RPC `sbiq_admin_overview_sn
   active_now + idle + stale).
 - **Registered count looks stale:** `sbiq_admin_registered_counts` caches the static
   demo population, refreshed only when older than 6h; force with
-  `select public.sbiq_admin_refresh_registered();`.
+  `select public.sbiq_admin_refresh_registered();` or the Overview manual refresh.
+
+## Certified financial rollup
+Certified GGR posture is served from `sbiq_financial_rollup_hourly` via
+`sbiq_certified_financial_posture_v2()` (complete buckets + live tail). Cron
+`sbiq-financial-rollup-refresh` (*/2) keeps it current; `sbiq-financial-rollup-watchdog` (*/5) alerts.
+
+- **Health check:** `select public.sbiq_financial_rollup_status();` → `freshness=Current`,
+  `lag_seconds` small, `buckets_reconcile=true`, `open_rollup_alerts=0`. Also visible on
+  Super Admin → Platform Health → *Financial rollup*.
+- **Rollup backlog / late (`FINANCIAL_ROLLUP_LATE`):** run `select public.sbiq_financial_rollup_refresh(500);`
+  manually; check `sbiq_financial_rollup_run_log` for `outcome<>'ok'`. The refresh is advisory-locked
+  (no overlaps) and bounded (`p_max_buckets`).
+- **Parity failure:** compare v2 vs the certified view —
+  `select sum(ggr_today) from projection_financial_posture;` vs
+  `select sum(ggr_today) from sbiq_certified_financial_posture_v2(null, now());` (must match). If not,
+  trace to timezone/shift boundary, late event, duplicate, capability, rounding, or the current
+  incomplete bucket; rebuild affected hours with `sbiq_fin_rollup_upsert_range(from,to)`. Do NOT force totals.
+- **Late-arriving events:** handled automatically — a late event (old `occurred_at`, new `received_at`)
+  marks its bucket dirty and rebuilds it from the authoritative log on the next refresh.
+- **Backfill:** `select public.sbiq_financial_rollup_backfill(6);` (idempotent, month batches, resumable).
+- **Disable / re-enable (fallback):** `update sbiq_demo_sim_flags set value='false' where key='ENABLE_FINANCIAL_ROLLUP';`
+  → the financial section falls back to the certified source view, marked `fallback:true` (never a false
+  Healthy). Re-enable with `value='true'`. The certified source view remains the controlled fallback.
+- **Registered-count refresh:** manual via Overview (super-admin, rate-limited ≥30s, audited) or
+  `select public.sbiq_admin_refresh_registered_manual(null, gen_random_uuid());`.
+- **Cold-load outlier / single-flight:** Demo runs a **single EB instance**; each Node process holds a
+  short private cache (core 8s / financial 20s) that absorbs bursts. There is no distributed cache
+  coordination — a simultaneous cold miss on a fresh process pays the full RPC once. A `?fresh=1` on the
+  financial section forces a rollup recompute (~50ms DB) + auth. If a cold Overview exceeds ~6s,
+  check for a cron/refresh overlap in `sbiq_financial_rollup_run_log` and Supabase auth latency.

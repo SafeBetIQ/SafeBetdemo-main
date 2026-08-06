@@ -14,9 +14,9 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 
 | Field | Value |
 |---|---|
-| **Runtime application commit** | **`8dc740d`** — reported by `/api/version` (`gitCommit`); see *Admin Overview consolidation* below |
-| Prior runtime commits | `22a34ea` (Overview consolidation), `9d7f9cd` (Platform Health load), `8b28c54`, `27df8fd` |
-| Validation & Playwright-only commits | `8721f70`, `8377963`, `c3f0430` |
+| **Runtime application commit** | **`678860f`** — reported by `/api/version` (`gitCommit`); see *Certified financial rollup* below |
+| Prior runtime commits | `8dc740d` (Overview consolidation), `9d7f9cd` (Platform Health load), `8b28c54`, `27df8fd` |
+| Validation & Playwright-only + DB fixes | `8721f70`, `8377963`, `c3f0430`, `3ebd8e0` (registered-refresh WHERE fix + fin check) |
 | Branch | `Demo` |
 | Elastic Beanstalk application | `safebet-iq-app` (eu-west-1) |
 | Elastic Beanstalk environment | `safebet-iq-demo` |
@@ -33,6 +33,54 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 > (commit `8b28c54`, component-only — no API/DB change) and redeployed. `/api/version` now
 > reports `8b28c54`. All other runtime behaviour, migrations, crons and certified
 > semantics are unchanged from `27df8fd`.
+
+## Certified financial rollup + registered freshness (2026-08-06)
+
+**Previous runtime commit:** `8dc740d` · **New runtime commit:** `678860f` (+ DB fix `3ebd8e0`).
+**EB version:** `demo-node20-202608060753-678860f` (Ready/Green, `/api/version` = 678860f).
+**Rollback:** `demo-node20-202608051914-8dc740d`.
+
+**Problem:** the deferred certified financial query (`projection_financial_posture`)
+scanned **~136,824 all-time financial events** → ~5–6s; registered totals used a 6h cache
+with no visible freshness/refresh.
+
+**Financial rollup (migrations `20260806100000`/`100100`/`100200`/`100300`):**
+- **Rollup table** `sbiq_financial_rollup_hourly` (**version 1**) — hourly buckets from the
+  SAME certified normalisation (`event_type in (BET_PLACED,JACKPOT)`, `stake=bet_amount`,
+  `winnings=coalesce(win_amount,0)`, `GGR=stake−winnings`, `is_synthetic=is_simulated OR synthetic`).
+- **Incremental cursor** = `received_at` + `event_id`; **dirty-bucket** rebuild (late-arriving
+  events rebuild their affected buckets) + current-hour repair; `sbiq_financial_rollup_checkpoint`
+  + `_run_log`. **Backfill** (resumable month batches): **5,298→5,304 buckets** from 2026-05-01.
+- **Cron** `sbiq-financial-rollup-refresh` (*/2, advisory-locked) + `sbiq-financial-rollup-watchdog` (*/5).
+- **Posture RPC** `sbiq_certified_financial_posture_v2(p_casino,p_as_of)` — complete buckets +
+  live tail (current + h24-boundary hour); returns the **exact** `projection_financial_posture`
+  rowtype. **~5,379ms → ~50ms.** SAST (UTC+2) boundaries hour-aligned.
+- **Parity:** **EXACT** — all 6 casinos × {shift, today, 24h, MTD} × {stakes, winnings, GGR,
+  bet-count, events-total} diff **= 0**; status/mode/synthetic/unsupported-NULL match; live re-check diff 0.
+
+| Metric | Before | After |
+|---|---|---|
+| Financial DB query | ~5,379ms | **~50ms** |
+| Financial API (deferred) | ~5–6s | fresh ~1.5s · cached ~0.6–1.4s (auth+network bound) |
+| Full event-log scan | yes | **no** |
+
+**Freshness/provenance (Phase 9):** `as_of`, `rollup_computed_at`, `source_max_occurred_at`,
+`source_max_ingested_at`, `rollup_lag_seconds`, `rollup_version`, `reconciles`, `is_simulated`,
+`capability_status`; classification **Current/Delayed/Stale/Unknown** (from last processed event).
+
+**API:** `/api/admin/overview?section=financial` → `sbiq_admin_financial_section` (v2 + freshness +
+`ENABLE_FINANCIAL_ROLLUP` **fallback** to the certified view, marked `fallback:true`). New
+`POST /api/admin/overview/refresh-registered-counts` (super_admin, advisory-locked, rate-limited ≥30s,
+audited). Platform Health `/api/admin/simulation-health` adds `financial_rollup` status.
+
+**Registered freshness:** `sbiq_admin_registered_counts` gains `source_as_of`, `last_refresh_duration_ms`,
+`last_refresh_status`; `sbiq_admin_registered_status()` exposes age/is_stale; auto-refresh only when
+stale >6h (no per-request scan); Overview shows age + confirm-gated manual refresh (never blanks count).
+
+**Alerts:** `FINANCIAL_ROLLUP_LATE/_FAILED` (watchdog). **Fallback tested** (disable→certified-view,
+enable→rollup). **Manual-refresh matrix:** anon 401, operator 403, regulator 403, super_admin 200.
+Tests **541/541** (+8). Five reconciliations Green; seven chains verified; regulator GGR = Σ.
+**Cold-outlier / single-flight:** single-instance EB; per-process cache absorbs bursts (documented limitation).
 
 ## Admin Overview consolidation (2026-08-05)
 
