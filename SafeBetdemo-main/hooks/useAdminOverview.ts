@@ -23,6 +23,7 @@ export interface AdminOverview {
   alerts: Record<string, unknown>;
   casinos: Array<Record<string, unknown>>;
   financial: Record<string, unknown> | null;
+  registered_status?: Record<string, unknown> | null;
 }
 
 const POLL_MS = 45000;
@@ -95,9 +96,34 @@ export function useAdminOverview() {
     };
   }, [load]);
 
+  const [registeredRefreshing, setRegisteredRefreshing] = useState(false);
+  const refreshRegistered = useCallback(async (): Promise<{ ok: boolean; reason?: string }> => {
+    if (registeredRefreshing) return { ok: false, reason: 'in_progress' };   // prevent duplicate
+    setRegisteredRefreshing(true);
+    try {
+      const ac = new AbortController();
+      const res = await (async () => {
+        let token = readAccessTokenFast();
+        const call = (t: string) => fetch('/api/admin/overview/refresh-registered-counts', {
+          method: 'POST', headers: { authorization: `Bearer ${t}` }, cache: 'no-store', signal: ac.signal,
+        });
+        let r = token ? await call(token) : null;
+        if (!r || r.status === 401) { const { data } = await supabase.auth.getSession(); token = data.session?.access_token ?? null; if (!token) return null; r = await call(token); }
+        return r;
+      })();
+      if (!res || !res.ok) return { ok: false, reason: 'failed' };
+      await res.json();
+      await load({ fresh: true });   // pull the new certified count
+      return { ok: true };
+    } catch { return { ok: false, reason: 'error' }; }
+    finally { setRegisteredRefreshing(false); }
+  }, [registeredRefreshing, load]);
+
   return {
     data, financial, financialLoading, phase, refreshing, correlationId,
     asOf: data?.as_of ?? null,
+    registeredStatus: data?.registered_status ?? null,
+    registeredRefreshing, refreshRegistered,
     retry: () => load({ fresh: true }),
     refresh: () => load({ isRefresh: true }),
   };

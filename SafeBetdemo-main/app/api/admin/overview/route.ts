@@ -53,10 +53,23 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { data, error } = await admin.rpc('sbiq_admin_overview_snapshot', { p_include_financial: financial });
-    if (error || !data) return deny(500);
-    const payload = data as Record<string, unknown>;
-    if (financial) finCache = { at: now, payload }; else coreCache = { at: now, payload };
+    if (financial) {
+      // Deferred financial section — v2 rollup-backed (fast; no full-history scan).
+      const { data, error } = await admin.rpc('sbiq_admin_financial_section');
+      if (error || !data) return deny(500);
+      const payload = { financial: data as Record<string, unknown> };
+      finCache = { at: now, payload };
+      return NextResponse.json({ ok: true, cached: false, correlationId, ...payload },
+        { headers: { 'Cache-Control': 'no-store, private' } });
+    }
+    // Core snapshot + registered freshness (bounded parallel; still one browser request).
+    const [snap, reg] = await Promise.all([
+      admin.rpc('sbiq_admin_overview_snapshot', { p_include_financial: false }),
+      admin.rpc('sbiq_admin_registered_status'),
+    ]);
+    if (snap.error || !snap.data) return deny(500);
+    const payload = { ...(snap.data as Record<string, unknown>), registered_status: reg.data ?? null };
+    coreCache = { at: now, payload };
     return NextResponse.json({ ok: true, cached: false, correlationId, ...payload },
       { headers: { 'Cache-Control': 'no-store, private' } });
   } catch {

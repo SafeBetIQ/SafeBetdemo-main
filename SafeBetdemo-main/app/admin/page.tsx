@@ -17,6 +17,7 @@ import {
 import { CrossOperatorIntelligence } from '@/components/CrossOperatorIntelligence';
 import { DemoSimulationHealth } from '@/components/admin/DemoSimulationHealth';
 import { useAdminOverview } from '@/hooks/useAdminOverview';
+import { OverviewFinancialRegistered } from '@/components/admin/OverviewFinancialRegistered';
 
 interface PlatformStats {
   totalCasinos: number;
@@ -241,6 +242,12 @@ export default function SuperAdminDashboard() {
                   <KPI icon={Shield} label="Platform Users" value={stats.totalUsers} sub="All roles" />
                   <KPI icon={Brain} label="Emerging Risks" value={stats.emergingRisks} sub="Derived Intelligence" urgent={stats.emergingRisks > 0} />
                 </div>
+
+                <OverviewFinancialRegistered
+                  financial={ov.financial} financialLoading={ov.financialLoading}
+                  registeredStatus={ov.registeredStatus}
+                  refreshRegistered={ov.refreshRegistered} registeredRefreshing={ov.registeredRefreshing}
+                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <Card className="lg:col-span-2">

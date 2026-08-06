@@ -49,9 +49,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { data, error } = await admin.rpc('sbiq_demo_sim_health_snapshot');
+    const [snapRes, rollupRes] = await Promise.all([
+      admin.rpc('sbiq_demo_sim_health_snapshot'),
+      admin.rpc('sbiq_financial_rollup_status'),
+    ]);
+    const { data, error } = snapRes;
     if (error || !data) return deny(500);
-    const snap = data as Record<string, unknown>;
+    const snap: Record<string, unknown> = { ...(data as Record<string, unknown>), financial_rollup: rollupRes.data ?? null };
     const payload = {
       as_of: (snap.as_of as string) ?? new Date().toISOString(),
       overall: snap.overall ?? null,
@@ -61,6 +65,7 @@ export async function GET(req: Request) {
       readiness: snap.readiness ?? null,
       alerts: snap.alerts ?? [],
       emergency: snap.emergency ?? { simulator_enabled: false, showcase_enabled: false },
+      financial_rollup: snap.financial_rollup ?? null,
     };
     cache = { at: now, payload };
     return NextResponse.json(

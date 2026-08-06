@@ -25,6 +25,7 @@ type Health = {
   readiness: { ok?: boolean; required?: string[]; missing?: string[]; insecure?: string[] } | null;
   alerts: Array<{ category: string; severity: string; scope: string | null; created_at: string }>;
   emergency: { simulator_enabled: boolean; showcase_enabled: boolean };
+  financial_rollup?: Record<string, unknown> | null;
 };
 
 const N = (v: unknown) => (typeof v === 'number' ? v : Number(v ?? 0));
@@ -204,6 +205,28 @@ export function DemoSimulationHealth() {
             <Row k="Storage days left" v={o['storage_days_left'] != null ? String(o['storage_days_left']) : '—'} />
           </CardContent></Card>
       </div>
+
+      {/* Financial rollup status */}
+      {data.financial_rollup && (() => {
+        const fr = data.financial_rollup as Record<string, unknown>;
+        return (
+          <Card>
+            <CardHeader className="pb-1"><CardTitle className="text-xs flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />Financial rollup</CardTitle></CardHeader>
+            <CardContent className="text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1">
+                <Row k="Status" v={S(fr['freshness'])} bad={fr['freshness'] === 'Stale'} warn={fr['freshness'] === 'Delayed'} />
+                <Row k="Enabled" v={fr['enabled'] ? `yes · cron ${fr['cron_active'] ? 'on' : 'off'}` : 'no'} bad={!fr['enabled']} />
+                <Row k="Lag" v={`${S(fr['lag_seconds'])}s`} warn={N(fr['lag_seconds']) > 300} />
+                <Row k="Buckets" v={N(fr['buckets']).toLocaleString()} />
+                <Row k="Reconcile" v={fr['buckets_reconcile'] ? 'Green' : 'Attention'} bad={fr['buckets_reconcile'] === false} />
+                <Row k="Version" v={`v${S(fr['rollup_version'])}`} />
+                <Row k="Last run buckets" v={S(fr['last_run_buckets'])} />
+                <Row k="Rollup alerts" v={S(fr['open_rollup_alerts'] ?? 0)} bad={N(fr['open_rollup_alerts']) > 0} />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Open alerts */}
       {data.alerts.length > 0 && (
