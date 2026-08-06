@@ -20,10 +20,12 @@ begin
   on conflict (casino_id) do update set registered=excluded.registered, refreshed_at=now(),
     source_as_of=as_of, last_refresh_status='ok', last_refresh_error=null;
   get diagnostics n = row_count;
-  update sbiq_admin_registered_counts set last_refresh_duration_ms = extract(ms from clock_timestamp()-t0)::int;
+  update sbiq_admin_registered_counts set last_refresh_duration_ms = extract(ms from clock_timestamp()-t0)::int
+    where casino_id is not null;
   return n;
 exception when others then
-  update sbiq_admin_registered_counts set last_refresh_status='error', last_refresh_error=sqlstate;
+  update sbiq_admin_registered_counts set last_refresh_status='error', last_refresh_error=sqlstate
+    where casino_id is not null;
   return -1;
 end; $fn$;
 revoke all on function public.sbiq_admin_refresh_registered() from anon, authenticated;
