@@ -45,10 +45,18 @@ export default function OperatorDashboardPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [f, s] = await Promise.all([
-      cgGet('live-floor', { casino_id: casinoId }),
-      cgGet('summary', { casino_id: casinoId }),
-    ]);
+    // Resilient fetch: the very first call after login can race the session write.
+    // Retry a couple of times before declaring the certified snapshot unavailable
+    // (so the dashboard never gets stuck on a false "Data unavailable").
+    let f: Rec | null = null; let s: Rec | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      [f, s] = await Promise.all([
+        cgGet('live-floor', { casino_id: casinoId }),
+        cgGet('summary', { casino_id: casinoId }),
+      ]);
+      if (f != null) break;
+      await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+    }
     setFloor(f); setSummary(s);
     setLoadFailed(f == null);
     setLoading(false);
