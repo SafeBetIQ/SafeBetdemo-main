@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Radio, RefreshCw, Zap, LayoutGrid, List } from 'lucide-react';
 import { CasinoDataProvider, useCasinoData } from '@/contexts/CasinoDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { LiveBettingFeed } from '@/components/live/LiveBettingFeed';
 import { LiveKPIStrip } from '@/components/live/LiveKPIStrip';
 import { MachineMonitor } from '@/components/live/MachineMonitor';
@@ -15,6 +16,11 @@ import { LiveActivityChart } from '@/components/live/LiveActivityChart';
 
 function LiveFeedInner() {
   const { data, triggerBurst, refreshData } = useCasinoData();
+  const { user } = useAuth();
+  // Event-generation (Demo Controls) is only for authorised demo administrative/
+  // testing roles — a casino evaluator sees an operational platform, not a
+  // simulator test console. The background simulator keeps the floor live either way.
+  const showDemoControls = ((user as unknown as Record<string, unknown>)?.role as string) === 'super_admin';
   const [bursting, setBursting] = useState(false);
   const [layout, setLayout] = useState<'split' | 'wide'>('split');
 
@@ -70,15 +76,15 @@ function LiveFeedInner() {
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Refresh
           </Button>
-          <Button
-            size="sm"
-            onClick={handleBurst}
-            disabled={bursting}
-            className="bg-primary text-primary-foreground"
-          >
-            <Zap className={`h-3.5 w-3.5 mr-1.5 ${bursting ? 'animate-spin' : ''}`} />
-            {bursting ? 'Firing…' : 'Burst 40 Events'}
-          </Button>
+          {showDemoControls && (
+            <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-border">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 hidden sm:inline">Demo controls</span>
+              <Button size="sm" variant="outline" onClick={handleBurst} disabled={bursting}>
+                <Zap className={`h-3.5 w-3.5 mr-1.5 ${bursting ? 'animate-spin' : ''}`} />
+                {bursting ? 'Firing…' : 'Burst 40 Events'}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

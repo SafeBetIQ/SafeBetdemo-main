@@ -97,6 +97,22 @@ export function LiveKPIStrip() {
   const winRate = kpi.total_wagered > 0 ? (kpi.total_won / kpi.total_wagered) * 100 : 0;
   const ggr = kpi.total_wagered - kpi.total_won;
 
+  // Until the certified snapshot has loaded, show a skeleton — never render the
+  // DEFAULT (all-zero) KPI as if it were a real certified value.
+  if (!data.kpiLoaded) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="bg-card border border-border rounded-xl px-4 py-4 space-y-2">
+            <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
+            <div className="h-6 w-16 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
     <div className="flex items-center justify-end gap-2 text-[11px] text-muted-foreground/70">

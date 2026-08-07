@@ -10,11 +10,13 @@
 // Auth is the user's verified Supabase session token; the server derives scope
 // from the JWT (Phase 4.1 / ADR-002) — parameters only select a view.
 
-import { supabase } from '@/lib/supabase';
+import { supabase, readAccessTokenFast } from '@/lib/supabase';
 
 async function authHeaders(): Promise<Record<string, string> | null> {
-  const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token;
+  // Prefer the lock-free persisted token so first-load fetches don't stall on the
+  // Supabase auth-token navigator lock; fall back to getSession only if absent.
+  let token = readAccessTokenFast();
+  if (!token) token = (await supabase.auth.getSession()).data.session?.access_token ?? null;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!token || !key) return null;
   return { Authorization: `Bearer ${token}`, apikey: key };

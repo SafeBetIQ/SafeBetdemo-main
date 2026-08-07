@@ -17,7 +17,7 @@
 // simulation — the last duplicate runtime model — is GONE.
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, readAccessTokenFast } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import {
   shapeEventRow, shapeMachineRow,
@@ -85,6 +85,7 @@ interface CasinoData {
   machines: MachineStatus[];
   isSimulating: boolean;
   realtimeConnected: boolean;
+  kpiLoaded: boolean;
   liveBets: LiveBetLegacy[];
   totalWagered: number;
   totalWon: number;
@@ -163,6 +164,7 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
     machines: [],
     isSimulating: false,
     realtimeConnected: false,
+    kpiLoaded: false,
     liveBets: [],
     totalWagered: 0,
     totalWon: 0,
@@ -180,8 +182,8 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
 
   const callGateway = useCallback(async <T,>(id: string, view: string): Promise<T | null> => {
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      let token = readAccessTokenFast();
+      if (!token) token = (await supabase.auth.getSession()).data.session?.access_token ?? null;
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       if (!token || !supabaseUrl || !anonKey) return null;
@@ -212,6 +214,7 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
       const players = floor ? floor.players.map(toPlayer) : prev.players;
       return {
         ...prev,
+        kpiLoaded: floor ? true : prev.kpiLoaded,
         liveEvents: events.slice(0, 120),
         liveBets: events.filter(e => BET_EVENT_TYPES.includes(e.event_type))
           .slice(0, 20).map(eventToLiveBet),
