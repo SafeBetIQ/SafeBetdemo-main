@@ -49,16 +49,18 @@ export default function OperatorDashboardPage() {
     // Retry a couple of times before declaring the certified snapshot unavailable
     // (so the dashboard never gets stuck on a false "Data unavailable").
     let f: Rec | null = null; let s: Rec | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       [f, s] = await Promise.all([
         cgGet('live-floor', { casino_id: casinoId }),
         cgGet('summary', { casino_id: casinoId }),
       ]);
-      if (f != null) break;
+      // Retry until the certified KPI is actually present — a post-login token/scope
+      // race can briefly return a floor envelope with a null kpi.
+      if (f != null && (f as { kpi?: unknown }).kpi != null) break;
       await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
     }
     setFloor(f); setSummary(s);
-    setLoadFailed(f == null);
+    setLoadFailed(f == null || (f as { kpi?: unknown }).kpi == null);
     setLoading(false);
   }, [casinoId]);
 
