@@ -14,8 +14,8 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 
 | Field | Value |
 |---|---|
-| **Runtime application commit** | **`678860f`** — reported by `/api/version` (`gitCommit`); see *Certified financial rollup* below |
-| Prior runtime commits | `8dc740d` (Overview consolidation), `9d7f9cd` (Platform Health load), `8b28c54`, `27df8fd` |
+| **Runtime application commit** | **`437a099`** — reported by `/api/version` (`gitCommit`); see *Operator Dashboard redesign* below |
+| Prior runtime commits | `678860f` (financial rollup), `8dc740d` (Overview consolidation), `9d7f9cd`, `8b28c54`, `27df8fd` |
 | Validation & Playwright-only + DB fixes | `8721f70`, `8377963`, `c3f0430`, `3ebd8e0` (registered-refresh WHERE fix + fin check) |
 | Branch | `Demo` |
 | Elastic Beanstalk application | `safebet-iq-app` (eu-west-1) |
@@ -33,6 +33,38 @@ monitoring, failure/late alerts, emergency controls, Platform Health UI, snapsho
 > (commit `8b28c54`, component-only — no API/DB change) and redeployed. `/api/version` now
 > reports `8b28c54`. All other runtime behaviour, migrations, crons and certified
 > semantics are unchanged from `27df8fd`.
+
+## Operator Dashboard redesign — match Live Casino Feed (2026-08-08)
+
+**Runtime commit:** `437a099` (redesign `bce15b0` + resilience `3f6dc5a`/`a92f531`/`437a099`).
+**EB version:** `demo-node20-202608081906-437a099` (Ready/Green, `/api/version` = 437a099).
+**Rollback:** `demo-node20-202608060753-678860f`.
+
+**UI/UX:** Operator Dashboard rebuilt in the Live Casino Feed visual system — simplified
+header (title + "Live operational posture for <Casino>" + Reconciled·Healthy + SnapshotAge +
+Refresh), a **6-card primary KPI strip** (shared `components/dashboard/KpiCard`: Active Players
+/ Active Sessions / In Play / GGR Today / Critical Risk / Open Interventions), **three compact
+posture panels** (`PostureSummaryCard`: Player Activity / Session Posture / Gaming Machines &
+Endpoints — replacing ~12 equal-weight cards), and a secondary **Risk Overview + Financial
+Posture** row with drill-down links (progressive disclosure). Tenant-agnostic (no casino-name
+conditionals); certified identities preserved (observed=active+idle+stale; open=active+idle+stale;
+allocated=in_play+stale; GGR=stakes−winnings; risk population).
+
+**Data mismatch root cause:** *frontend, not source.* Both pages read the SAME certified
+`consumer-gateway` `live-floor` KPI. The screenshot "Live Feed 0 vs Operator 46" was the Live Feed
+rendering `DEFAULT_KPI` zeros during the initial async gap. Fixes: `kpiLoaded` flag + skeleton (Live
+Feed never shows fake zeros); lock-free token in `consumerClient`/`CasinoDataContext`; Operator
+Dashboard **retries live-floor until `kpi` is populated** + a loading skeleton (no false "integrity
+warning" during load).
+
+**Burst control:** "Burst 40 Events" gated behind `super_admin` ("Demo controls"); casino/regulator
+evaluators see an operational platform. Background simulator keeps the floor live regardless.
+
+**Verification (Playwright, six casinos):** all six render the redesign; **exact active-now parity**
+Live Feed↔Dashboard (49/49, 37/37, 70/70, 25/25, Betway 298, Royal Palace 16); observed distinct from
+active-now; Live Feed non-zero (no fake zero-state); reconciliations Green; no cross-tenant leakage.
+No data-fetch fan-out added (same 2 certified views). Tests **548/548** (+7). Five reconciliations
+Green; seven chains verified. Shared components: `KpiCard`, `PostureSummaryCard`, `ReconciliationBadge`.
 
 ## Certified financial rollup + registered freshness (2026-08-06)
 

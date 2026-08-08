@@ -35,10 +35,14 @@ try {
     // Operator Dashboard
     await page.goto(`${BASE}/casino/dashboard`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => /Operator Dashboard/.test(document.body.innerText), { timeout: 30000 });
-    // Wait for certified data to actually populate (the "observed" sub or an
-    // unavailable state), not just the header — cold contexts fetch slower.
-    await page.waitForFunction(() => /\bobserved\b|Data unavailable|snapshot is currently unavailable/i.test(document.body.innerText), { timeout: 45000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    // Wait until the certified KPI has actually populated (Active Players shows a
+    // number) or the snapshot is genuinely unavailable — not the transient load state.
+    await page.waitForFunction(() => {
+      const els = [...document.querySelectorAll('div')].filter((d) => d.textContent.trim() === 'Active Players');
+      const v = els[0]?.previousElementSibling?.textContent?.trim();
+      return (v && /[0-9]/.test(v)) || /snapshot is currently unavailable/i.test(document.body.innerText);
+    }, { timeout: 45000 }).catch(() => {});
+    await page.waitForTimeout(800);
     const body = await page.evaluate(() => document.body.innerText);
     log(KPI_LABELS.every((l) => body.includes(l)), `${name}: 6 KPI cards (Live Feed design)`);
     log(POSTURE.every((l) => body.toLowerCase().includes(l.toLowerCase())), `${name}: three compact posture panels`);
