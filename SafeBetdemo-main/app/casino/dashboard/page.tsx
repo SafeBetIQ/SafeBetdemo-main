@@ -126,7 +126,29 @@ export default function OperatorDashboardPage() {
           </div>
 
           <div className="flex-1 overflow-auto p-6 space-y-6">
-            {loadFailed ? (
+            {loading && !kpi ? (
+              // Loading skeleton — never render a transient integrity warning / "—"
+              // while the certified snapshot is still being fetched.
+              <div className="space-y-6" aria-busy="true">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-card border border-border rounded-xl px-4 py-4 space-y-2">
+                      <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
+                      <div className="h-6 w-16 rounded bg-muted animate-pulse" />
+                      <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
+                      <div className="h-3 w-28 rounded bg-muted animate-pulse" />
+                      {Array.from({ length: 4 }).map((_, j) => <div key={j} className="h-4 w-full rounded bg-muted animate-pulse" />)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : loadFailed ? (
               <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
                 <HelpCircle className="h-6 w-6 mx-auto mb-2 opacity-60" />
                 The certified Consumer Platform snapshot is currently unavailable. Values are shown as “—”, not zero.
