@@ -1,0 +1,18 @@
+# Dependency-update automation (AUD-P1-008). Opens REVIEWED pull requests only —
+# it never deploys. Security updates + weekly minor/patch, grouped to reduce noise.
+# The CI Security Gate (security.yml) runs on every Dependabot PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /SafeBetdemo-main
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    # Major upgrades (e.g. Next 14/15) are handled as isolated, tested milestones
+    # per the remediation policy — not auto-bumped here.
+    ignore:
+      - dependency-name: next
+        update-types: [version-update:semver-major]

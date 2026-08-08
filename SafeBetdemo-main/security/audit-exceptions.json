@@ -1,0 +1,64 @@
+{
+  "$comment": "Time-limited, evidence-based production dependency exceptions. Consumed by scripts/ci/security-gate.mjs. Every entry MUST have an expiry (no permanent accepted risk). A CRITICAL is never allowed here — it must be remediated. Each covers HIGH advisories in a package that currently has NO available non-major fix, with a documented exploitability analysis, compensating control, owner and upgrade plan. Review AUD-P1-001/AUD-P1-008.",
+  "policy": {
+    "failOn": ["critical", "high"],
+    "productionOnly": true,
+    "moderateAndLow": "warn",
+    "notes": "Gate fails on any production Critical (no exceptions), and any production High not covered by a non-expired exception below."
+  },
+  "exceptions": [
+    {
+      "package": "next",
+      "maxSeverity": "high",
+      "advisories": ["GHSA-fr5h-rqp8-mj6g (SSRF in Server Actions)", "assorted next 14.x/15.x-only advisories"],
+      "installed": "13.5.11",
+      "fixAvailable": "major (Next 14.1.1+/14.2 LTS)",
+      "exploitability": "LOW — the SSRF advisory is in Server Actions; SafeBet IQ does NOT use Server Actions ('use server' not present) and experimental.serverActions is not enabled. Cache-poisoning is fixed at 13.5.11. Remaining advisories require Next 14/15.",
+      "compensatingControl": "No Server Actions in the codebase; production served behind CloudFront/WAF; route handlers validate auth server-side per request.",
+      "owner": "Kabelo (CTO) / Sipho (DevSecOps)",
+      "approvedBy": "Meeshan Naidoo (required for the Next major upgrade)",
+      "created": "2026-08-08",
+      "expiry": "2026-11-08",
+      "upgradePlan": "Isolated Next 14.2 LTS upgrade milestone (App Router compatibility test + full regression + Playwright) — not bundled with this remediation."
+    },
+    {
+      "package": "postcss",
+      "maxSeverity": "high",
+      "advisories": ["GHSA-r28c-9q8g-f849 (XSS via unescaped </style> in CSS stringify)", "GHSA-fxqj-rqcc-2cmp"],
+      "installed": "8.5.15",
+      "fixAvailable": "none published at time of writing (8.5.15 is latest)",
+      "exploitability": "LOW — postcss runs at BUILD time only (Tailwind/Next CSS pipeline). SafeBet IQ processes no attacker-controlled CSS; no runtime CSS stringify of untrusted input.",
+      "compensatingControl": "Build-time only; static first-party CSS; no user-supplied stylesheets.",
+      "owner": "Sipho (DevSecOps)",
+      "created": "2026-08-08",
+      "expiry": "2026-11-08",
+      "upgradePlan": "Bump postcss to the patched release as soon as it is published on npm."
+    },
+    {
+      "package": "nanoid",
+      "maxSeverity": "high",
+      "advisories": ["GHSA-28wg-ghj8-5hjv", "GHSA-2v37-7h3g-55p8 (infinite loop with non-positive size)"],
+      "installed": "3.3.12",
+      "fixAvailable": "none in the 3.x line (latest 3.3.12); fix only in nanoid 5.x (ESM-only, breaking for CJS consumers)",
+      "exploitability": "LOW — nanoid is a transitive of @supabase/supabase-js and is invoked internally with fixed positive sizes; the vulnerable path requires an attacker-controlled zero/negative size, which SafeBet IQ never passes.",
+      "compensatingControl": "No user-controlled nanoid size; transitive, not called directly.",
+      "owner": "Kabelo (CTO)",
+      "created": "2026-08-08",
+      "expiry": "2026-11-08",
+      "upgradePlan": "Adopt nanoid 5.x when @supabase/supabase-js requires it and the project's ESM/CJS boundary supports it."
+    },
+    {
+      "package": "ws",
+      "maxSeverity": "high",
+      "advisories": ["GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure)", "GHSA-96hv-2xvq-fx4p (memory exhaustion DoS)"],
+      "installed": "8.20.0",
+      "fixAvailable": "none published (advisory fix 8.20.1/8.21.0 not on npm; latest is 8.20.0)",
+      "exploitability": "LOW — ws is a transitive of @supabase/realtime-js. In the browser, realtime uses the native WebSocket (ws is a Node polyfill, not shipped to the client); the SafeBet IQ server does not open Supabase realtime connections in the request path.",
+      "compensatingControl": "Not on the runtime request path; browser uses native WebSocket.",
+      "owner": "Sipho (DevSecOps)",
+      "created": "2026-08-08",
+      "expiry": "2026-11-08",
+      "upgradePlan": "Bump ws to 8.20.1+/8.21.0 as soon as it is published on npm."
+    }
+  ]
+}

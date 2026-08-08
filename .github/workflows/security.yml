@@ -1,0 +1,55 @@
+name: SafeBet IQ — CI Security Gate
+
+# Supply-chain + build/test gate (AUD-P1-001 / AUD-P1-008). Runs on pull requests
+# and on pushes to the protected/release branches. Blocks promotion when a
+# production Critical/High dependency vulnerability (without a valid time-limited
+# exception) exists, package-lock integrity fails, a secret is committed, the build
+# fails, or the regression suite fails.
+
+on:
+  pull_request:
+  push:
+    branches: [master, Demo, release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: SafeBetdemo-main   # the Next.js app lives in this subdirectory
+
+jobs:
+  security-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Deterministic install — fails if package-lock.json is out of sync (integrity).
+      - name: Install (npm ci — lock-file integrity)
+        run: npm ci
+
+      # Dependency security gate — production Critical/High without a valid,
+      # non-expired exception fails the build (verdict from audit JSON, not exit code).
+      - name: Dependency security gate
+        run: node scripts/ci/security-gate.mjs
+
+      # Informational production audit (does not gate on its own exit code).
+      - name: Production audit (report)
+        run: npm audit --omit=dev || true
+
+      - name: Secret scan
+        run: node scripts/ci/secret-scan.mjs
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build:eb
+
+      - name: Regression tests
+        run: npm test
