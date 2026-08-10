@@ -18,19 +18,37 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # repo app root
 $client = Join-Path $root 'scripts/safebet-workforce-bridge.mjs'
 
+# Normalise a secret payload: accept either a raw key string or a JSON object
+# ({"CLAUDE_BRIDGE_KEY":"..."} or a single-field object such as the AWS console
+# default). Returns $null if a JSON object has multiple fields and no explicit key.
+function Convert-Secret([string]$raw) {
+  if (-not $raw) { return $null }
+  $s = $raw.Trim()
+  if ($s.StartsWith('{')) {
+    try {
+      $j = $s | ConvertFrom-Json
+      if ($j.PSObject.Properties.Name -contains 'CLAUDE_BRIDGE_KEY') { return [string]$j.CLAUDE_BRIDGE_KEY }
+      $names = @($j.PSObject.Properties.Name)
+      if ($names.Count -eq 1) { return [string]$j.$($names[0]) }
+      return $null
+    } catch { return $s }
+  }
+  return $s
+}
+
 function Resolve-BridgeKey {
-  if ($env:CLAUDE_BRIDGE_KEY) { return $env:CLAUDE_BRIDGE_KEY }   # already provisioned
+  if ($env:CLAUDE_BRIDGE_KEY) { return (Convert-Secret $env:CLAUDE_BRIDGE_KEY) }   # already provisioned
 
   # AWS Secrets Manager
   try {
     $v = & aws secretsmanager get-secret-value --secret-id 'safebet/claude-bridge-key' --query SecretString --output text 2>$null
-    if ($LASTEXITCODE -eq 0 -and $v) { return $v.Trim() }
+    if ($LASTEXITCODE -eq 0 -and $v) { $k = Convert-Secret $v; if ($k) { return $k } }
   } catch {}
 
   # AWS SSM SecureString
   try {
     $v = & aws ssm get-parameter --name '/safebet/claude-bridge-key' --with-decryption --query 'Parameter.Value' --output text 2>$null
-    if ($LASTEXITCODE -eq 0 -and $v) { return $v.Trim() }
+    if ($LASTEXITCODE -eq 0 -and $v) { $k = Convert-Secret $v; if ($k) { return $k } }
   } catch {}
 
   # Local git-ignored file (dev only)
