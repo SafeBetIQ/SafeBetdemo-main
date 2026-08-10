@@ -9,24 +9,17 @@ import { execSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { scanText } from './secret-rules.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// High-signal secret patterns. Env-var NAMES and placeholders are NOT secrets.
-const RULES = [
-  [/-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/, 'private key block'],
-  [/\bAKIA[0-9A-Z]{16}\b/, 'AWS access key id'],
-  [/\baws_secret_access_key\s*=\s*[A-Za-z0-9/+]{40}\b/i, 'AWS secret access key'],
-  [/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/, 'JWT / Supabase key'],
-  [/\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, 'Slack token'],
-  [/\bgh[pousr]_[A-Za-z0-9]{36,}\b/, 'GitHub token'],
-  [/\bsk-[A-Za-z0-9]{20,}\b/, 'OpenAI-style secret key'],
-  // Assignment of a real-looking value to a known secret-bearing variable name.
-  [/\b(?:CLAUDE_BRIDGE_KEY|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|DB_PASSWORD|DATABASE_URL|SUPABASE_JWT_SECRET)\s*[:=]\s*["']?[A-Za-z0-9._/+-]{16,}["']?/, 'hard-coded secret assignment'],
-];
+// Detection lives in ./secret-rules.mjs (shared + unit-tested). This script only
+// enumerates git-tracked text files and applies scanText() to each.
 
 // Files that legitimately contain redaction patterns / example placeholders.
-const ALLOW_PATH = [/\.env\.example$/, /scripts\/ci\/secret-scan\.mjs$/, /scripts\/safebet-workforce-bridge\.mjs$/, /security\/audit-exceptions\.json$/];
+// The fixture directory is deliberately EXCLUDED so its planted literal must FAIL a
+// direct scan in the unit test, but is allow-listed here so CI is not blocked by it.
+const ALLOW_PATH = [/\.env\.example$/, /scripts\/ci\/secret-rules\.mjs$/, /scripts\/ci\/secret-scan\.mjs$/, /scripts\/safebet-workforce-bridge\.mjs$/, /security\/audit-exceptions\.json$/, /tests\/fixtures\/secret-scan\//, /tests\/secretScan\.test\.mjs$/];
 const SKIP_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.woff', '.woff2', '.ttf', '.lock']);
 
 let files = [];
@@ -41,12 +34,7 @@ for (const rel of files) {
   const abs = path.join(ROOT, rel);
   let text;
   try { if (statSync(abs).size > 2 * 1024 * 1024) continue; text = readFileSync(abs, 'utf8'); } catch { continue; }
-  const lines = text.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    for (const [re, label] of RULES) {
-      if (re.test(lines[i])) findings.push({ rel, line: i + 1, label });
-    }
-  }
+  for (const hit of scanText(text)) findings.push({ rel, line: hit.line, label: hit.label });
 }
 
 if (findings.length) {

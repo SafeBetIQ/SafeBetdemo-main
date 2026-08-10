@@ -28,6 +28,12 @@ yarn-error.log*
 .env
 .env*.local
 
+# local secret material — NEVER commit (AUD-P1-006). Bridge key etc. live here for
+# local dev only; production/CI load from AWS Secrets Manager / SSM, not these files.
+.secrets/
+*.key
+!tests/fixtures/**/*.key
+
 # vercel
 .vercel
 

@@ -64,6 +64,19 @@ async function main() {
     fail('usage-error', EXIT.usage, 'action must be one of: context | advice | report');
   }
 
+  // AUD-P1-006 hardening: the key must NEVER be passed on the command line (it would
+  // be visible in `ps`/Task Manager and shell history). Refuse, fail-closed, if any
+  // argument looks like a bridge-key literal or a --key/CLAUDE_BRIDGE_KEY= assignment.
+  // (The redactor guarantees the offending value itself is never echoed back.)
+  for (const a of rest) {
+    if (/^--?(key|token|bearer|api[-_]?key)$/i.test(a) ||
+        /\bCLAUDE_BRIDGE_KEY\s*[:=]/i.test(a) ||
+        /^Bearer\s+\S/i.test(a)) {
+      fail('config-error', EXIT.config,
+        'Refusing to run: the bridge key must come from the CLAUDE_BRIDGE_KEY environment variable, never a command-line argument. Remove it from the command line and set the env var instead.');
+    }
+  }
+
   // Key: env only; never printed.
   const KEY = process.env.CLAUDE_BRIDGE_KEY;
   if (!KEY) {

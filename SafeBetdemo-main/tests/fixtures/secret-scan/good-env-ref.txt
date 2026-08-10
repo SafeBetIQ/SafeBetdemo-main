@@ -1,0 +1,7 @@
+This fixture shows the APPROVED invocation pattern — the bridge key is read from the
+environment, never hard-coded. The scanner must PASS (produce zero findings) on it.
+
+const key = process.env.CLAUDE_BRIDGE_KEY;
+if (!key) { throw new Error('CLAUDE_BRIDGE_KEY is not configured'); }
+const headers = { Authorization: `Bearer ${process.env.CLAUDE_BRIDGE_KEY}` };
+# PowerShell (placeholder, no value): $env:CLAUDE_BRIDGE_KEY="<secure value entered by the user>"
