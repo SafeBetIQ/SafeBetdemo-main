@@ -1,7 +1,10 @@
 {
-  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted here. Only HIGH advisories with NO available non-major fix may be listed, each with exploitability analysis, compensating control, owner and upgrade plan. AUD-P1-008. NOTE: production frontend currently has UN-REMEDIATED criticals (html2pdf.js/jspdf XSS+LFI needing html2pdf.js@0.14.0 major; next cache-poisoning needing 13.5.11) and clean-fixable highs (nanoid, ws, brace-expansion, fast-uri, fast-xml-builder, postcss) — these are intentionally NOT excepted so the gate blocks until they are remediated in a separate QA'd milestone.",
+  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted here. Only HIGH advisories with NO available non-major fix may be listed, each with exploitability analysis, compensating control, owner and upgrade plan. AUD-P1-008. NOTE: production frontend currently has UN-REMEDIATED criticals (html2pdf.js/jspdf XSS+LFI needing html2pdf.js@0.14.0 major; next cache-poisoning needing 13.5.11) and clean-fixable highs (nanoid, ws, brace-expansion, fast-uri, fast-xml-builder, postcss) \u2014 these are intentionally NOT excepted so the gate blocks until they are remediated in a separate QA'd milestone.",
   "policy": {
-    "failOn": ["critical", "high"],
+    "failOn": [
+      "critical",
+      "high"
+    ],
     "productionOnly": true,
     "moderateAndLow": "warn",
     "notes": "Gate fails on any production Critical (no exceptions) and any production High not covered by a non-expired exception below."
@@ -10,42 +13,62 @@
     {
       "package": "next",
       "maxSeverity": "high",
-      "advisories": ["GHSA-fr5h-rqp8-mj6g (SSRF in Server Actions)"],
+      "advisories": [
+        "GHSA-fr5h-rqp8-mj6g (SSRF in Server Actions)"
+      ],
       "installed": "13.5.1",
       "fixAvailable": "major (Next 14.1.1+/14.2 LTS) for the SSRF advisory; the cache-poisoning CRITICAL is fixed by the non-major 13.5.11 patch and is NOT excepted",
-      "exploitability": "LOW — SSRF advisory is in Server Actions; verify production frontend does not enable experimental serverActions / 'use server'. Production served behind CloudFront.",
+      "exploitability": "LOW \u2014 SSRF advisory is in Server Actions; verify production frontend does not enable experimental serverActions / 'use server'. Production served behind CloudFront.",
       "compensatingControl": "CloudFront/WAF fronting; route handlers validate auth server-side.",
       "owner": "Kabelo (CTO) / Sipho (DevSecOps)",
       "approvedBy": "Meeshan Naidoo (required for the Next major upgrade)",
       "created": "2026-08-11",
-      "expiry": "2020-01-01",
+      "expiry": "2026-11-11",
       "upgradePlan": "Isolated Next 14.2 LTS upgrade milestone with full regression. The 13.5.11 patch (fixes the cache-poisoning critical) must land first and is not covered by this exception."
     },
     {
       "package": "@sentry/nextjs",
       "maxSeverity": "high",
-      "advisories": ["transitive rollup Arbitrary File Write; @sentry/node & @sentry/opentelemetry advisories"],
+      "advisories": [
+        "transitive rollup Arbitrary File Write; @sentry/node & @sentry/opentelemetry advisories"
+      ],
       "installed": "current (pre-10.x)",
       "fixAvailable": "major (@sentry/nextjs 10.70.0)",
-      "exploitability": "LOW — the rollup advisory is a build-time file-write; Sentry is observability tooling, not an attacker-controlled runtime input path.",
+      "exploitability": "LOW \u2014 the rollup advisory is a build-time file-write; Sentry is observability tooling, not an attacker-controlled runtime input path.",
       "compensatingControl": "Build runs in trusted CI; no untrusted rollup input.",
       "owner": "Sipho (DevSecOps)",
       "created": "2026-08-11",
-      "expiry": "2020-01-01",
+      "expiry": "2026-11-11",
       "upgradePlan": "Upgrade @sentry/nextjs to 10.x in a dedicated milestone with Sentry integration regression (source maps, tunnel route, config)."
     },
     {
       "package": "rollup",
       "maxSeverity": "high",
-      "advisories": ["GHSA (Arbitrary File Write via Path Traversal)"],
+      "advisories": [
+        "GHSA (Arbitrary File Write via Path Traversal)"
+      ],
       "installed": "transitive (via @sentry/nextjs bundler)",
       "fixAvailable": "major (arrives with @sentry/nextjs 10.70.0)",
-      "exploitability": "LOW — build-time only; no untrusted bundle input in CI.",
+      "exploitability": "LOW \u2014 build-time only; no untrusted bundle input in CI.",
       "compensatingControl": "Trusted CI build; first-party sources only.",
       "owner": "Sipho (DevSecOps)",
       "created": "2026-08-11",
-      "expiry": "2020-01-01",
+      "expiry": "2026-11-11",
       "upgradePlan": "Resolved by the @sentry/nextjs 10.x upgrade milestone."
+    },
+    {
+      "package": "lodash",
+      "maxSeverity": "high",
+      "advisories": [
+        "NEGATIVE-TEST fixture"
+      ],
+      "installed": "test",
+      "fixAvailable": "test",
+      "exploitability": "NEGATIVE TEST \u2014 deliberately expired",
+      "compensatingControl": "n/a",
+      "owner": "test",
+      "created": "2020-01-01",
+      "expiry": "2020-01-01"
     }
   ]
 }
