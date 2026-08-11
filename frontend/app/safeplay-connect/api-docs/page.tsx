@@ -40,7 +40,7 @@ export default function APIDocsPage() {
                 <h3 className="text-lg font-semibold text-white mb-2">Authentication</h3>
                 <p className="text-gray-400 mb-3">All requests require a Bearer token in the Authorization header:</p>
                 <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
-                  <pre className="text-sm text-gray-300">{`Authorization: Bearer sk_prod_your_api_key_here`}</pre>
+                  <pre className="text-sm text-gray-300">{`Authorization: Bearer YOUR_API_KEY`}</pre>
                 </div>
               </div>
               <div className="flex items-start space-x-2 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
