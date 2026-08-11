@@ -1,0 +1,5 @@
+This fixture deliberately contains a HARD-CODED bridge-key literal so the unit test
+can prove the scanner FAILS on it. The value below is a synthetic placeholder — it is
+NOT a real credential. Do not import this file at runtime.
+
+export CLAUDE_BRIDGE_KEY="PLACEHOLDERnotarealkey0123456789abcdEFGH"

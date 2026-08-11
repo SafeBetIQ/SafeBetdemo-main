@@ -1,0 +1,46 @@
+name: security
+
+# AUD-P1-008 — non-bypassable production security gate for the SafeBet IQ monorepo.
+# Runs on every PR to the protected release branch and on pushes to it.
+# The job "security-and-build" is configured as a REQUIRED status check on `production`,
+# so a failing gate / secret-scan / typecheck / build blocks merge.
+
+on:
+  pull_request:
+    branches: [production, security/**]
+  push:
+    branches: [production, security/**]
+
+permissions:
+  contents: read
+
+jobs:
+  security-and-build:
+    name: security-and-build
+    runs-on: ubuntu-latest
+    env:
+      SBIQ_AUDIT_DIR: frontend   # production app dependencies live in frontend/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies (lockfile integrity)
+        run: cd frontend && npm ci
+
+      - name: Dependency security gate (fails on prod Critical or un-excepted/expired prod High)
+        run: node scripts/ci/security-gate.mjs
+
+      - name: Secret scan (tracked files)
+        run: node scripts/ci/secret-scan.mjs
+
+      - name: Secret-scan unit tests
+        run: node --test tests/secretScan.test.mjs
+
+      - name: Type check (frontend)
+        run: cd frontend && npm run typecheck
+
+      - name: Production build (frontend)
+        run: cd frontend && npm run build

@@ -60,3 +60,8 @@ infrastructure/lambda/**/function.zip
 # CDK
 infrastructure/cdk.out/
 infrastructure/dist/
+
+# local secret material — NEVER commit (AUD-P1-006)
+.secrets/
+*.key
+!tests/fixtures/**/*.key
