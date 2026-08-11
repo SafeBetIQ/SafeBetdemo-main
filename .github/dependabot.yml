@@ -1,0 +1,23 @@
+version: 2
+# AUD-P1-008 — Dependabot opens REVIEWED PRs only. PRs run the required
+# `security-and-build` gate (pull_request trigger) and cannot auto-merge or deploy.
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 10
+    ignore:
+      # Major framework upgrades are handled as dedicated, QA'd milestones, not auto-PRs.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+  - package-ecosystem: npm
+    directory: /infrastructure
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 10
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
