@@ -24,14 +24,27 @@ export const RULES = [
 // they never trip the assignment rules.
 const SAFE_REFERENCE = /(?:process\.env\.|import\.meta\.env\.|Deno\.env\.get\(|['"]?)\b[A-Z0-9_]+\b/;
 
+// Assignments whose RHS is a runtime SECRET-MANAGER / CONFIG reference (not a literal):
+// e.g. AWS CDK secretValueFromJson().unsafeUnwrap(), SSM getParameter, Supabase
+// current_setting(), process.env, etc. These are the SAFE way to consume secrets and
+// must not be flagged. Only skip when there is NO quoted 16+ char literal on the line.
+const SAFE_REFERENCE_CALL = /secretValueFromJson\(|\.unsafeUnwrap\(|fromSecretsManager|fromSecret\b|getSecretValue|SecretString|current_setting\(|process\.env\.|import\.meta\.env\.|Deno\.env\.get\(|ssm\.getParameter|valueForStringParameter|StringParameter\.value|fromStringParameterName/;
+const HAS_QUOTED_LITERAL_SECRET = /["'][A-Za-z0-9][A-Za-z0-9._/+\-]{15,}["']/;
+
 /** Return the list of {label} findings for a single line of text. */
 export function scanLine(line) {
   const out = [];
+  // A runtime reference to a secret store / env / config with no inline literal value
+  // is the APPROVED pattern — never a committed secret.
+  const isSafeReference = SAFE_REFERENCE_CALL.test(line) && !HAS_QUOTED_LITERAL_SECRET.test(line)
+    && !/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/.test(line);
   // A pure name reference like `process.env.CLAUDE_BRIDGE_KEY` has no assigned value.
   const looksLikeNameRefOnly = /process\.env\.[A-Z0-9_]+|import\.meta\.env\.[A-Z0-9_]+/.test(line)
     && !/=\s*["'][A-Za-z0-9]/.test(line);
   for (const [re, label] of RULES) {
     if (re.test(line)) {
+      // Never flag a runtime secret-store/config reference (no literal present).
+      if (isSafeReference && /secret assignment|_KEY literal|Bearer credential|CLAUDE_BRIDGE_KEY/.test(label)) continue;
       // Do not flag pure env-name references (no literal value present).
       if (looksLikeNameRefOnly && /CLAUDE_BRIDGE_KEY|_SECRET|_KEY|_PASSWORD/.test(label + line) && !/["'][A-Za-z0-9]{12,}/.test(line)) continue;
       out.push(label);

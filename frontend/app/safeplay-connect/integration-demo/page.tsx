@@ -42,7 +42,7 @@ export default function IntegrationDemoPage() {
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-2">Environment Variables (.env)</h3>
                   <div className="bg-gray-950 border border-gray-800 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-sm text-gray-300">{`SAFEPLAY_API_KEY=sk_prod_your_api_key_here
+                    <pre className="text-sm text-gray-300">{`SAFEPLAY_API_KEY=YOUR_API_KEY
 SAFEPLAY_BASE_URL=https://api.safeplay.ai/v1`}</pre>
                   </div>
                 </div>

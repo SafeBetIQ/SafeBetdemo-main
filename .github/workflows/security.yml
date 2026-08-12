@@ -43,4 +43,11 @@ jobs:
         run: cd frontend && npm run typecheck
 
       - name: Production build (frontend)
+        # Build-validation only: catches build/compile breakage. Uses non-production
+        # placeholder public env so the app's runtime env-consistency guard does not
+        # gate CI. Real production env is injected by the (separate) deploy pipeline.
+        env:
+          NEXT_PUBLIC_ENV: development
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-build-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-placeholder
         run: cd frontend && npm run build

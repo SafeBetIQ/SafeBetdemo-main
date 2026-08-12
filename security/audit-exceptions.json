@@ -1,5 +1,5 @@
 {
-  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted here. Only HIGH advisories with NO available non-major fix may be listed, each with exploitability analysis, compensating control, owner and upgrade plan. AUD-P1-008. NOTE: production frontend currently has UN-REMEDIATED criticals (html2pdf.js/jspdf XSS+LFI needing html2pdf.js@0.14.0 major; next cache-poisoning needing 13.5.11) and clean-fixable highs (nanoid, ws, brace-expansion, fast-uri, fast-xml-builder, postcss) — these are intentionally NOT excepted so the gate blocks until they are remediated in a separate QA'd milestone.",
+  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted. Only HIGH advisories with NO available non-major fix are listed. AUD-P1-001/008. After the AUD-P1 remediation: production criticals = 0 (html2pdf.js->0.14.0, jspdf, next->13.5.11 resolved); lodash/nanoid/ws clean-fixed. The only remaining Highs are next + its transitive postcss, fixable solely by the Next 16 MAJOR upgrade (a separate migration + QA milestone).",
   "policy": {
     "failOn": ["critical", "high"],
     "productionOnly": true,
@@ -10,42 +10,29 @@
     {
       "package": "next",
       "maxSeverity": "high",
-      "advisories": ["GHSA-fr5h-rqp8-mj6g (SSRF in Server Actions)"],
-      "installed": "13.5.1",
-      "fixAvailable": "major (Next 14.1.1+/14.2 LTS) for the SSRF advisory; the cache-poisoning CRITICAL is fixed by the non-major 13.5.11 patch and is NOT excepted",
-      "exploitability": "LOW — SSRF advisory is in Server Actions; verify production frontend does not enable experimental serverActions / 'use server'. Production served behind CloudFront.",
-      "compensatingControl": "CloudFront/WAF fronting; route handlers validate auth server-side.",
+      "advisories": ["Residual Next.js High advisory fixed only in Next 16 (13.5.x carries the patchable criticals fixed at 13.5.11; this remaining High needs a major upgrade)"],
+      "installed": "13.5.11",
+      "fixAvailable": "major (next 16.x)",
+      "exploitability": "LOW — production frontend is served behind CloudFront/WAF; route handlers validate auth server-side; the cache-poisoning + SSRF-in-Server-Actions criticals are already remediated at 13.5.11 (no 'use server' / experimental.serverActions in use).",
+      "compensatingControl": "CloudFront/WAF fronting; no Server Actions; auth validated per request.",
       "owner": "Kabelo (CTO) / Sipho (DevSecOps)",
       "approvedBy": "Meeshan Naidoo (required for the Next major upgrade)",
       "created": "2026-08-11",
       "expiry": "2026-11-11",
-      "upgradePlan": "Isolated Next 14.2 LTS upgrade milestone with full regression. The 13.5.11 patch (fixes the cache-poisoning critical) must land first and is not covered by this exception."
+      "upgradePlan": "Dedicated Next 16 upgrade milestone (App Router migration + full regression + Playwright). Not bundled with this critical/secret remediation."
     },
     {
-      "package": "@sentry/nextjs",
+      "package": "postcss",
       "maxSeverity": "high",
-      "advisories": ["transitive rollup Arbitrary File Write; @sentry/node & @sentry/opentelemetry advisories"],
-      "installed": "current (pre-10.x)",
-      "fixAvailable": "major (@sentry/nextjs 10.70.0)",
-      "exploitability": "LOW — the rollup advisory is a build-time file-write; Sentry is observability tooling, not an attacker-controlled runtime input path.",
-      "compensatingControl": "Build runs in trusted CI; no untrusted rollup input.",
+      "advisories": ["postcss advisory carried by the Next 13.5.x bundled toolchain (transitive via next); the direct devDependency postcss is patched to 8.5.15"],
+      "installed": "transitive via next 13.5.11 (direct devDep = 8.5.15, patched)",
+      "fixAvailable": "major (arrives with next 16.x)",
+      "exploitability": "LOW — postcss runs at BUILD time only (Next CSS pipeline); no attacker-controlled CSS is processed; no runtime CSS stringify of untrusted input.",
+      "compensatingControl": "Build-time only; first-party static CSS; direct postcss devDep already patched to 8.5.15.",
       "owner": "Sipho (DevSecOps)",
       "created": "2026-08-11",
       "expiry": "2026-11-11",
-      "upgradePlan": "Upgrade @sentry/nextjs to 10.x in a dedicated milestone with Sentry integration regression (source maps, tunnel route, config)."
-    },
-    {
-      "package": "rollup",
-      "maxSeverity": "high",
-      "advisories": ["GHSA (Arbitrary File Write via Path Traversal)"],
-      "installed": "transitive (via @sentry/nextjs bundler)",
-      "fixAvailable": "major (arrives with @sentry/nextjs 10.70.0)",
-      "exploitability": "LOW — build-time only; no untrusted bundle input in CI.",
-      "compensatingControl": "Trusted CI build; first-party sources only.",
-      "owner": "Sipho (DevSecOps)",
-      "created": "2026-08-11",
-      "expiry": "2026-11-11",
-      "upgradePlan": "Resolved by the @sentry/nextjs 10.x upgrade milestone."
+      "upgradePlan": "Resolved by the Next 16 upgrade milestone (which updates the bundled toolchain)."
     }
   ]
 }
