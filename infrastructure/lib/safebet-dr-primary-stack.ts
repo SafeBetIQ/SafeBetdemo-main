@@ -52,7 +52,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
 
   public readonly primaryDb:      rds.DatabaseInstance;
   public readonly dbSecret:       secretsmanager.ISecret;
-  public readonly autoFailoverFn: lambda.Function;
   public readonly drAlertsTopic:  sns.Topic;
 
   constructor(scope: Construct, id: string, props: SafeBetDRPrimaryProps) {
@@ -210,83 +209,10 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    /* ── 8. Lambda — safebet-auto-failover ───────────────────────────── */
-    const lambdaSrcDir = path.join(__dirname, '../../lambda/safebet-auto-failover');
-
-    this.autoFailoverFn = new lambda.Function(this, 'AutoFailoverFn', {
-      functionName:  CONFIG.AUTO_FAILOVER_FN,
-      description:   'DR: stream S3 pg_dump backup → restore to Supabase PostgreSQL',
-      runtime:       lambda.Runtime.PYTHON_3_12,
-      architecture:  lambda.Architecture.X86_64,
-      handler:       'lambda_function.lambda_handler',
-      role:          autoFailoverRole,
-      timeout:       cdk.Duration.minutes(CONFIG.LAMBDA_TIMEOUT_MIN),
-      memorySize:    CONFIG.LAMBDA_MEMORY_MB,
-      logGroup:      autoFailoverLogGroup,
-
-      code: lambda.Code.fromAsset(lambdaSrcDir, {
-        bundling: {
-          image:    lambda.Runtime.PYTHON_3_12.bundlingImage,
-          platform: 'linux/amd64',
-
-          local: {
-            tryBundle(outputDir: string): boolean {
-              const packageDir = path.join(lambdaSrcDir, 'package');
-              const pyFile     = path.join(lambdaSrcDir, 'lambda_function.py');
-              if (!fs.existsSync(packageDir) || !fs.existsSync(pyFile)) {
-                return false;
-              }
-              try {
-                fs.cpSync(packageDir, outputDir, { recursive: true });
-                fs.copyFileSync(pyFile, path.join(outputDir, 'lambda_function.py'));
-                return true;
-              } catch { return false; }
-            },
-          },
-
-          command: [
-            'bash', '-c',
-            [
-              'pip install -r requirements.txt -t /asset-output'
-              + ' --platform manylinux2014_x86_64'
-              + ' --only-binary=:all:'
-              + ' --implementation cp'
-              + ' --python-version 3.12'
-              + ' --no-compile',
-              'cp *.py /asset-output/',
-            ].join(' && '),
-          ],
-        },
-      }),
-
-      environment: {
-        S3_BUCKET:           props.bucketName,
-        S3_PREFIX:           CONFIG.S3_BACKUP_PREFIX,
-        MARKER_PREFIX:       CONFIG.S3_MARKER_PREFIX,
-        CRITICAL_TABLES:     'users,bets,payments',
-        // SECURITY: No DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD here.
-        // The Lambda reads all Supabase credentials from Secrets Manager at
-        // runtime using SUPABASE_SECRET_ARN (see get_db_conn_params in Lambda code).
-        SUPABASE_SECRET_ARN: supabaseSecret.secretArn,
-      },
-
-      retryAttempts: 0,
-    });
-
-    /* ── 9. CloudWatch alarm — Lambda errors ────────────────────────── */
-    const autoFailoverErrors = this.autoFailoverFn.metricErrors({
-      period:    cdk.Duration.minutes(5),
-      statistic: 'Sum',
-    });
-    new cdk.aws_cloudwatch.Alarm(this, 'AutoFailoverErrorAlarm', {
-      alarmName:          'SafeBetAutoFailoverErrors',
-      alarmDescription:   'safebet-auto-failover Lambda is throwing errors — restore pipeline broken',
-      metric:             autoFailoverErrors,
-      threshold:          1,
-      comparisonOperator: cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      evaluationPeriods:  1,
-      treatMissingData:   cdk.aws_cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
+    /* Sections 8 & 9 (AutoFailover Lambda + its error alarm) REMOVED —
+       obsolete DR auto-failover Lambda retired (Stage B2A). The dedicated
+       IAM role (section 6) and log group (section 7) are intentionally
+       RETAINED pending a later IAM/log cleanup milestone. */
 
     /* ── 10. SNS topic — DR alerts ──────────────────────────────────── */
     this.drAlertsTopic = new sns.Topic(this, 'DrAlertsTopic', {
@@ -315,11 +241,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       value:       this.dbSecret.secretArn,
       description: 'Secrets Manager ARN — RDS admin credentials',
       exportName:  'SafeBetPrimaryDbSecretArn',
-    });
-    new cdk.CfnOutput(this, 'AutoFailoverLambdaArn', {
-      value:       this.autoFailoverFn.functionArn,
-      description: 'safebet-auto-failover Lambda ARN',
-      exportName:  'SafeBetAutoFailoverArn',
     });
     new cdk.CfnOutput(this, 'DrAlertsTopicArn', {
       value:       this.drAlertsTopic.topicArn,
