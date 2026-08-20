@@ -139,7 +139,9 @@ const replicaStack = new SafeBetDRReplicaStack(app, 'SafeBetDRReplica', {
   alertEmail,
   primaryDbId:       CONFIG.PRIMARY_DB_ID,
   primaryRegion:     CONFIG.PRIMARY_REGION,
-  primaryDbEndpoint: primaryStack.primaryDb.dbInstanceEndpointAddress,
+  // The primary RDS was retired (Stage D2C) and SafeBetDRReplica no longer
+  // consumes its endpoint (Stage D2A), so no cross-region value is passed.
+  primaryDbEndpoint: '',
   healthCheckId:     alarmStack.dbHealthCheck.attrHealthCheckId,
 });
 
