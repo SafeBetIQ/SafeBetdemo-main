@@ -50,7 +50,6 @@ export interface SafeBetDRPrimaryProps extends cdk.StackProps {
    ═══════════════════════════════════════════════════════════════════ */
 export class SafeBetDRPrimaryStack extends cdk.Stack {
 
-  public readonly primaryDb:      rds.DatabaseInstance;
   public readonly dbSecret:       secretsmanager.ISecret;
   public readonly drAlertsTopic:  sns.Topic;
 
@@ -92,60 +91,43 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       this, 'PrimaryDbSecret', CONFIG.SECRET_RDS_CREDS,
     );
 
-    /* ── 4. Supabase credentials secret (for auto-failover Lambda) ─── */
-    // Credentials are stored in Secrets Manager and read by the Lambda
-    // at runtime via GetSecretValue — never passed as plaintext env vars.
+    /* ── 4. Supabase credentials secret (read by the retained AutoFailover
+       IAM role policy). Import only — not a stack resource. Retained so the
+       retained AutoFailoverRole default policy synthesises identically. ─── */
     const supabaseSecret = secretsmanager.Secret.fromSecretNameV2(
       this, 'SupabaseSecret', CONFIG.SECRET_SUPABASE_CREDS,
     );
 
-    /* ── 5. RDS — PostgreSQL 15, Multi-AZ, deletion-protected ───────── */
-    this.primaryDb = new rds.DatabaseInstance(this, 'PrimaryDb', {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_15,
-      }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.T4G,
-        ec2.InstanceSize.MICRO,
-      ),
-      instanceIdentifier: CONFIG.PRIMARY_DB_ID,
-      databaseName:       CONFIG.DB_NAME,
-
-      vpc,
-      vpcSubnets:     { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [rdsSg],
-
-      credentials: rds.Credentials.fromSecret(this.dbSecret),
-
-      // Backup retention >= 1 day is REQUIRED for cross-region replica
-      backupRetention:          cdk.Duration.days(CONFIG.RDS_BACKUP_DAYS),
-      preferredBackupWindow:    '02:00-03:00',
-      preferredMaintenanceWindow: 'Mon:03:00-Mon:04:00',
-
-      allocatedStorage:    CONFIG.RDS_STORAGE_GB,
-      maxAllocatedStorage: CONFIG.RDS_MAX_STORAGE_GB,
-      storageType:         rds.StorageType.GP3,
-      storageEncrypted:    true,
-
-      // Multi-AZ: synchronous standby in a second AZ within Cape Town.
-      // Eliminates single-AZ failure as a DR gap. Adds ~$50/month for t4g.micro.
-      multiAz:            true,
-      publiclyAccessible: false,
-
-      // Enhanced monitoring: free at 60s interval
-      monitoringInterval: cdk.Duration.seconds(60),
-
-      // Performance Insights: free tier (7 days retention)
-      enablePerformanceInsights:      true,
-      performanceInsightRetention:    rds.PerformanceInsightRetention.DEFAULT,
-
-      // Production hardening
-      deletionProtection: true,
-      removalPolicy:      cdk.RemovalPolicy.RETAIN,
-
-      cloudwatchLogsExports:   ['postgresql', 'upgrade'],
-      cloudwatchLogsRetention: logs.RetentionDays.ONE_MONTH,
+    /* ── 5. RDS RETIRED (Stage D2C) — retained support resources ─────
+       The PostgreSQL RDS (safebet-primary-capetown) was permanently retired
+       under Stage D2C (physical delete) after Stage D2B detached it from this
+       stack. It is intentionally NO LONGER defined here so a future synth/
+       deploy cannot recreate it. Two support resources were RETAINED in the
+       deployed stack during the D2B detach — the DB subnet group and the
+       enhanced-monitoring IAM role (previously auto-generated children of the
+       L2 PrimaryDb construct). They are re-declared here as explicit L1/L2
+       constructs with their EXISTING deployed logical IDs preserved via
+       overrideLogicalId, so this reconciliation performs ZERO resource
+       actions on them. Their eventual cleanup is deferred to Stage E.
+       (rdsSg / PrimaryRdsSg and PrimaryDbSecret import are likewise retained.) */
+    const primaryDbSubnetGroup = new rds.CfnDBSubnetGroup(this, 'PrimaryDbSubnetGroupRetained', {
+      dbSubnetGroupDescription: 'Subnet group for PrimaryDb database',
+      subnetIds: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
     });
+    primaryDbSubnetGroup.overrideLogicalId('PrimaryDbSubnetGroupED348943');
+
+    const primaryDbMonitoringRole = new iam.Role(this, 'PrimaryDbMonitoringRoleRetained', {
+      assumedBy: new iam.ServicePrincipal('monitoring.rds.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AmazonRDSEnhancedMonitoringRole',
+        ),
+      ],
+    });
+    (primaryDbMonitoringRole.node.defaultChild as iam.CfnRole)
+      .overrideLogicalId('PrimaryDbMonitoringRoleC57F3424');
+    // Retain the security group reference (PrimaryRdsSg) so it continues to synthesise.
+    void rdsSg;
 
     /* ── 6. IAM role for safebet-auto-failover Lambda ────────────────── */
     const autoFailoverRole = new iam.Role(this, 'AutoFailoverRole', {
@@ -203,10 +185,13 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
     }));
 
     /* ── 7. CloudWatch Log Group for Lambda ─────────────────────────── */
+    // Retention + removalPolicy reconciled to the deployed values (30 days /
+    // Delete) so this source change proposes NO modification to the retained
+    // log group. (Pre-existing source drift was 90 days / Retain.)
     const autoFailoverLogGroup = new logs.LogGroup(this, 'AutoFailoverLogGroup', {
       logGroupName:  `/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}`,
-      retention:     logs.RetentionDays.THREE_MONTHS,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      retention:     logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     /* Sections 8 & 9 (AutoFailover Lambda + its error alarm) REMOVED —
@@ -220,18 +205,12 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       displayName: 'SafeBet IQ — DR Alerts',
     });
 
-    if (props.alertEmail) {
-      this.drAlertsTopic.addSubscription(
-        new sns_subs.EmailSubscription(props.alertEmail)
-      );
-    }
+    // NOTE: the alerts@safebetiq.com email subscription exists OUT-OF-BAND and
+    // is intentionally NOT managed by this stack (the deployed template has no
+    // AWS::SNS::Subscription). The source `addSubscription` was removed so this
+    // reconciliation does NOT propose adding/adopting the live subscription.
 
     /* ── 11. Stack outputs ───────────────────────────────────────────── */
-    new cdk.CfnOutput(this, 'PrimaryDbEndpoint', {
-      value:       this.primaryDb.dbInstanceEndpointAddress,
-      description: 'RDS primary endpoint',
-      exportName:  'SafeBetPrimaryDbEndpoint',
-    });
     new cdk.CfnOutput(this, 'PrimaryDbIdentifier', {
       value:       CONFIG.PRIMARY_DB_ID,
       description: 'RDS primary instance identifier',
@@ -247,10 +226,7 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       description: 'SNS DR alerts topic ARN',
       exportName:  'SafeBetDrAlertsTopicArn',
     });
-    new cdk.CfnOutput(this, 'SupabaseSecretArn', {
-      value:       supabaseSecret.secretArn,
-      description: 'Secrets Manager ARN — Supabase credentials for Lambda',
-      exportName:  'SafeBetSupabaseSecretArn',
-    });
+    // SupabaseSecretArn output removed — not present in the deployed stack
+    // (the auto-failover Lambda that consumed it was retired in Stage B2A/B2B).
   }
 }
