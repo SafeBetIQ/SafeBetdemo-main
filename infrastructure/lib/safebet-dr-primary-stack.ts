@@ -91,13 +91,6 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       this, 'PrimaryDbSecret', CONFIG.SECRET_RDS_CREDS,
     );
 
-    /* ── 4. Supabase credentials secret (read by the retained AutoFailover
-       IAM role policy). Import only — not a stack resource. Retained so the
-       retained AutoFailoverRole default policy synthesises identically. ─── */
-    const supabaseSecret = secretsmanager.Secret.fromSecretNameV2(
-      this, 'SupabaseSecret', CONFIG.SECRET_SUPABASE_CREDS,
-    );
-
     /* ── 5. RDS RETIRED (Stage D2C) — retained support resources ─────
        The PostgreSQL RDS (safebet-primary-capetown) was permanently retired
        under Stage D2C (physical delete) after Stage D2B detached it from this
@@ -129,75 +122,14 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
     // Retain the security group reference (PrimaryRdsSg) so it continues to synthesise.
     void rdsSg;
 
-    /* ── 6. IAM role for safebet-auto-failover Lambda ────────────────── */
-    const autoFailoverRole = new iam.Role(this, 'AutoFailoverRole', {
-      roleName:    'safebet-auto-failover-role',
-      assumedBy:   new iam.ServicePrincipal('lambda.amazonaws.com'),
-      description: 'Execution role for safebet-auto-failover Lambda (S3 to Supabase restore)',
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AWSLambdaBasicExecutionRole'
-        ),
-      ],
-    });
-
-    autoFailoverRole.addToPolicy(new iam.PolicyStatement({
-      sid:     'S3BackupRead',
-      effect:  iam.Effect.ALLOW,
-      actions: ['s3:GetObject', 's3:ListBucket'],
-      resources: [
-        `arn:aws:s3:::${props.bucketName}`,
-        `arn:aws:s3:::${props.bucketName}/*`,
-      ],
-    }));
-    autoFailoverRole.addToPolicy(new iam.PolicyStatement({
-      sid:     'S3RestoreMarkerWrite',
-      effect:  iam.Effect.ALLOW,
-      actions: ['s3:PutObject'],
-      resources: [`arn:aws:s3:::${props.bucketName}/${CONFIG.S3_MARKER_PREFIX}/*`],
-      conditions: {
-        StringEquals: { 's3:x-amz-server-side-encryption': 'AES256' },
-      },
-    }));
-    autoFailoverRole.addToPolicy(new iam.PolicyStatement({
-      sid:     'CloudWatchMetrics',
-      effect:  iam.Effect.ALLOW,
-      actions: ['cloudwatch:PutMetricData'],
-      resources: ['*'],
-      conditions: {
-        StringEquals: { 'cloudwatch:namespace': CONFIG.CW_NAMESPACE },
-      },
-    }));
-    autoFailoverRole.addToPolicy(new iam.PolicyStatement({
-      sid:     'CloudWatchLogs',
-      effect:  iam.Effect.ALLOW,
-      actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents'],
-      resources: [
-        `arn:aws:logs:${this.region}:${props.account}:log-group:/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}:*`,
-      ],
-    }));
-    // Secrets Manager: read Supabase credentials — eliminates plaintext password
-    autoFailoverRole.addToPolicy(new iam.PolicyStatement({
-      sid:     'ReadSupabaseSecret',
-      effect:  iam.Effect.ALLOW,
-      actions: ['secretsmanager:GetSecretValue'],
-      resources: [supabaseSecret.secretArn],
-    }));
-
-    /* ── 7. CloudWatch Log Group for Lambda ─────────────────────────── */
-    // Retention + removalPolicy reconciled to the deployed values (30 days /
-    // Delete) so this source change proposes NO modification to the retained
-    // log group. (Pre-existing source drift was 90 days / Retain.)
-    const autoFailoverLogGroup = new logs.LogGroup(this, 'AutoFailoverLogGroup', {
-      logGroupName:  `/aws/lambda/${CONFIG.AUTO_FAILOVER_FN}`,
-      retention:     logs.RetentionDays.ONE_MONTH,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    /* Sections 8 & 9 (AutoFailover Lambda + its error alarm) REMOVED —
-       obsolete DR auto-failover Lambda retired (Stage B2A). The dedicated
-       IAM role (section 6) and log group (section 7) are intentionally
-       RETAINED pending a later IAM/log cleanup milestone. */
+    /* ── 6 & 7. AutoFailover support resources RETIRED (Stage E2A) ─────
+       The safebet-auto-failover Lambda was retired in Stage B2A/B2B; its
+       dedicated IAM role (AutoFailoverRole9816D956, safebet-auto-failover-role),
+       inline default policy (AutoFailoverRoleDefaultPolicy7D670003) and log
+       group (AutoFailoverLogGroup13D0EE9F, /aws/lambda/safebet-auto-failover)
+       were proven orphaned in Stage E1 (0 consumers; empty log group). They are
+       NO LONGER defined here so they are not recreated; a separately-authorised
+       Stage E2B change removes them from the deployed stack. */
 
     /* ── 10. SNS topic — DR alerts ──────────────────────────────────── */
     this.drAlertsTopic = new sns.Topic(this, 'DrAlertsTopic', {
