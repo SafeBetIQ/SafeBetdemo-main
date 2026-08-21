@@ -73,54 +73,23 @@ export class SafeBetDRPrimaryStack extends cdk.Stack {
       enableDnsSupport:   true,
     });
 
-    /* ── 2. Security group — RDS only reachable within VPC ─────────── */
-    const rdsSg = new ec2.SecurityGroup(this, 'PrimaryRdsSg', {
-      vpc,
-      securityGroupName: 'safebet-primary-rds-sg',
-      description:       'SafeBet RDS primary - PostgreSQL from VPC only',
-      allowAllOutbound:  false,
-    });
-    rdsSg.addIngressRule(
-      ec2.Peer.ipv4(vpc.vpcCidrBlock),
-      ec2.Port.tcp(5432),
-      'PostgreSQL from VPC CIDR',
-    );
-
     /* ── 3. Secrets Manager — import existing RDS credentials ──────── */
     this.dbSecret = secretsmanager.Secret.fromSecretNameV2(
       this, 'PrimaryDbSecret', CONFIG.SECRET_RDS_CREDS,
     );
 
-    /* ── 5. RDS RETIRED (Stage D2C) — retained support resources ─────
+    /* ── 2 & 5. Final legacy RDS support resources RETIRED (Stage E3A) ─
        The PostgreSQL RDS (safebet-primary-capetown) was permanently retired
-       under Stage D2C (physical delete) after Stage D2B detached it from this
-       stack. It is intentionally NO LONGER defined here so a future synth/
-       deploy cannot recreate it. Two support resources were RETAINED in the
-       deployed stack during the D2B detach — the DB subnet group and the
-       enhanced-monitoring IAM role (previously auto-generated children of the
-       L2 PrimaryDb construct). They are re-declared here as explicit L1/L2
-       constructs with their EXISTING deployed logical IDs preserved via
-       overrideLogicalId, so this reconciliation performs ZERO resource
-       actions on them. Their eventual cleanup is deferred to Stage E.
-       (rdsSg / PrimaryRdsSg and PrimaryDbSecret import are likewise retained.) */
-    const primaryDbSubnetGroup = new rds.CfnDBSubnetGroup(this, 'PrimaryDbSubnetGroupRetained', {
-      dbSubnetGroupDescription: 'Subnet group for PrimaryDb database',
-      subnetIds: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
-    });
-    primaryDbSubnetGroup.overrideLogicalId('PrimaryDbSubnetGroupED348943');
-
-    const primaryDbMonitoringRole = new iam.Role(this, 'PrimaryDbMonitoringRoleRetained', {
-      assumedBy: new iam.ServicePrincipal('monitoring.rds.amazonaws.com'),
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AmazonRDSEnhancedMonitoringRole',
-        ),
-      ],
-    });
-    (primaryDbMonitoringRole.node.defaultChild as iam.CfnRole)
-      .overrideLogicalId('PrimaryDbMonitoringRoleC57F3424');
-    // Retain the security group reference (PrimaryRdsSg) so it continues to synthesise.
-    void rdsSg;
+       under Stage D2C. Its last three dedicated support resources — the DB
+       subnet group (PrimaryDbSubnetGroupED348943), the enhanced-monitoring IAM
+       role (PrimaryDbMonitoringRoleC57F3424) and the RDS security group
+       (PrimaryRdsSgBB202A4B) — were proven unused in Stage E1 (0 RDS/ENI/SG
+       consumers). They are NO LONGER defined here so they are not recreated; a
+       separately-authorised Stage E3B change removes them from the deployed
+       stack. NOTE: the deployed PrimaryRdsSg carries an out-of-band ingress
+       drift — it is retired (deleted) in E3B, NOT reconciled/repaired. The
+       PrimaryDbSecret import (section 3) is retained only to populate the
+       PrimaryDbSecretArn output. */
 
     /* ── 6 & 7. AutoFailover support resources RETIRED (Stage E2A) ─────
        The safebet-auto-failover Lambda was retired in Stage B2A/B2B; its
