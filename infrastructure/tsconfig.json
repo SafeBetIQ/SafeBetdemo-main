@@ -16,5 +16,5 @@
     "typeRoots":              ["./node_modules/@types"],
     "outDir":                 "dist"
   },
-  "exclude": ["node_modules", "dist", "cdk.out", "safebet-backend"]
+  "exclude": ["node_modules", "dist", "cdk.out"]
 }
