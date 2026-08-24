@@ -27,7 +27,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 24: the regression suite imports the TypeScript contract modules
+          # directly (e.g. lib/financialRollup.ts), which needs native TS type
+          # stripping (Node >= 22.6 / stable in 24). This matches the local
+          # development/build environment. The demo app itself builds on any
+          # supported Node; this only governs the CI gate.
+          node-version: '24'
 
       # Deterministic install — fails if package-lock.json is out of sync (integrity).
       - name: Install (npm ci — lock-file integrity)
