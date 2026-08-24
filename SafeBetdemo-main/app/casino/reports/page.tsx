@@ -1,9 +1,12 @@
 'use client';
 
-// ─── Reporting Centre (v1.5.1 convergence) ───────────────────────────────────
-// Reports COMPOSE certified Consumer Platform views (summary + compliance) —
-// they recalculate nothing and read no tables directly. Same numbers as every
-// other screen. Printable for distribution.
+// ─── Reporting Centre (certified financial convergence) ──────────────────────
+// Reports COMPOSE certified Consumer Platform views — they recalculate nothing
+// and read no tables directly. Financial figures come from the SAME certified
+// posture (projection_financial_posture → FinancialPostureView) the Operator
+// dashboard and Evidence Centre use, formatted through lib/certifiedFinancial so
+// every screen shows identical numbers. Null certified values render as "—",
+// never a false R 0. Printable for distribution.
 
 import { useCallback, useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -13,6 +16,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cgGet } from '@/lib/consumerClient';
+import type { FinancialPostureView } from '@/lib/consumerPlatform/contracts';
+import {
+  FINANCIAL_PERIODS, type FinancialPeriod,
+  certifiedMoney, ggrForPeriod, stakesForPeriod, winningsForPeriod,
+  financialStatusLabel, financialStatusTone, financialCurrency, financialTimezone,
+  syntheticDisclosure,
+} from '@/lib/certifiedFinancial';
 import { FileText, RefreshCw, Printer } from 'lucide-react';
 
 type Rec = Record<string, unknown>;
@@ -21,24 +31,38 @@ const n = (v: unknown) => (typeof v === 'number' ? v : Number(v ?? 0)) || 0;
 export default function ReportingCentrePage() {
   const { user } = useAuth();
   const casinoId = (user as unknown as Rec)?.casino_id as string | undefined;
+  const [floor, setFloor] = useState<Rec | null>(null);
   const [summary, setSummary] = useState<Rec | null>(null);
   const [compliance, setCompliance] = useState<Rec | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generatedAt, setGeneratedAt] = useState<string>('');
+  const [period, setPeriod] = useState<FinancialPeriod>('TODAY');
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [s, c] = await Promise.all([
+    const [f, s, c] = await Promise.all([
+      cgGet('live-floor', { casino_id: casinoId }),
       cgGet('summary', { casino_id: casinoId }),
       cgGet('compliance', { casino_id: casinoId }),
     ]);
-    setSummary(s); setCompliance(c); setLoading(false);
+    setFloor(f); setSummary(s); setCompliance(c);
+    setGeneratedAt(new Date().toLocaleString());
+    setLoading(false);
   }, [casinoId]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  const kpi = (summary?.kpi ?? {}) as Rec;
+  // Certified financial posture — the single source of truth, identical to the
+  // Operator dashboard and Evidence Centre. Null when the certified source does
+  // not support the scope (rendered as "—", never a false zero).
+  const financial = (floor?.financial ?? null) as FinancialPostureView | null;
+  const kpi = ((floor?.kpi ?? summary?.kpi) ?? {}) as Rec;
   const tiers = (compliance?.riskTiers ?? { critical: 0, high: 0, medium: 0, low: 0 }) as Rec;
   const monitored = (compliance?.playersRequiringMonitoring ?? []) as Rec[];
   const decisions = (compliance?.regulatoryDecisions ?? summary?.headlineDecisions ?? []) as Rec[];
+
+  const statusLabel = financialStatusLabel(financial);
+  const periodMeta = FINANCIAL_PERIODS.find((p) => p.key === period)!;
+  const disclosure = syntheticDisclosure(financial);
 
   return (
     <CasinoAdminGuard>
@@ -55,12 +79,69 @@ export default function ReportingCentrePage() {
             </div>
           </div>
 
+          {/* ─── Certified financial position ───────────────────────────── */}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Certified financial position
+                    <Badge variant={financialStatusTone(statusLabel)} aria-label={`Certification status ${statusLabel}`}>{statusLabel}</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    {periodMeta.label} · {financialCurrency(financial)} · {financialTimezone(financial)} · Generated {generatedAt || '—'}
+                  </CardDescription>
+                </div>
+                {/* Period selector — changes ALL financial cards together. */}
+                <div className="flex flex-wrap gap-1" role="group" aria-label="Reporting period">
+                  {FINANCIAL_PERIODS.map((p) => (
+                    <Button
+                      key={p.key}
+                      size="sm"
+                      variant={p.key === period ? 'default' : 'outline'}
+                      aria-pressed={p.key === period}
+                      onClick={() => setPeriod(p.key)}
+                    >{p.short}</Button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-4">
+                  <div className="text-2xl font-semibold tabular-nums text-emerald-700">{loading ? '…' : certifiedMoney(ggrForPeriod(financial, period))}</div>
+                  <div className="text-xs uppercase text-muted-foreground">GGR</div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-2xl font-semibold tabular-nums">{loading ? '…' : certifiedMoney(stakesForPeriod(financial, period))}</div>
+                  <div className="text-xs uppercase text-muted-foreground">Settled stakes</div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-2xl font-semibold tabular-nums">{loading ? '…' : certifiedMoney(winningsForPeriod(financial, period))}</div>
+                  <div className="text-xs uppercase text-muted-foreground">Player winnings</div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <div className="text-2xl font-semibold tabular-nums">{loading ? '…' : (financial ? n(financial.settledBetsToday).toLocaleString() : '—')}</div>
+                  <div className="text-xs uppercase text-muted-foreground">Settled bets (today)</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                GGR = settled stakes − player winnings, over the certified financial event log.
+                {disclosure ? ` · ${disclosure}` : ''}
+              </p>
+              {!loading && !financial && (
+                <p className="text-sm text-muted-foreground">Certified financial position unavailable for this scope.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Responsible Gambling posture ───────────────────────────── */}
           <Card>
             <CardHeader><CardTitle className="text-base">Responsible Gambling posture report</CardTitle>
-              <CardDescription>Generated {new Date().toLocaleString()} · Recorded Fact + Derived Intelligence</CardDescription></CardHeader>
+              <CardDescription>Generated {generatedAt || '—'} · Recorded Fact + Derived Intelligence</CardDescription></CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(kpi.active_players)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div></div>
-              <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">R {n(kpi.ggr).toLocaleString()}</div><div className="text-xs uppercase text-muted-foreground">GGR</div></div>
+              <div className="rounded-lg border p-4"><div className="text-2xl font-semibold tabular-nums text-emerald-700">{loading ? '…' : certifiedMoney(ggrForPeriod(financial, period))}</div><div className="text-xs uppercase text-muted-foreground">GGR ({periodMeta.short})</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{n(tiers.critical)}</div><div className="text-xs uppercase text-muted-foreground">Critical risk</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-orange-600">{n(tiers.high)}</div><div className="text-xs uppercase text-muted-foreground">High risk</div></div>
             </CardContent>
