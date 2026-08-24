@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@types/node":          "^20",
-    "typescript":           "~5.4",
+    "typescript":           "~7.0",
     "aws-cdk":              "^2.178.0",
     "ts-node":              "^10.9.2",
     "source-map-support":   "^0.5.21",
