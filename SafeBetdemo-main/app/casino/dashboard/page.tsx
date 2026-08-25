@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cgGet } from '@/lib/consumerClient';
 import { reconcileOperatorKpi } from '@/lib/consumerPlatform/integrity';
 import type { LiveKpiView, FinancialPostureView } from '@/lib/consumerPlatform/contracts';
+import { certifiedMoney } from '@/lib/certifiedFinancial';
 import {
   Users, Activity, MonitorSmartphone, DollarSign, ShieldAlert, HeartPulse,
   RefreshCw, CircleAlert, CircleCheck, HelpCircle,
@@ -32,8 +33,9 @@ import {
 type Rec = Record<string, unknown>;
 const n = (v: unknown) => (typeof v === 'number' ? v : Number(v ?? 0)) || 0;
 const int = (v: unknown) => n(v).toLocaleString();
-// South African currency: space thousands, "R 1 250 430" (whole rand on cards).
-const money0 = (v: unknown) => 'R ' + Math.round(Math.abs(n(v))).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+// South African currency via the shared certified-financial contract: space
+// thousands, "R 1 250 430", null → "—" (never a false zero), sign preserved.
+const money0 = (v: unknown) => certifiedMoney(v, 0);
 
 export default function OperatorDashboardPage() {
   const { user } = useAuth();

@@ -16,9 +16,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { evGet, evExportUrl } from '@/lib/consumerClient';
 import { ArrowLeft, Download, CircleCheck, CircleAlert, HelpCircle } from 'lucide-react';
+import { zar } from '@/lib/certifiedFinancial';
 
 type Rec = Record<string, unknown>;
-const money = (v: unknown) => 'R ' + (Number(v ?? 0) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+// Certified ZAR (2dp) via the shared contract. Null is handled by the caller as
+// "not supported" — the null-not-zero rule — before money() is ever reached.
+const money = (v: unknown) => zar(v, 2);
 
 function EvidenceInner() {
   const sp = useSearchParams();
