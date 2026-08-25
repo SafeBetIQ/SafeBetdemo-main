@@ -27,7 +27,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 24: the regression suite imports the TypeScript contract modules
+          # directly (e.g. lib/financialRollup.ts), which needs native TS type
+          # stripping (Node >= 22.6 / stable in 24). This matches the local
+          # development/build environment. The demo app itself builds on any
+          # supported Node; this only governs the CI gate.
+          node-version: '24'
 
       # Deterministic install — fails if package-lock.json is out of sync (integrity).
       - name: Install (npm ci — lock-file integrity)
@@ -48,8 +53,21 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Next.js compiles the browser bundle here, so it needs the PUBLIC frontend
+      # Supabase config (createClient reads these at module load — no network call
+      # occurs at build). These are non-production, browser-public values held as
+      # repository VARIABLES (never secrets); the service-role key is never used in
+      # the frontend build. Fail clearly if the public build config is absent.
       - name: Build
-        run: npm run build:eb
+        run: |
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ] || [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
+            echo "::error::Missing required public Supabase build configuration (set repository variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY)."
+            exit 1
+          fi
+          npm run build:eb
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Regression tests
         run: npm test
