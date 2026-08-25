@@ -52,6 +52,27 @@ export async function rpGet<T = Record<string, unknown>>(
   return ((await res.json())?.data ?? null) as T | null;
 }
 
+/**
+ * Authenticated regulator CSV export (regulator-portal). The JWT is sent in the
+ * Authorization header, so a direct URL hit without it is rejected server-side
+ * (401) — the export cannot be reached by URL manipulation. Returns the CSV text
+ * and the server-provided filename, or null on auth/scope/HTTP failure.
+ */
+export async function rpExportCsv(
+  view: string,
+  params: Record<string, string | undefined> = {},
+): Promise<{ csv: string; filename: string } | null> {
+  const headers = await authHeaders();
+  if (!headers) return null;
+  const qs = new URLSearchParams({ view, format: 'csv', ...clean(params) });
+  const res = await fetch(`${fnUrl('regulator-portal')}?${qs.toString()}`, { headers });
+  if (!res.ok) return null;
+  const csv = await res.text();
+  const cd = res.headers.get('Content-Disposition') ?? '';
+  const m = cd.match(/filename="?([^"]+)"?/);
+  return { csv, filename: m ? m[1] : 'regulator_financial.csv' };
+}
+
 /** Fetch a certified evidence envelope (evidence-gateway). Scope is JWT-derived. */
 export async function evGet<T = Record<string, unknown>>(
   domain: 'financial' | 'session' | 'player' | 'machine',
