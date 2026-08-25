@@ -14,6 +14,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyPrincipal, principalMayAccessCasino } from "../../../lib/security/principal.ts";
+import { shapeFinancial } from "../../../lib/consumerPlatform/shaping.ts";
 import { getDigitalTwin } from "../../../lib/digitalTwin/index.ts";
 import { getIntelligencePlatform, intelligenceOf } from "../../../lib/domainIntelligence/index.ts";
 import { getPolicyPlatform } from "../../../lib/policyPlatform/index.ts";
@@ -50,6 +51,34 @@ Deno.serve(async (req: Request) => {
 
     const view = url.searchParams.get("view") ?? "national-overview";
     const version = url.searchParams.get("version") ?? undefined;
+
+    // ─── Certified operator financial (FIN-UI-2) ─────────────────────────────
+    // An authorised regulator views ONE in-jurisdiction operator's certified
+    // financial posture. This returns the SAME certified row
+    // (projection_financial_posture) an operator sees — shaped by the SAME
+    // shapeFinancial() — so the arithmetic is identical for both roles: role
+    // changes ACCESS, never the numbers. No cross-operator sum is computed here.
+    // Operator scope is proven server-side (jurisdiction + principal), never a
+    // client claim; null certified values stay null (rendered "—", never R 0).
+    if (view === "operator-financial") {
+      const casinoId = url.searchParams.get("casino_id");
+      if (!casinoId) return json({ error: "casino_id required" }, 400);
+      const { data: casinoRow } = await supabase
+        .from("casinos").select("id, name, jurisdiction, province").eq("id", casinoId).maybeSingle();
+      if (!casinoRow) return json({ error: "operator not found" }, 404);
+      const c = casinoRow as { id: string; name: string; jurisdiction: string; province: string | null };
+      if (c.jurisdiction !== jurisdiction) return json({ error: "operator outside regulator jurisdiction" }, 403);
+      if (!principalMayAccessCasino(principal, c)) return json({ error: "operator outside regulator scope" }, 403);
+      const { data: fp } = await supabase
+        .from("projection_financial_posture").select("*").eq("casino_id", casinoId).maybeSingle();
+      return json({
+        success: true,
+        data: {
+          operator: { casinoId: c.id, name: c.name, jurisdiction: c.jurisdiction },
+          financial: shapeFinancial(fp as Record<string, unknown> | null),
+        },
+      });
+    }
 
     // National rollup — composition of the certified read models for this
     // jurisdiction (anonymous, no recalculation).
