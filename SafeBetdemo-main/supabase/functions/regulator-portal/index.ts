@@ -15,6 +15,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyPrincipal, principalMayAccessCasino } from "../../../lib/security/principal.ts";
 import { shapeFinancial } from "../../../lib/consumerPlatform/shaping.ts";
+import { regulatorFinancialCsv } from "../../../lib/regulatorFinancialExport.ts";
+import { financialCurrency, financialTimezone } from "../../../lib/certifiedFinancial.ts";
 import { getDigitalTwin } from "../../../lib/digitalTwin/index.ts";
 import { getIntelligencePlatform, intelligenceOf } from "../../../lib/domainIntelligence/index.ts";
 import { getPolicyPlatform } from "../../../lib/policyPlatform/index.ts";
@@ -31,6 +33,33 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 const REGULATOR_ROLES = new Set(["regulator", "national_regulator", "provincial_regulator", "super_admin"]);
+
+// Record a regulator financial export in the existing tamper-evident audit_events
+// chain (the compute_audit_chain_hash trigger fills the hash). Exports always
+// record (random id). Best-effort: the certified projection is never mutated.
+// deno-lint-ignore no-explicit-any
+async function auditFinancialExport(sb: any, principal: any, casinoId: string): Promise<string> {
+  const eventId = `regulator-financial:export:${crypto.randomUUID()}`;
+  try {
+    await sb.from("audit_events").upsert({
+      event_id: eventId,
+      event_type: "REGULATOR_FINANCIAL_EXPORT",
+      event_category: "evidence",
+      user_id: principal.isServiceRole ? null : principal.userId,
+      user_role: principal.role, casino_id: casinoId,
+      resource_type: "regulator.financial", resource_id: casinoId,
+      action: "export", description: "regulator certified financial export",
+      correlation_id: eventId, severity: "info", outcome: "success",
+      metadata: { jurisdiction: principal.jurisdiction ?? null },
+    }, { onConflict: "event_id", ignoreDuplicates: true });
+    const { data } = await sb.from("audit_events")
+      .select("event_id, chain_sequence, hash").eq("event_id", eventId).maybeSingle();
+    const rec = (data ?? null) as { event_id: string; chain_sequence: number; hash: string } | null;
+    return rec?.hash ? `${rec.event_id}#${rec.hash.slice(0, 16)}` : eventId;
+  } catch {
+    return eventId; // audit is best-effort; export still reflects the certified result
+  }
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: cors });
@@ -71,11 +100,33 @@ Deno.serve(async (req: Request) => {
       if (!principalMayAccessCasino(principal, c)) return json({ error: "operator outside regulator scope" }, 403);
       const { data: fp } = await supabase
         .from("projection_financial_posture").select("*").eq("casino_id", casinoId).maybeSingle();
+      const financial = shapeFinancial(fp as Record<string, unknown> | null);
+
+      // CSV export — the SAME certified result, serialized (no new arithmetic),
+      // authorised by the SAME server-side scope proof above, and recorded in the
+      // existing tamper-evident audit_events chain. A direct URL hit without a
+      // valid regulator JWT never reaches here (verifyPrincipal → 401).
+      const format = url.searchParams.get("format") ?? "json";
+      if (format === "csv") {
+        const generatedAt = new Date().toISOString();
+        const evidenceRef = await auditFinancialExport(supabase, principal, c.id);
+        const csv = regulatorFinancialCsv(financial, {
+          operatorName: c.name, jurisdiction: c.jurisdiction,
+          currency: financialCurrency(financial), timezone: financialTimezone(financial),
+          generatedAt, evidenceRef,
+        });
+        const fname = `regulator_financial_${c.id.slice(0, 8)}.csv`.replace(/[^a-z0-9_.-]/gi, "_");
+        return new Response(csv, {
+          status: 200,
+          headers: { ...cors, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${fname}"` },
+        });
+      }
+
       return json({
         success: true,
         data: {
           operator: { casinoId: c.id, name: c.name, jurisdiction: c.jurisdiction },
-          financial: shapeFinancial(fp as Record<string, unknown> | null),
+          financial,
         },
       });
     }

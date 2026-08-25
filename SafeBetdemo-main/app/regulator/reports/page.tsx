@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { rpGet } from '@/lib/consumerClient';
+import { rpGet, rpExportCsv } from '@/lib/consumerClient';
 import type { FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import {
   FINANCIAL_PERIODS, type FinancialPeriod,
@@ -62,6 +62,22 @@ export default function RegulatoryReportsPage() {
   const finOperator = (finData?.operator ?? null) as Rec | null;
   const finStatus = financialStatusLabel(financial);
   const finPeriodMeta = FINANCIAL_PERIODS.find((p) => p.key === finPeriod)!;
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+  // Authenticated CSV export — the server re-proves regulator scope and serializes
+  // the SAME certified result (all periods). The browser never sums or authorises.
+  const exportCsv = useCallback(async () => {
+    if (!finCasino) return;
+    setExporting(true); setExportError(false);
+    const out = await rpExportCsv('operator-financial', { casino_id: finCasino });
+    setExporting(false);
+    if (!out) { setExportError(true); return; }        // failure must NOT emit a false-zero CSV
+    const url = URL.createObjectURL(new Blob([out.csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = out.filename; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+  }, [finCasino]);
 
   return (
     <DashboardLayout>
@@ -122,8 +138,12 @@ export default function RegulatoryReportsPage() {
                       aria-pressed={p.key === finPeriod} onClick={() => setFinPeriod(p.key)}>{p.short}</Button>
                   ))}
                 </div>
+                <Button size="sm" variant="outline" disabled={!finCasino || finLoading || exporting} onClick={exportCsv}>
+                  {exporting ? 'Exporting…' : 'Export CSV'}
+                </Button>
               </div>
             </div>
+            {exportError && <p className="text-xs text-destructive mt-1">Export failed — certified data unavailable. No file was written.</p>}
           </CardHeader>
           <CardContent className="space-y-3">
             {!finCasino ? (
