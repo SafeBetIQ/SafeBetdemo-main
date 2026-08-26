@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { rpGet } from '@/lib/consumerClient';
 import { deriveRegulatorSummary, REGULATOR_METRIC_DEFS, summaryCount } from '@/lib/regulatorSummary';
+import { MetricInfo } from '@/components/regulator/MetricInfo';
 import { SnapshotAge } from '@/components/SnapshotAge';
 import { LayoutDashboard, RefreshCw, Building2, AlertTriangle, Network, Scale } from 'lucide-react';
 
@@ -59,11 +60,11 @@ export default function NationalIntelligencePage() {
         {/* Metric semantics are explicit: "Active players" is the population in scope
             (observedPlayers); "Active now" is the freshness subset. Null → "—", never 0. */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.operators}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.operators)}</div><div className="text-xs uppercase text-muted-foreground">Operators</div></div>
-          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activePlayers}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">population in scope</div></div>
-          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activeNow}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activeNow)}</div><div className="text-xs uppercase text-muted-foreground">Active now</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
-          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.monitored}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.monitored)}</div><div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
-          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.interventions}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.interventions)}</div><div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.operators)}</div><div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Operators <MetricInfo label="Operators" description={REGULATOR_METRIC_DEFS.operators} /></div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activePlayers)}</div><div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Active players <MetricInfo label="Active players" description={REGULATOR_METRIC_DEFS.activePlayers} /></div><div className="text-[10px] text-muted-foreground/70 mt-0.5">population in scope</div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activeNow)}</div><div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Active now <MetricInfo label="Active now" description={REGULATOR_METRIC_DEFS.activeNow} /></div><div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.monitored)}</div><div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Monitored <MetricInfo label="Monitored" description={REGULATOR_METRIC_DEFS.monitored} /></div></div>
+          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.interventions)}</div><div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Interventions <MetricInfo label="Interventions" description={REGULATOR_METRIC_DEFS.interventions} /></div></div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -43,11 +43,12 @@ export async function cgGet<T = Record<string, unknown>>(
 export async function rpGet<T = Record<string, unknown>>(
   view: string,
   params: Record<string, string | undefined> = {},
+  signal?: AbortSignal,   // cancel an in-flight request when the operator switches
 ): Promise<T | null> {
   const headers = await authHeaders();
   if (!headers) return null;
   const qs = new URLSearchParams({ view, ...clean(params) });
-  const res = await fetch(`${fnUrl('regulator-portal')}?${qs.toString()}`, { headers });
+  const res = await fetch(`${fnUrl('regulator-portal')}?${qs.toString()}`, { headers, signal });
   if (!res.ok) return null;
   return ((await res.json())?.data ?? null) as T | null;
 }

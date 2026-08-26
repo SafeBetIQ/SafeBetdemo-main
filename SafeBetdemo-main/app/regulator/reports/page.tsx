@@ -5,7 +5,7 @@
 // operator-compliance) into a printable jurisdiction report. Jurisdiction is
 // from the verified JWT; anonymous; evidence-classified; no direct table reads.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { rpGet, rpExportCsv } from '@/lib/consumerClient';
 import { deriveRegulatorSummary, REGULATOR_METRIC_DEFS, summaryCount } from '@/lib/regulatorSummary';
+import { OperatorFinancialCache, RequestGuard } from '@/lib/operatorFinancialCache';
+import { MetricInfo } from '@/components/regulator/MetricInfo';
 import type { FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import {
   FINANCIAL_PERIODS, type FinancialPeriod,
@@ -36,6 +38,13 @@ export default function RegulatoryReportsPage() {
   const [finPeriod, setFinPeriod] = useState<FinancialPeriod>('TODAY');
   const [finData, setFinData] = useState<Rec | null>(null);
   const [finLoading, setFinLoading] = useState(false);
+  const [finError, setFinError] = useState(false);
+  const [finRetry, setFinRetry] = useState(0);
+  // Short-lived per-operator posture cache + a request generation guard: a switch
+  // back to a recently-viewed operator is instant, and a late response from a
+  // previously-selected operator can never overwrite the current one.
+  const finCache = useRef(new OperatorFinancialCache<FinancialPostureView>());
+  const finGuard = useRef(new RequestGuard());
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -53,15 +62,47 @@ export default function RegulatoryReportsPage() {
 
   // Fetch the certified financial posture for the selected authorised operator.
   // The server proves jurisdiction/scope; the browser never sums or authorises.
+  // Fast + correct switching: serve a fresh per-operator cache instantly; else
+  // fetch with an AbortController and a generation guard so a stale response can
+  // never render under the wrong operator, and a failure shows an error state
+  // (never the previous operator's values, never a false R 0).
   useEffect(() => {
-    if (!finCasino) { setFinData(null); return; }
-    let live = true;
+    setFinError(false);
+    if (!finCasino) { setFinData(null); setFinLoading(false); return; }
+
+    const gen = finGuard.current.next();
+    const cached = finCache.current.getFresh(finCasino, Date.now());
+    if (cached) {
+      setFinData({ operator: cached.operator, financial: cached.posture } as Rec);
+      setFinLoading(false);
+      return;                 // instant revisit — no request
+    }
+
+    // No fresh cache: clear the previous operator's values immediately (no stale
+    // flash), show loading, and fetch.
+    setFinData(null);
     setFinLoading(true);
-    rpGet('operator-financial', { casino_id: finCasino }).then((d) => {
-      if (live) { setFinData(d); setFinLoading(false); }
-    });
-    return () => { live = false; };
-  }, [finCasino]);
+    const ac = new AbortController();
+    rpGet('operator-financial', { casino_id: finCasino }, ac.signal)
+      .then((d) => {
+        if (!finGuard.current.isCurrent(gen)) return;   // superseded by a newer switch
+        if (d == null) { setFinError(true); setFinLoading(false); return; }
+        const rec = d as Rec;
+        finCache.current.put({
+          casinoId: finCasino,
+          operator: rec.operator ?? null,
+          posture: (rec.financial ?? null) as FinancialPostureView | null,
+          fetchedAt: Date.now(),
+        });
+        setFinData(rec);
+        setFinLoading(false);
+      })
+      .catch(() => {
+        if (finGuard.current.isCurrent(gen)) { setFinError(true); setFinLoading(false); }
+      });
+
+    return () => { ac.abort(); };   // cancel in-flight on switch/unmount
+  }, [finCasino, finRetry]);
 
   const financial = (finData?.financial ?? null) as FinancialPostureView | null;
   const finOperator = (finData?.operator ?? null) as Rec | null;
@@ -105,24 +146,24 @@ export default function RegulatoryReportsPage() {
               {!loading && !summary.available && ' · summary unavailable'}
             </CardDescription></CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.operators}>
+            <div className="rounded-lg border p-4">
               <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.operators)}</div>
-              <div className="text-xs uppercase text-muted-foreground">Operators</div></div>
-            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activePlayers}>
+              <div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Operators <MetricInfo label="Operators" description={REGULATOR_METRIC_DEFS.operators} /></div></div>
+            <div className="rounded-lg border p-4">
               <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.activePlayers)}</div>
-              <div className="text-xs uppercase text-muted-foreground">Active players</div>
+              <div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Active players <MetricInfo label="Active players" description={REGULATOR_METRIC_DEFS.activePlayers} /></div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">population in scope</div></div>
-            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activeNow}>
+            <div className="rounded-lg border p-4">
               <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.activeNow)}</div>
-              <div className="text-xs uppercase text-muted-foreground">Active now</div>
+              <div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Active now <MetricInfo label="Active now" description={REGULATOR_METRIC_DEFS.activeNow} /></div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
             <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{loading ? '…' : n(tiers.critical).toLocaleString()}</div><div className="text-xs uppercase text-muted-foreground">Critical</div></div>
-            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.monitored}>
+            <div className="rounded-lg border p-4">
               <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.monitored)}</div>
-              <div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
-            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.interventions}>
+              <div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Monitored <MetricInfo label="Monitored" description={REGULATOR_METRIC_DEFS.monitored} /></div></div>
+            <div className="rounded-lg border p-4">
               <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.interventions)}</div>
-              <div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
+              <div className="flex items-center gap-1 text-xs uppercase text-muted-foreground">Interventions <MetricInfo label="Interventions" description={REGULATOR_METRIC_DEFS.interventions} /></div></div>
           </CardContent>
         </Card>
 
@@ -166,14 +207,20 @@ export default function RegulatoryReportsPage() {
             </div>
             {exportError && <p className="text-xs text-destructive mt-1">Export failed — certified data unavailable. No file was written.</p>}
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3" aria-busy={finLoading}>
             {!finCasino ? (
               <p className="text-sm text-muted-foreground">Select an authorised operator to view its certified financial position.</p>
+            ) : finError ? (
+              // A failed switch never shows the previous operator's values or a false R 0.
+              <div className="text-sm text-muted-foreground">
+                Certified financial position could not be retrieved for this operator.
+                <Button size="sm" variant="outline" className="ml-2" onClick={() => { setFinError(false); setFinRetry((x) => x + 1); }}>Retry</Button>
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="rounded-lg border p-4">
-                    <div className="text-2xl font-semibold tabular-nums text-emerald-700">{finLoading ? '…' : certifiedMoney(ggrForPeriod(financial, finPeriod))}</div>
+                    <div className="text-2xl font-semibold tabular-nums text-emerald-700">{finLoading ? 'Updating…' : certifiedMoney(ggrForPeriod(financial, finPeriod))}</div>
                     <div className="text-xs uppercase text-muted-foreground">GGR</div>
                   </div>
                   <div className="rounded-lg border p-4">
