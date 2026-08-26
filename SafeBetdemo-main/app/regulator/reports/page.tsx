@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { rpGet, rpExportCsv } from '@/lib/consumerClient';
+import { deriveRegulatorSummary, REGULATOR_METRIC_DEFS, summaryCount } from '@/lib/regulatorSummary';
 import type { FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import {
   FINANCIAL_PERIODS, type FinancialPeriod,
@@ -45,6 +46,10 @@ export default function RegulatoryReportsPage() {
 
   const tiers = (nat?.riskTiers ?? { critical: 0, high: 0, medium: 0, low: 0 }) as Rec;
   const operators = (oc?.operators ?? []) as Rec[];
+  // Server-authoritative summary (no browser aggregation): "Active players" is the
+  // active-player POPULATION (observedPlayers), with "Active now" as the freshness
+  // subset. Null metrics render "—" (unavailable), never a false 0.
+  const summary = deriveRegulatorSummary(nat);
 
   // Fetch the certified financial posture for the selected authorised operator.
   // The server proves jurisdiction/scope; the browser never sums or authorises.
@@ -95,13 +100,29 @@ export default function RegulatoryReportsPage() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Jurisdiction summary</CardTitle>
-            <CardDescription>Generated {new Date().toLocaleString()} · anonymous · Recorded Fact + Derived Intelligence</CardDescription></CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(nat?.operators)}</div><div className="text-xs uppercase text-muted-foreground">Operators</div></div>
-            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(nat?.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div></div>
-            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{n(tiers.critical)}</div><div className="text-xs uppercase text-muted-foreground">Critical</div></div>
-            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(nat?.playersMonitored)}</div><div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
-            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(nat?.interventions)}</div><div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
+            <CardDescription>
+              Generated {new Date().toLocaleString()} · anonymous · Recorded Fact + Derived Intelligence
+              {!loading && !summary.available && ' · summary unavailable'}
+            </CardDescription></CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.operators}>
+              <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.operators)}</div>
+              <div className="text-xs uppercase text-muted-foreground">Operators</div></div>
+            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activePlayers}>
+              <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.activePlayers)}</div>
+              <div className="text-xs uppercase text-muted-foreground">Active players</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">population in scope</div></div>
+            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activeNow}>
+              <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.activeNow)}</div>
+              <div className="text-xs uppercase text-muted-foreground">Active now</div>
+              <div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
+            <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{loading ? '…' : n(tiers.critical).toLocaleString()}</div><div className="text-xs uppercase text-muted-foreground">Critical</div></div>
+            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.monitored}>
+              <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.monitored)}</div>
+              <div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
+            <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.interventions}>
+              <div className="text-2xl font-semibold">{loading ? '…' : summaryCount(summary.interventions)}</div>
+              <div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
           </CardContent>
         </Card>
 

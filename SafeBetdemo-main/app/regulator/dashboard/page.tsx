@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { rpGet } from '@/lib/consumerClient';
+import { deriveRegulatorSummary, REGULATOR_METRIC_DEFS, summaryCount } from '@/lib/regulatorSummary';
 import { SnapshotAge } from '@/components/SnapshotAge';
 import { LayoutDashboard, RefreshCw, Building2, AlertTriangle, Network, Scale } from 'lucide-react';
 
@@ -31,6 +32,7 @@ export default function NationalIntelligencePage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const tiers = (nat?.riskTiers ?? { critical: 0, high: 0, medium: 0, low: 0 }) as Rec;
+  const summary = deriveRegulatorSummary(nat);   // server-authoritative; null → "—", not 0
   const health = (nat?.operatorHealth ?? []) as Rec[];
   const emerging = (nat?.emergingRisks ?? []) as Rec[];
   // Certified snapshot = most recent certified event across operators (never browser time).
@@ -54,13 +56,14 @@ export default function NationalIntelligencePage() {
 
         {!loading && !nat && <Card><CardContent className="pt-6 text-sm text-muted-foreground">Unable to load — verify your regulator access.</CardContent></Card>}
 
+        {/* Metric semantics are explicit: "Active players" is the population in scope
+            (observedPlayers); "Active now" is the freshness subset. Null → "—", never 0. */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.operators)}</div><div className="text-xs uppercase text-muted-foreground">Operators</div></div>
-          {/* Active now = certified freshness-based sum of each casino's active-now (NOT observed). */}
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active now</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.observedPlayers)}</div><div className="text-xs uppercase text-muted-foreground">Observed</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">activity projection</div></div>
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.playersMonitored)}</div><div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
-          <div className="rounded-lg border p-4"><div className="text-3xl font-semibold">{n(nat?.interventions)}</div><div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
+          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.operators}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.operators)}</div><div className="text-xs uppercase text-muted-foreground">Operators</div></div>
+          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activePlayers}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activePlayers)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">population in scope</div></div>
+          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.activeNow}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.activeNow)}</div><div className="text-xs uppercase text-muted-foreground">Active now</div><div className="text-[10px] text-muted-foreground/70 mt-0.5">freshness window</div></div>
+          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.monitored}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.monitored)}</div><div className="text-xs uppercase text-muted-foreground">Monitored</div></div>
+          <div className="rounded-lg border p-4" title={REGULATOR_METRIC_DEFS.interventions}><div className="text-3xl font-semibold">{loading ? '…' : summaryCount(summary.interventions)}</div><div className="text-xs uppercase text-muted-foreground">Interventions</div></div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
