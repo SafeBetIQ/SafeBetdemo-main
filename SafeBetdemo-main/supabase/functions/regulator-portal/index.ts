@@ -15,6 +15,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyPrincipal, principalMayAccessCasino } from "../../../lib/security/principal.ts";
 import { shapeFinancial } from "../../../lib/consumerPlatform/shaping.ts";
+import { fetchCertifiedPosture } from "../../../lib/certifiedFinancialSource.ts";
 import { regulatorFinancialCsv } from "../../../lib/regulatorFinancialExport.ts";
 import { financialCurrency, financialTimezone } from "../../../lib/certifiedFinancial.ts";
 import { getDigitalTwin } from "../../../lib/digitalTwin/index.ts";
@@ -98,9 +99,10 @@ Deno.serve(async (req: Request) => {
       const c = casinoRow as { id: string; name: string; jurisdiction: string; province: string | null };
       if (c.jurisdiction !== jurisdiction) return json({ error: "operator outside regulator jurisdiction" }, 403);
       if (!principalMayAccessCasino(principal, c)) return json({ error: "operator outside regulator scope" }, 403);
-      const { data: fp } = await supabase
-        .from("projection_financial_posture").select("*").eq("casino_id", casinoId).maybeSingle();
-      const financial = shapeFinancial(fp as Record<string, unknown> | null);
+      // Fast rollup-backed source (drop-in for the projection_financial_posture
+      // view; exact rowtype/parity). Authorization above is unchanged.
+      const fp = await fetchCertifiedPosture(supabase, casinoId);
+      const financial = shapeFinancial(fp);
 
       // CSV export — the SAME certified result, serialized (no new arithmetic),
       // authorised by the SAME server-side scope proof above, and recorded in the
