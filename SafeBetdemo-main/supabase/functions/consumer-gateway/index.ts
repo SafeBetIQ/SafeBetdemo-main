@@ -17,6 +17,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getDigitalTwin } from "../../../lib/digitalTwin/index.ts";
+import { fetchCertifiedPosture } from "../../../lib/certifiedFinancialSource.ts";
 import { getIntelligencePlatform } from "../../../lib/domainIntelligence/index.ts";
 import { getPolicyPlatform, loadActivePolicyRules } from "../../../lib/policyPlatform/index.ts";
 import { verifyPrincipal } from "../../../lib/security/principal.ts";
@@ -119,10 +120,9 @@ Deno.serve(async (req: Request) => {
         // Certified period-scoped financial posture, scoped to the principal's
         // casino (JWT-derived scope — the query parameter never grants access).
         financialPosture: async () => {
-          const { data } = await supabase
-            .from("projection_financial_posture").select("*")
-            .eq("casino_id", scope.casinoId).maybeSingle();
-          return (data ?? null) as Record<string, unknown> | null;
+          // Fast rollup-backed source (drop-in for the projection_financial_posture
+          // view; exact rowtype/parity). Scope is JWT-derived (unchanged).
+          return await fetchCertifiedPosture(supabase, scope.casinoId);
         },
         // Explainable Intelligence (v1.4): the player id to explain + their
         // immutable event timeline (recorded facts, scoped to the casino).

@@ -12,6 +12,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyPrincipal, principalMayAccessCasino } from "../../../lib/security/principal.ts";
+import { fetchCertifiedPosture } from "../../../lib/certifiedFinancialSource.ts";
 import {
   validatePagination, narrowCasinoScope, buildEnvelope, EvidenceError,
   reconcileSession, reconcilePlayer, reconcileMachine, reconcileFinancial,
@@ -99,7 +100,9 @@ Deno.serve(async (req: Request) => {
     let reconciliation; let records: Record<string, unknown>[] = []; let total = 0; let snapStatus = "healthy"; let tz = "Africa/Johannesburg";
 
     if (domain === "financial") {
-      const { data: fp } = await sb.from("projection_financial_posture").select("*").eq("casino_id", casinoId).maybeSingle();
+      // Fast rollup-backed source (drop-in for the projection_financial_posture
+      // view; exact rowtype/parity). Scope already authorised above.
+      const fp = await fetchCertifiedPosture(sb, casinoId);
       aggregates = fp ?? { financial_data_status: "unavailable" };
       snapStatus = String(aggregates.financial_data_status ?? "unavailable");
       tz = String(aggregates.financial_timezone ?? tz);
