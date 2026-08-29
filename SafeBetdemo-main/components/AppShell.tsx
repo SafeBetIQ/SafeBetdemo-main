@@ -55,6 +55,9 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Live Casino Feed',             href: '/casino/live-feed',                 icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'], badge: 'LIVE' },
       { title: 'Player Risk Monitor',          href: '/casino/players',                   icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Explainable Intelligence',     href: '/casino/explainability',            icon: Lightbulb,        roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      // UAT-OP-1 (P1-4): Self-Exclusion Network reachable from the operator workflow
+      // (previously only linked from the marketing navigation).
+      { title: 'Self-Exclusion Network',       href: '/features/self-exclusion-network',  icon: Shield,           roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
     ],
   },
   {
@@ -101,7 +104,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { title: 'User Management',              href: '/admin/user-roles',                 icon: Users,            roles: ['super_admin'] },
       { title: 'Access Control',               href: '/admin/access-control',             icon: Lock,             roles: ['super_admin'] },
-      { title: 'Security Audit Log',           href: '/admin/security',                   icon: Lock,             roles: ['super_admin', 'casino_admin', 'compliance_officer'] },
+      { title: 'Security Audit Log',           href: '/admin/security',                   icon: Lock,             roles: ['super_admin', 'compliance_officer'] },
     ],
   },
   {

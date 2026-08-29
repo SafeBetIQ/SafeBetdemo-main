@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -100,7 +101,36 @@ function timeAgo(ts: string): string {
   return `${days}d ago`;
 }
 
+// UAT-OP-1 (P1-5): the Security Audit Log reads security_events across the estate
+// (no per-casino scoping) and its own copy states it is restricted to Super Admins
+// and Compliance Officers — yet a Casino Operator could reach it via navigation and
+// direct URL. Enforce that restriction at the route: a Casino Operator is denied and
+// no cross-tenant security data is fetched (the inner component, and its data hooks,
+// never mount for an unauthorised role).
+const SECURITY_LOG_ROLES = new Set(['super_admin', 'compliance_officer']);
+
 export default function SecurityAuditLogPage() {
+  const { user } = useAuth();
+  const role = (user as unknown as { role?: string })?.role;
+  if (user && !SECURITY_LOG_ROLES.has(role ?? '')) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <Alert className="border-amber-200 bg-amber-50">
+            <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800">
+              <strong>Access restricted:</strong> the Security Audit Log is limited to Super Admins and
+              Compliance Officers. Your role ({role ?? 'unknown'}) cannot view estate-wide security events.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  return <SecurityAuditLogInner />;
+}
+
+function SecurityAuditLogInner() {
   const { user } = useAuth();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [stats, setStats] = useState<EventStats>({ total: 0, unresolved: 0, critical: 0, high: 0, last24h: 0 });

@@ -83,7 +83,14 @@ export default function ExplainabilityPage() {
                 <Button onClick={explain} disabled={busy}><Search className="h-4 w-4 mr-1" /> Explain</Button>
               </CardContent></Card>
 
-              {ex && (<>
+              {ex && ex.driverAvailability === 'insufficient' && (
+                <Card className="border-muted">
+                  <CardHeader><CardTitle className="text-base">No risk drivers on record</CardTitle>
+                    <CardDescription>{String(ex.driverNote ?? summary.headline)}</CardDescription></CardHeader>
+                </Card>
+              )}
+
+              {ex && ex.driverAvailability !== 'insufficient' && (<>
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2">Summary <Badge variant="outline">{CLS['derived-intelligence']}</Badge></CardTitle>
                     <CardDescription>{String(summary.headline)}</CardDescription></CardHeader>

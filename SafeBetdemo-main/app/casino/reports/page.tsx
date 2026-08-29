@@ -23,6 +23,7 @@ import {
   financialStatusLabel, financialStatusTone, financialCurrency, financialTimezone,
   syntheticDisclosure,
 } from '@/lib/certifiedFinancial';
+import { buildReportNarrative } from '@/lib/reportNarrative';
 import { FileText, RefreshCw, Printer } from 'lucide-react';
 
 type Rec = Record<string, unknown>;
@@ -63,6 +64,13 @@ export default function ReportingCentrePage() {
   const statusLabel = financialStatusLabel(financial);
   const periodMeta = FINANCIAL_PERIODS.find((p) => p.key === period)!;
   const disclosure = syntheticDisclosure(financial);
+
+  // UAT-OP-1 (P0-1): one coherent risk narrative so the summary and the findings
+  // section can never contradict each other.
+  const narrative = buildReportNarrative({
+    critical: n(tiers.critical), high: n(tiers.high),
+    monitoredCount: monitored.length, decisionCount: decisions.length,
+  });
 
   return (
     <CasinoAdminGuard>
@@ -139,11 +147,14 @@ export default function ReportingCentrePage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Responsible Gambling posture report</CardTitle>
               <CardDescription>Generated {generatedAt || '—'} · Recorded Fact + Derived Intelligence</CardDescription></CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <CardContent className="space-y-3">
+            {!loading && <p className="text-sm font-medium">{narrative.riskSummary}</p>}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(kpi.active_players)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold tabular-nums text-emerald-700">{loading ? '…' : certifiedMoney(ggrForPeriod(financial, period))}</div><div className="text-xs uppercase text-muted-foreground">GGR ({periodMeta.short})</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{n(tiers.critical)}</div><div className="text-xs uppercase text-muted-foreground">Critical risk</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-orange-600">{n(tiers.high)}</div><div className="text-xs uppercase text-muted-foreground">High risk</div></div>
+            </div>
             </CardContent>
           </Card>
 
@@ -161,8 +172,10 @@ export default function ReportingCentrePage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-base">Policy decisions</CardTitle><CardDescription>Policy Decision</CardDescription></CardHeader>
+              <CardHeader><CardTitle className="text-base">{narrative.findingsLabel}</CardTitle>
+                <CardDescription>{narrative.findingsAreObserved ? 'Observed incidents · Policy Decision' : 'Policy Decision'}</CardDescription></CardHeader>
               <CardContent className="space-y-1">
+                {narrative.guidanceDisclaimer && <p className="text-xs text-muted-foreground border-l-2 pl-2">{narrative.guidanceDisclaimer}</p>}
                 {decisions.length === 0 && <p className="text-sm text-muted-foreground">No decisions on record.</p>}
                 {decisions.slice(0, 12).map((d, i) => (
                   <div key={i} className="text-sm border-b py-1 last:border-0"><Badge variant="outline" className="text-[10px] mr-1">{String(d.policyReference ?? d.policyId)}</Badge>{String(d.action)} — {String(d.reason)}</div>

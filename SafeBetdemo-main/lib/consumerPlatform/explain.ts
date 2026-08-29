@@ -47,6 +47,12 @@ export interface ExplanationView {
   supportingEvidence: Indicator[];
   decisionTimeline: TimelineStep[];
   recommendation: RecommendationExplanation | null;
+  // UAT-OP-1 (P0-2): honest evidence availability. When the certified intelligence
+  // carries no risk drivers or recorded facts for THIS player, the explanation says
+  // so explicitly instead of emitting generic phrasing that reads identically across
+  // players. 'present' means the explanation is derived from this player's own signals.
+  driverAvailability: 'present' | 'insufficient';
+  driverNote: string | null;
   source: 'domain-intelligence';      // provenance: the ONE intelligence engine
   evidence: Record<string, EvidenceClass>;
   generatedAt: string;
@@ -137,6 +143,26 @@ export function explainPlayer(input: ExplanationInput): ExplanationView {
   // ── Recommendation (WS3): from the intervention stage + a policy decision ──
   const recommendation = buildRecommendation(input, intervention, ai, escalation, confidence);
 
+  // ── Evidence availability (UAT-OP-1 P0-2) ─────────────────────────────────
+  // If the certified intelligence produced no drivers AND there are no recorded
+  // facts for this player, we must not present a confident-sounding generic
+  // explanation. Say the evidence is insufficient — explicitly and per player.
+  const driverCount = behavioural.length + sessionInd.length + machineInd.length;
+  const hasIntelligence = input.intelligence != null && Object.keys(intel).length > 0;
+  const driverAvailability: 'present' | 'insufficient' =
+    (driverCount > 0 || supportingEvidence.length > 0 || escalation !== 'none') ? 'present' : 'insufficient';
+  const driverNote = driverAvailability === 'insufficient'
+    ? (hasIntelligence
+        ? 'No risk drivers or recorded activity are on record for this player in the certified intelligence. No risk is indicated and no explanation can be derived beyond that.'
+        : 'This player has no certified intelligence on record (they may not have been observed on this floor). Nothing can be explained.')
+    : null;
+  if (driverAvailability === 'insufficient') {
+    // Replace the generic "shows no elevated risk" headline with an explicit one.
+    summary.headline = hasIntelligence
+      ? 'No risk drivers on record for this player — no elevated risk indicated.'
+      : 'No certified intelligence on record for this player.';
+  }
+
   return {
     playerId: input.playerId,
     casinoId: input.casinoId,
@@ -146,6 +172,8 @@ export function explainPlayer(input: ExplanationInput): ExplanationView {
     supportingEvidence,
     decisionTimeline,
     recommendation,
+    driverAvailability,
+    driverNote,
     source: 'domain-intelligence',
     evidence: {
       summary: 'derived-intelligence', contributingIndicators: 'derived-intelligence',
