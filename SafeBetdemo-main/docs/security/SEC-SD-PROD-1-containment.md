@@ -85,3 +85,57 @@ grant execute on function public.create_monthly_partition(text,integer,integer) 
   callers use service_role, with monitoring + the rollback ready.
 - **SEC-SD-PROD-3** — remaining HIGH/E functions once caller roles are known.
 - **PROD-HEALTH-1** — EB enhanced-health Red investigation (separate).
+
+---
+
+## ADDENDUM — SEC-SD-PROD-1A caller verification (read-only; no ACL change)
+
+**Source availability:** Production application source is **UNAVAILABLE** — the `SafeBetIQ`
+GitHub org contains only the Demo repo; there is no prod CodeBuild project; prod EB
+`safebet-iq-app` (version `safebet-prod-20260523-210842`) carries no source-build metadata;
+and **Production Supabase has ZERO Edge Functions** (the prod app calls the DB directly).
+Confidence that source was thoroughly sought: HIGH. → rely on DB + runtime evidence.
+
+**Runtime capability:** `track_functions = none` → `pg_stat_user_functions` empty (per-function
+call counts unavailable; not enabled, per boundary). Usage inferred from target-table activity.
+
+**DB-side callers (proven):**
+- `simulate_live_feed` ← pg_cron job `casino-live-feed-tick` (`* * * * *`, runs as postgres). No external caller evidence.
+- `create_monthly_partition` ← called internally by `ensure_future_partitions` (definer). No external caller evidence.
+- All other P0 functions: **no** cron/trigger/internal caller → any caller is external app/server (role unknown; source unavailable).
+
+**Indirect runtime activity (target tables, prod):**
+- `audit_events`: 28 total, 3 in last 7d, latest 2026-08-24 → `log_auth_event` is **live but low-volume** (login logging).
+- `security_events`: **0 rows ever** → `log_security_event` effectively unused.
+- `distributed_rate_limits`: **0 rows** → `check_distributed_rate_limit`/`cleanup_rate_limit_entries` show no activity.
+- `ingest_requests`: **0 rows** → `purge_old_ingest_requests` acts on an empty table. (Production is a minimal-usage environment.)
+
+**Refined classification (evidence-based):**
+| Function | Proven caller | Verdict |
+|---|---|---|
+| `simulate_live_feed()` | pg_cron (postgres) | **VERIFIED revoke-safe** from anon/authenticated (cron uses owner) |
+| `create_monthly_partition(text,int,int)` | internal `ensure_future_partitions` (definer) | **VERIFIED revoke-safe** from anon/authenticated (keep service_role) |
+| `cleanup_rate_limit_entries()`, `purge_old_ingest_requests(int)` | none; target tables empty (0 activity) | **STRONG candidate** (unused) — keep service_role |
+| `refresh_all_materialized_views()`, `refresh_realtime_views()`, `archive_old_records(int)` | none found; external caller role unknown | **CANDIDATE** — needs prod-app owner confirm |
+| `log_auth_event`, `get_user_by_email_fast`, `log_security_event`, `check_rate_limit_sliding` | auth/login family (explicit anon grant) | **Class D — SEC-SD-PROD-2 redesign** |
+| `check_distributed_rate_limit`, `player_belongs_to_casino`, `calculate_rpi_roi`, `get_performance_stats`, `fn_vault_secret_exists` | unknown (likely RLS/authz helper or admin read) | **Class E — needs source** |
+
+**VERIFIED-SAFE APPLY SUBSET (caller proven, no anon/authenticated need):** `simulate_live_feed()`,
+`create_monthly_partition(text,integer,integer)`. Proposed ACL: PUBLIC/anon/authenticated = FALSE;
+service_role = TRUE (owner/cron/internal unaffected). **This subset is smaller than the original
+proposed 6 and therefore MATERIALLY CHANGES the reviewed SQL → requires fresh independent review.**
+
+```sql
+-- SEC-SD-PROD-1A verified-safe subset (apply only after prod-app-owner APPROVED + re-review)
+revoke execute on function public.simulate_live_feed()                          from public, anon, authenticated;
+revoke execute on function public.create_monthly_partition(text,integer,integer) from public, anon, authenticated;
+grant  execute on function public.simulate_live_feed()                          to service_role;
+grant  execute on function public.create_monthly_partition(text,integer,integer) to service_role;
+-- rollback:
+-- grant execute on function public.simulate_live_feed() to public, anon, authenticated;
+-- grant execute on function public.create_monthly_partition(text,integer,integer) to public, anon, authenticated;
+```
+
+**Apply decision (Phase 25): DO NOT APPLY YET** — no Production-app-owner APPROVED verdict obtained
+(cannot self-provide), and source-level caller verification is unavailable for the broader subset.
+The verified subset + rollback are ready for a reviewer with Production knowledge.
