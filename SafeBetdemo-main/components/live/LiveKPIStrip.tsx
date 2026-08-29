@@ -152,14 +152,18 @@ export function LiveKPIStrip() {
         sub="Session total"
         trend="up"
       />
+      {/* UAT-OP-1 (P1-2): this is the LIVE cumulative session figure (total wagered −
+          total won across the observed live feed), a different semantic from the
+          certified period GGR shown on the dashboard/reports. Labelled distinctly so
+          it is never read as, or reconciled against, the certified "GGR Today". */}
       <KpiCard
         icon={TrendingUp}
-        label="GGR"
+        label="Live GGR (session)"
         value={ggr}
         prefix="R "
         color={ggr >= 0 ? 'text-emerald-600' : 'text-red-500'}
         iconBg={ggr >= 0 ? 'bg-emerald-100' : 'bg-red-100'}
-        sub={`Win rate ${winRate.toFixed(1)}%`}
+        sub={`Live feed · not certified · win rate ${winRate.toFixed(1)}%`}
       />
       {/* Avg bet size from certified bets in the served window; show Unavailable (not a false R0). */}
       <KpiCard
