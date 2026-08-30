@@ -25,6 +25,22 @@ begin
   end if;
 end $$;
 
+-- UAT-OP-5S2 reconciliation: the earlier seed 20260830100000 (merged, not yet applied)
+-- inserts 6 rows (Betway 5, SunBet 1). To make the NORMAL migration order 100000 →
+-- 101000 converge on exactly 5 per casino (30 total, not 36), remove ONLY that seed's
+-- six EXACT deterministic ids before inserting the canonical registry-driven set.
+-- Exact-id targeting cannot affect any non-seed row; harmless if those ids are absent
+-- (idempotent). It never deletes all rows for a casino and uses no broad predicate.
+delete from public.self_exclusions
+where id in (
+  '5e000001-0000-4000-a000-000000000001',
+  '5e000001-0000-4000-a000-000000000002',
+  '5e000001-0000-4000-a000-000000000003',
+  '5e000001-0000-4000-a000-000000000004',
+  '5e000001-0000-4000-a000-000000000005',
+  '5e000001-0000-4000-a000-000000000006'
+);
+
 with casino as (
   select id as casino_id, row_number() over (order by name) as ord
   from public.casinos
