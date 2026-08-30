@@ -26,6 +26,8 @@ export interface TimelineStage {
   evidenceClass: string;
   /** Present only when available — references or recorded coordination facts, never recomputed values. */
   entries: { at: string | null; detail: string; ref?: string }[];
+  /** Honest explanation shown when the stage has no data (UAT-OP-5 P1-2). */
+  unavailableNote?: string;
 }
 
 const STAGE_LABEL: Record<TimelineStageId, string> = {
@@ -75,10 +77,22 @@ export function buildCaseTimeline(
     ? [{ at: workflowCase.closedAt, detail: workflowCase.resolution ?? `Case ${workflowCase.status}.` }]
     : [];
 
+  // Honest, specific wording for an empty stage — never a bare "unavailable"
+  // (UAT-OP-5 P1-2). Platform stages carry evidence REFERENCES linked when the case
+  // was opened from a certified view; human stages are recorded as the case progresses.
+  const UNAVAILABLE_NOTE: Record<TimelineStageId, string> = {
+    'recorded-fact': 'No Recorded Fact evidence is linked to this case.',
+    'derived-intelligence': 'No Derived Intelligence evidence is linked to this case.',
+    'policy-decision': 'No Policy Decision is linked to this case.',
+    'workflow-action': 'No workflow action has been recorded yet.',
+    'recorded-outcome': 'No outcome has been recorded yet.',
+    'case-resolution': 'The case is not yet resolved.',
+  };
   const stage = (id: TimelineStageId, entries: TimelineStage['entries']): TimelineStage => ({
     stage: id, label: STAGE_LABEL[id], available: entries.length > 0,
     evidenceClass: id === 'workflow-action' || id === 'recorded-outcome' || id === 'case-resolution' ? 'recorded-fact' : id,
     entries,
+    unavailableNote: entries.length > 0 ? undefined : UNAVAILABLE_NOTE[id],
   });
 
   return [

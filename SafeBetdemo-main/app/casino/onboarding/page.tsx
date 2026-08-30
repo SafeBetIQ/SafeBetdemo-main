@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
+import { formatDaysRemaining, daysRemainingTone } from '@/lib/commercial/trialCountdown';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,7 +80,10 @@ export default function OnboardingCentre() {
                 <div className="mt-3 text-sm flex items-center gap-2">
                   <Badge variant="secondary">{status.licence.plan}</Badge>
                   <Badge variant={status.licence.active ? 'outline' : 'destructive'}>{status.licence.status}</Badge>
-                  {status.licence.daysToExpiry != null && <span className={status.licence.daysToExpiry <= 7 ? 'text-amber-600' : 'text-muted-foreground'}>{status.licence.daysToExpiry} days remaining</span>}
+                  {status.licence.daysToExpiry != null && (() => {
+                    const tone = daysRemainingTone(status.licence.daysToExpiry);
+                    return <span className={tone === 'expired' ? 'text-red-600' : tone === 'warn' ? 'text-amber-600' : 'text-muted-foreground'}>{formatDaysRemaining(status.licence.daysToExpiry)}</span>;
+                  })()}
                 </div>
               )}
             </CardContent>
