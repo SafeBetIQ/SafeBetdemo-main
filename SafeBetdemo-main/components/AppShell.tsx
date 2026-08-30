@@ -55,9 +55,9 @@ const NAV_GROUPS: NavGroup[] = [
       { title: 'Live Casino Feed',             href: '/casino/live-feed',                 icon: Radio,            roles: ['casino_admin', 'compliance_officer', 'super_admin'], badge: 'LIVE' },
       { title: 'Player Risk Monitor',          href: '/casino/players',                   icon: Users,            roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
       { title: 'Explainable Intelligence',     href: '/casino/explainability',            icon: Lightbulb,        roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
-      // UAT-OP-1 (P1-4): Self-Exclusion Network reachable from the operator workflow
-      // (previously only linked from the marketing navigation).
-      { title: 'Self-Exclusion Network',       href: '/features/self-exclusion-network',  icon: Shield,           roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      // UAT-OP-3 (P1-B): authenticated Operator Self-Exclusion module (inside AppShell),
+      // replacing the earlier link to the marketing /features/self-exclusion-network page.
+      { title: 'Self-Exclusion',               href: '/casino/self-exclusion',            icon: Shield,           roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
     ],
   },
   {
