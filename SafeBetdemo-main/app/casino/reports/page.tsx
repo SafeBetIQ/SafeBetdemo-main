@@ -24,6 +24,7 @@ import {
   syntheticDisclosure,
 } from '@/lib/certifiedFinancial';
 import { buildReportNarrative } from '@/lib/reportNarrative';
+import { OPERATOR_METRIC_LABELS } from '@/lib/operatorMetricLabels';
 import { FileText, RefreshCw, Printer } from 'lucide-react';
 
 type Rec = Record<string, unknown>;
@@ -150,7 +151,7 @@ export default function ReportingCentrePage() {
             <CardContent className="space-y-3">
             {!loading && <p className="text-sm font-medium">{narrative.riskSummary}</p>}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(kpi.active_players)}</div><div className="text-xs uppercase text-muted-foreground">Active players</div></div>
+              <div className="rounded-lg border p-4"><div className="text-2xl font-semibold">{n(kpi.active_players)}</div><div className="text-xs uppercase text-muted-foreground">{OPERATOR_METRIC_LABELS.observedPlayers}</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold tabular-nums text-emerald-700">{loading ? '…' : certifiedMoney(ggrForPeriod(financial, period))}</div><div className="text-xs uppercase text-muted-foreground">GGR ({periodMeta.short})</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-red-600">{n(tiers.critical)}</div><div className="text-xs uppercase text-muted-foreground">Critical risk</div></div>
               <div className="rounded-lg border p-4"><div className="text-2xl font-semibold text-orange-600">{n(tiers.high)}</div><div className="text-xs uppercase text-muted-foreground">High risk</div></div>

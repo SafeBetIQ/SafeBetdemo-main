@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrendingUp, Users, Zap, Activity, Shield, DollarSign } from 'lucide-react';
 import { useCasinoData } from '@/contexts/CasinoDataContext';
+import { OPERATOR_METRIC_LABELS } from '@/lib/operatorMetricLabels';
 import { SnapshotAge } from '@/components/SnapshotAge';
 
 function AnimatedNumber({ value, prefix = '', decimals = 0 }: { value: number; prefix?: string; decimals?: number }) {
@@ -123,7 +124,7 @@ export function LiveKPIStrip() {
       {/* Certified freshness-based active-now (NOT observed). observed = active_now + idle + stale. */}
       <KpiCard
         icon={Users}
-        label="Active Players"
+        label={OPERATOR_METRIC_LABELS.activeNow}
         value={kpi.players_active_now}
         sub={`${(kpi.active_players ?? 0).toLocaleString()} observed · active within freshness window`}
         color="text-blue-600"

@@ -196,14 +196,18 @@ export default function CasesPage() {
                       <CardDescription>Recorded Fact → Derived Intelligence → Policy Decision → Workflow Action → Recorded Outcome → Case Resolution</CardDescription></CardHeader>
                     <CardContent className="space-y-2">
                       {timeline.map((s, i) => (
-                        <div key={i} className={`flex items-start gap-3 text-sm ${s.available ? '' : 'opacity-40'}`}>
+                        <div key={i} className={`flex items-start gap-3 text-sm ${s.available ? '' : 'opacity-60'}`}>
                           <span className="mt-0.5">{STAGE_ICON[String(s.stage)]}</span>
                           <div className="flex-1">
                             <div className="font-medium flex items-center gap-2">{String(s.label)}
-                              {!s.available && <Badge variant="outline" className="text-[10px]">unavailable</Badge>}</div>
+                              {!s.available && <Badge variant="outline" className="text-[10px]">not linked</Badge>}</div>
                             {(s.entries as Rec[]).map((e, j) => (
                               <div key={j} className="text-muted-foreground text-xs">{e.at ? `${new Date(String(e.at)).toLocaleString()} — ` : ''}{String(e.detail)}{e.ref ? ` [${String(e.ref)}]` : ''}</div>
                             ))}
+                            {/* UAT-OP-5 (P1-2): honest wording instead of a bare "unavailable". */}
+                            {!s.available && s.unavailableNote != null && (
+                              <div className="text-muted-foreground text-xs italic">{String(s.unavailableNote)}</div>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 import { cgGet } from '@/lib/consumerClient';
+import { OPERATOR_METRIC_LABELS } from '@/lib/operatorMetricLabels';
 import { Users, RefreshCw, Search, Lightbulb } from 'lucide-react';
 
 type Rec = Record<string, unknown>;
@@ -56,7 +57,8 @@ export default function PlayerRiskMonitorPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2"><Users className="h-6 w-6" /> Player Risk Monitor</h1>
-              <p className="text-muted-foreground">{players.length} active players · certified Consumer Platform (live-floor)</p>
+              {/* UAT-OP-5 (P2-2): loading is not zero — show a loading state, not "0 observed players". */}
+              <p className="text-muted-foreground">{loading ? 'Loading…' : `${players.length.toLocaleString()} ${OPERATOR_METRIC_LABELS.observedPlayers.toLowerCase()}`} · certified Consumer Platform (live-floor)</p>
             </div>
             <Button variant="outline" onClick={refresh} disabled={loading}><RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
           </div>
@@ -64,7 +66,7 @@ export default function PlayerRiskMonitorPage() {
           <div className="flex flex-wrap gap-2">
             {['all', 'critical', 'high', 'medium', 'low'].map(t => (
               <Button key={t} size="sm" variant={tier === t ? 'default' : 'outline'} onClick={() => setTier(t)}>
-                {t === 'all' ? `All (${players.length})` : `${t} (${tiers[t] ?? 0})`}
+                {t === 'all' ? `All (${loading ? '…' : players.length})` : `${t} (${loading ? '…' : (tiers[t] ?? 0)})`}
               </Button>
             ))}
             <div className="ml-auto relative">

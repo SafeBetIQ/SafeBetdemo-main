@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cgGet } from '@/lib/consumerClient';
 import { reconcileOperatorKpi } from '@/lib/consumerPlatform/integrity';
 import { dashboardStatus } from '@/lib/dashboardStatus';
+import { OPERATOR_METRIC_LABELS } from '@/lib/operatorMetricLabels';
 import type { LiveKpiView, FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import { certifiedMoney } from '@/lib/certifiedFinancial';
 import {
@@ -165,7 +166,7 @@ export default function OperatorDashboardPage() {
               <>
                 {/* 2. Primary KPI strip — Live Feed card system */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <KpiCard icon={Users} value={available ? int(k.players_active_now) : '—'} label="Active Players"
+                  <KpiCard icon={Users} value={available ? int(k.players_active_now) : '—'} label={OPERATOR_METRIC_LABELS.activeNow}
                     sub={available ? `${int(k.active_players)} observed` : undefined} color="text-blue-600" iconBg="bg-blue-100" pulse={available} />
                   <KpiCard icon={Activity} value={available ? int(k.active_sessions) : '—'} label="Active Sessions"
                     sub={available ? `${int(k.open_sessions)} open` : undefined} color="text-orange-600" iconBg="bg-orange-100" />
