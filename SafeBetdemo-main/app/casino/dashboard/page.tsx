@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cgGet } from '@/lib/consumerClient';
 import { reconcileOperatorKpi } from '@/lib/consumerPlatform/integrity';
+import { dashboardStatus } from '@/lib/dashboardStatus';
 import type { LiveKpiView, FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import { certifiedMoney } from '@/lib/certifiedFinancial';
 import {
@@ -41,27 +42,27 @@ export default function OperatorDashboardPage() {
   const { user } = useAuth();
   const casinoId = (user as unknown as Rec)?.casino_id as string | undefined;
   const [floor, setFloor] = useState<Rec | null>(null);
-  const [summary, setSummary] = useState<Rec | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    // UAT-OP-3 (P1-A): the dashboard consumes ONLY the certified live-floor envelope
+    // (kpi + financial + interventions). The previous parallel `summary` fetch was a
+    // second full twin computation whose result was never rendered — dropped so the
+    // shell settles on a single request.
     // Resilient fetch: the very first call after login can race the session write.
     // Retry a couple of times before declaring the certified snapshot unavailable
     // (so the dashboard never gets stuck on a false "Data unavailable").
-    let f: Rec | null = null; let s: Rec | null = null;
+    let f: Rec | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
-      [f, s] = await Promise.all([
-        cgGet('live-floor', { casino_id: casinoId }),
-        cgGet('summary', { casino_id: casinoId }),
-      ]);
+      f = await cgGet('live-floor', { casino_id: casinoId });
       // Retry until the certified KPI is actually present — a post-login token/scope
       // race can briefly return a floor envelope with a null kpi.
       if (f != null && (f as { kpi?: unknown }).kpi != null) break;
       await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
     }
-    setFloor(f); setSummary(s);
+    setFloor(f);
     setLoadFailed(f == null || (f as { kpi?: unknown }).kpi == null);
     setLoading(false);
   }, [casinoId]);
@@ -71,7 +72,7 @@ export default function OperatorDashboardPage() {
   const kpi = (floor?.kpi ?? null) as LiveKpiView | null;
   const financial = (floor?.financial ?? null) as FinancialPostureView | null;
   const interventions = (floor?.interventions ?? []) as Rec[];
-  const casinoName = String(floor?.casinoName ?? floor?.casino_name ?? summary?.casinoName ?? '');
+  const casinoName = String(floor?.casinoName ?? floor?.casino_name ?? '');
   const recon = reconcileOperatorKpi(kpi);
   const available = !loadFailed && kpi != null;
 
@@ -95,9 +96,14 @@ export default function OperatorDashboardPage() {
     ['Last 24 hours', financial?.ggrLast24Hours], ['Month to date', financial?.ggrMonthToDate],
   ] as const;
 
-  const statusBadge = loadFailed
+  // UAT-OP-3 (P1-A): loading is NOT an integrity failure — gate the header badge so
+  // no "Data integrity warning" flashes while the certified snapshot is still fetching.
+  const status = dashboardStatus({ loading, hasKpi: kpi != null, loadFailed, reconOk: recon.ok });
+  const statusBadge = status === 'loading'
+    ? <Badge variant="outline" className="gap-1 border-muted-foreground/30 text-muted-foreground"><RefreshCw className="h-3 w-3 animate-spin" /> Loading…</Badge>
+    : status === 'unavailable'
     ? <Badge variant="outline" className="gap-1 border-muted-foreground/40 text-muted-foreground"><HelpCircle className="h-3 w-3" /> Data unavailable</Badge>
-    : !recon.ok
+    : status === 'integrity'
       ? <Badge variant="destructive" className="gap-1"><CircleAlert className="h-3 w-3" /> Data integrity warning</Badge>
       : <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600"><CircleCheck className="h-3 w-3" /> Reconciled · Healthy</Badge>;
 
@@ -263,7 +269,7 @@ export default function OperatorDashboardPage() {
 
                 {/* Provenance footer */}
                 <div className="text-[11px] text-muted-foreground/70 border-t pt-3 flex flex-wrap gap-x-4 gap-y-1">
-                  <span>Source: certified Consumer Platform (live-floor · summary)</span>
+                  <span>Source: certified Consumer Platform (live-floor)</span>
                   <span className="inline-flex items-center gap-1">Snapshot: <SnapshotAge asOf={kpi?.snapshot_at} /></span>
                   <span>Status: {loadFailed ? 'Unavailable' : recon.ok ? 'Healthy' : 'Degraded (reconciliation)'}</span>
                 </div>

@@ -33,9 +33,12 @@ test('Security Audit Log route enforces the restriction server-side (not just na
   assert.match(securityPage, /SecurityAuditLogInner/);
 });
 
-test('Self-Exclusion Network is reachable from the operator workflow', () => {
-  const line = navLine('Self-Exclusion Network');
-  assert.ok(line, 'Self-Exclusion Network nav entry exists in AppShell');
+test('Self-Exclusion is reachable from the operator workflow (authenticated route)', () => {
+  // UAT-OP-3 (P1-B): the entry now targets the authenticated /casino/self-exclusion
+  // module, not the marketing /features/self-exclusion-network page.
+  const line = navLine('Self-Exclusion');
+  assert.ok(line, 'Self-Exclusion nav entry exists in AppShell');
   assert.match(line, /'casino_admin'/);
-  assert.match(line, /self-exclusion-network/);
+  assert.match(line, /\/casino\/self-exclusion/);
+  assert.doesNotMatch(line, /features\/self-exclusion-network/);
 });
