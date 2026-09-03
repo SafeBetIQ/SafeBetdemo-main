@@ -117,7 +117,7 @@ export function LiveKPIStrip() {
   return (
     <div className="space-y-2">
     <div className="flex items-center justify-end gap-2 text-[11px] text-muted-foreground/70">
-      <SnapshotAge asOf={kpi.snapshot_at} />
+      <SnapshotAge asOf={kpi.source_as_of ?? kpi.snapshot_at} staleAfterSeconds={360} />
       <span className="hidden lg:inline">· active-now uses the freshness window</span>
     </div>
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

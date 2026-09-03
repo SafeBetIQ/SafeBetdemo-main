@@ -89,7 +89,13 @@ export interface LiveKpiView {
   // never wagered, no flags). Never folded into risk_low.
   risk_unclassified: number;
   active_machines: number;
+  // When this snapshot was generated (server render/query time).
   snapshot_at: string;
+  // ARCH-V3-A1: TRUTHFUL source as-of — the newest underlying certified event
+  // time in the served window (never now()/render time). Drives the honest
+  // "Updated X ago" freshness indicator and the shared freshness contract; falls
+  // back to snapshot_at only when the served window is empty.
+  source_as_of: string;
 }
 
 export interface MachineStatusView {
