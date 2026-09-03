@@ -28,6 +28,10 @@ import { OPERATOR_METRIC_LABELS } from '@/lib/operatorMetricLabels';
 import type { LiveKpiView, FinancialPostureView } from '@/lib/consumerPlatform/contracts';
 import { certifiedMoney } from '@/lib/certifiedFinancial';
 import {
+  financialFreshnessState, freshnessPresentation, financialCaption,
+  DEFAULT_FINANCIAL_STALE_AFTER_SECONDS,
+} from '@/lib/financialFreshness';
+import {
   Users, Activity, MonitorSmartphone, DollarSign, ShieldAlert, HeartPulse,
   RefreshCw, CircleAlert, CircleCheck, HelpCircle,
 } from 'lucide-react';
@@ -97,6 +101,18 @@ export default function OperatorDashboardPage() {
     ['Last 24 hours', financial?.ggrLast24Hours], ['Month to date', financial?.ggrMonthToDate],
   ] as const;
 
+  // ARCH-V3-A1: shared certified-financial freshness state (§12.4). Derived from
+  // the certified posture + the TRUTHFUL source as-of (newest event time the
+  // live-floor published) + the loading flag — never from render/request time.
+  // Certified GGR is only ever LABELLED "certified" when this is FRESH; a
+  // missing/stale/failed source shows an honest state, never "R0 certified".
+  const freshness = financialFreshnessState({
+    loading, posture: financial, sourceAsOf: kpi?.source_as_of,
+    staleAfterSeconds: DEFAULT_FINANCIAL_STALE_AFTER_SECONDS,
+  });
+  const finCaption = financialCaption(freshness, financial?.currency ?? 'ZAR');
+  const finLabel = freshnessPresentation(freshness).label;
+
   // UAT-OP-3 (P1-A): loading is NOT an integrity failure — gate the header badge so
   // no "Data integrity warning" flashes while the certified snapshot is still fetching.
   const status = dashboardStatus({ loading, hasKpi: kpi != null, loadFailed, reconOk: recon.ok });
@@ -126,7 +142,7 @@ export default function OperatorDashboardPage() {
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end gap-0.5">
                 {statusBadge}
-                <SnapshotAge asOf={kpi?.snapshot_at} />
+                <SnapshotAge asOf={kpi?.source_as_of} staleAfterSeconds={DEFAULT_FINANCIAL_STALE_AFTER_SECONDS} />
               </div>
               <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
                 <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -173,7 +189,7 @@ export default function OperatorDashboardPage() {
                   <KpiCard icon={MonitorSmartphone} value={available ? int(k.machines_in_play) : '—'} label="In Play"
                     sub={available ? `${int(k.registered_machines)} registered` : 'Gaming machines & endpoints'} color="text-indigo-600" iconBg="bg-indigo-100" />
                   <KpiCard icon={DollarSign} value={financial ? money0(financial.ggrToday) : '—'} label="GGR Today"
-                    sub="ZAR · certified" color="text-emerald-600" iconBg="bg-emerald-100" />
+                    sub={finCaption} color="text-emerald-600" iconBg="bg-emerald-100" />
                   <KpiCard icon={ShieldAlert} value={available ? int(k.risk_critical) : '—'} label="Critical Risk"
                     sub={available ? `${int(k.risk_high)} high` : undefined} color={n(k.risk_critical) > 0 ? 'text-red-600' : 'text-foreground'} iconBg="bg-red-100" />
                   <KpiCard icon={HeartPulse} value={int(interventions.length)} label="Open Interventions"
@@ -247,8 +263,10 @@ export default function OperatorDashboardPage() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between border-t pt-2">
+                      {/* Honest freshness state (§12.4): "Certified" only when FRESH;
+                          otherwise Partial/Stale/Unavailable — never a stale certified claim. */}
                       <span className="text-[11px] text-muted-foreground">
-                        {financial ? `${String(financial.status ?? 'Partial')} · ${financial.containsSyntheticData ? 'Synthetic · ' : ''}${String(financial.currency ?? 'ZAR')}` : 'Unavailable'}
+                        {financial ? `${finLabel} · ${financial.containsSyntheticData ? 'Synthetic · ' : ''}${String(financial.currency ?? 'ZAR')}` : 'Unavailable'}
                       </span>
                       <Link href="/casino/evidence?domain=financial" className="text-[11px] font-medium text-primary hover:underline">View financial evidence →</Link>
                     </div>
@@ -271,7 +289,7 @@ export default function OperatorDashboardPage() {
                 {/* Provenance footer */}
                 <div className="text-[11px] text-muted-foreground/70 border-t pt-3 flex flex-wrap gap-x-4 gap-y-1">
                   <span>Source: certified Consumer Platform (live-floor)</span>
-                  <span className="inline-flex items-center gap-1">Snapshot: <SnapshotAge asOf={kpi?.snapshot_at} /></span>
+                  <span className="inline-flex items-center gap-1">Snapshot: <SnapshotAge asOf={kpi?.source_as_of} staleAfterSeconds={DEFAULT_FINANCIAL_STALE_AFTER_SECONDS} /></span>
                   <span>Status: {loadFailed ? 'Unavailable' : recon.ok ? 'Healthy' : 'Degraded (reconciliation)'}</span>
                 </div>
               </>

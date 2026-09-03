@@ -108,6 +108,9 @@ const DEFAULT_KPI: LiveKpi = {
   events_per_min: 0, total_wagered: 0, total_won: 0,
   ggr: 0, avg_bet_size: 0, risk_critical: 0, risk_high: 0, risk_medium: 0, risk_low: 0,
   risk_unclassified: 0, active_machines: 0, snapshot_at: new Date().toISOString(),
+  // Zero-state default carries no real source; mirror snapshot_at until the
+  // gateway supplies a real newest-event as-of.
+  source_as_of: new Date().toISOString(),
 };
 
 const GATEWAY_REFRESH_MS = 10_000;   // shaped-view refresh cadence

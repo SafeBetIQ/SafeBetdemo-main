@@ -18,6 +18,11 @@ export const DEMO_SIM_PROFILES: CasinoSimProfile[] = [
   { casinoId: 'a1b2c3d4-0000-0000-0000-000000000001', name: 'Prestige',      registeredApprox: 18000, baselineActiveTarget: 40, showcaseActiveTarget: 180 },
   { casinoId: 'cc000001-0000-0000-0000-000000000001', name: 'SunBet',        registeredApprox: 14500, baselineActiveTarget: 28, showcaseActiveTarget: 120 },
   { casinoId: 'cc000004-0000-0000-0000-000000000004', name: 'Gold Rush',     registeredApprox: 10500, baselineActiveTarget: 20, showcaseActiveTarget: 90 },
+  // Royal Palace stays the smallest operator by ACTIVE PLAYER COUNT (fewest
+  // registered). ARCH-V3-A1 lifts its event-derived daily GGR into the Demo
+  // presentation band via a higher synthetic STAKE range (bet_min/bet_max in
+  // sbiq_demo_sim_config), NOT more players — so this active-target mirror is
+  // unchanged. No GGR is hard-coded; revenue still arises from wager/win events.
   { casinoId: 'cc000005-0000-0000-0000-000000000005', name: 'Royal Palace',  registeredApprox: 8500,  baselineActiveTarget: 14, showcaseActiveTarget: 70 },
 ];
 

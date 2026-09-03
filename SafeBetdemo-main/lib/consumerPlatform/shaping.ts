@@ -223,6 +223,20 @@ export function shapeKpi(twin: CasinoDigitalTwin, feedWindow: LiveEventView[]): 
   const aggregates = twin.casinoAggregates();
   const bets = feedWindow.filter(e => e.event_type === 'BET_PLACED' || e.event_type === 'JACKPOT');
   const wagered = bets.reduce((s, e) => s + e.bet_amount, 0);
+  // ARCH-V3-A1: TRUTHFUL source as-of. `created_at` on a LiveEventView is the
+  // event's occurred_at (see shapeEventRow); the newest one in the served window
+  // is the real freshness anchor. This is NOT recalculating any financial value —
+  // it only surfaces WHEN the underlying data was last produced, so the UI shows
+  // an honest "Updated X ago" and can distinguish FRESH from STALE. Falls back to
+  // generation time only when the window is empty.
+  const generatedAt = new Date().toISOString();
+  const newestEventMs = feedWindow.reduce<number>((max, e) => {
+    const t = e.created_at ? Date.parse(e.created_at) : NaN;
+    return Number.isFinite(t) && t > max ? t : max;
+  }, Number.NEGATIVE_INFINITY);
+  const sourceAsOf = Number.isFinite(newestEventMs)
+    ? new Date(newestEventMs).toISOString()
+    : generatedAt;
   return {
     active_players: aggregates.activePlayers,
     active_sessions: aggregates.activeSessions,
@@ -246,7 +260,8 @@ export function shapeKpi(twin: CasinoDigitalTwin, feedWindow: LiveEventView[]): 
     risk_low: aggregates.riskLow,
     risk_unclassified: aggregates.riskUnclassified,
     active_machines: aggregates.activeMachines,
-    snapshot_at: new Date().toISOString(),
+    snapshot_at: generatedAt,
+    source_as_of: sourceAsOf,
   };
 }
 
