@@ -119,6 +119,24 @@ controls:
     exceptions: none
     review_date: TBD
 
+  - control_id: BCM-WLI-008
+    standard: ISO 22301 + Architecture Authority v4.0 §9
+    edition: "22301:2019"
+    clause_reference: "Authority §9 (workload isolation)"
+    product: SAFEBET_IQ
+    component: financial-rollup-worker
+    applicability: APPLICABLE
+    requirement_summary: "Heavy background processing must not starve auth/OLTP; durable queue + isolated workers"
+    technical_control: "EventBridge -> SQS(+DLQ) -> Lambda (reserved concurrency 1) -> rollup RPC; alarms; statement_timeout 120s"
+    process_control: "ADR-0002 temporary exception; measured backlog auth guardrail; runbook rollback"
+    evidence_required: "auth p95 under backlog; DB lock-wait/connection metrics; DLQ/retry drill"
+    control_owner: TBD
+    validation_method: "backlog + GoTrue latency measurement (A2.2)"
+    validation_frequency: per-change
+    status: EXCEPTION_TEMPORARY
+    exceptions: "SQL aggregation still executes in Postgres (~30s/refresh). Queue/orchestration ISOLATED; compute NOT. Bounded + low-contention (auth p95 1.59s under 10-msg backlog, 0 lock waits). Exit: Option A (external calc) under separate approval, or optimise refresh. See ADR-0002."
+    review_date: "2026-12-03"
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"
