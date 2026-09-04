@@ -34,7 +34,9 @@ export {
   AUDIT_CHAIN_SCHEMA, AUDIT_GENESIS_HASH, canonicalJson, canonicalTimestamp,
   auditEventHash, verifyChain,
   type Sha256Hex, type AuditEventFields, type ChainVerifyResult,
-} from './auditChain.ts';
+  // ARCH-V4-A3: consume the audit chain via the SHARED PLATFORM FOUNDATION
+  // contract, not the (now-deprecated) IQ-local path.
+} from '../platform/audit/index.ts';
 export {
   EVIDENCE_DOMAINS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MAX_EXPORT_ROWS,
   EvidenceError, validatePagination, narrowCasinoScope, buildEnvelope,
