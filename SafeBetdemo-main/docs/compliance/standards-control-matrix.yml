@@ -1,0 +1,138 @@
+# SafeBet — Standards Control Matrix (initial skeleton)
+# Architecture Authority v4.0 §15. Machine- + human-readable.
+# NOT a certification claim. No copyrighted clause text is reproduced; where a
+# clause-level requirement is needed but unavailable, status = STANDARD_TEXT_REQUIRED.
+# Editions must be re-verified against the current SABS/ISO source before conformity.
+
+meta:
+  version: 0.1-initial
+  created_under: SAFEBET_ARCHITECTURE_AUTHORITY v4.0
+  certification_claim: NONE
+  note: Initial structure only. Controls to be populated by Track E1 with authorised standard text.
+
+controls:
+  - control_id: SEC-ISMS-001
+    standard: ISO/IEC 27001
+    edition: "2022 (verify SA adoption)"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: ALL
+    component: shared-security-foundation
+    applicability: APPLICABLE
+    requirement_summary: "Tenant isolation & access control (defence-in-depth)"
+    technical_control: "Postgres RLS on 320/330 tables; RBAC via users.role + casino_id/jurisdiction; principalMayAccessCasino"
+    process_control: "Independent review + CI security gate on material changes"
+    evidence_required: "RLS coverage report; access-denial logs; review records"
+    control_owner: TBD
+    validation_method: "Automated RLS test + manual authz review"
+    validation_frequency: per-release
+    status: PARTIAL
+    exceptions: "141 SECURITY DEFINER fns (62 anon-exec) = known debt (§11.1)"
+    review_date: TBD
+
+  - control_id: SEC-PRIVFN-002
+    standard: ISO/IEC 27001
+    edition: "2022"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: ALL
+    component: privileged-db-functions
+    applicability: APPLICABLE
+    requirement_summary: "No anon/public execution of privileged functions without approved exception (§11.1)"
+    technical_control: "EXECUTE grants on SECURITY DEFINER functions"
+    process_control: "Track A5 remediation; ADR for any exception"
+    evidence_required: "Function ACL inventory"
+    control_owner: TBD
+    validation_method: "Read-only ACL query"
+    validation_frequency: per-milestone
+    status: NON_CONFORMANT
+    exceptions: "61 public-exec / 62 anon-exec / 131 authenticated-exec secdef fns (measured 2026-09-04)"
+    review_date: TBD
+
+  - control_id: FIN-FRESH-003
+    standard: (SafeBet product rule; QMS-aligned)
+    edition: "Authority v4.0 §4.6"
+    clause_reference: "Authority §4.6"
+    product: SAFEBET_IQ
+    component: financial-intelligence
+    applicability: APPLICABLE
+    requirement_summary: "Freshness contract LOADING|FRESH|STALE|PARTIAL|UNAVAILABLE; no missing/stale -> R0 certified"
+    technical_control: "lib/financialFreshness.ts; source_as_of (event time); certifiedMoney null->—"
+    process_control: "Unit tests + live verification"
+    evidence_required: "financialFreshness.test.mjs; live source_as_of vs snapshot_at delta"
+    control_owner: TBD
+    validation_method: "node --test + live edge check"
+    validation_frequency: per-release
+    status: CONFORMANT
+    exceptions: none
+    review_date: TBD
+
+  - control_id: PRIV-POPIA-004
+    standard: ISO/IEC 27701 + POPIA
+    edition: "27701:2025"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: ALL
+    component: privacy-by-design
+    applicability: APPLICABLE
+    requirement_summary: "Purpose limitation, minimisation, pseudonymisation, retention, DSR handling"
+    technical_control: "player pseudonym tokens; consent_records / data_subject_requests / data_retention_policies tables present"
+    process_control: "PIMS not yet formalised"
+    evidence_required: "Data-processing register; retention policy enforcement evidence"
+    control_owner: TBD
+    validation_method: "TBD"
+    validation_frequency: TBD
+    status: PARTIAL
+    exceptions: none
+    review_date: TBD
+
+  - control_id: AI-GOV-005
+    standard: ISO/IEC 42001
+    edition: "2023"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: SAFEBET_IQ
+    component: ai-risk-scoring
+    applicability: APPLICABLE
+    requirement_summary: "AI model inventory, owner, limitations, human oversight, rollback (§13)"
+    technical_control: "ai_decision_log table present; bri-risk-score / safeplay-ai-risk-engine edge fns"
+    process_control: "No model registry / governance artefacts yet"
+    evidence_required: "AI model registry; validation metrics; oversight records"
+    control_owner: TBD
+    validation_method: "TBD"
+    validation_frequency: TBD
+    status: PARTIAL
+    exceptions: none
+    review_date: TBD
+
+  - control_id: BCM-006
+    standard: ISO 22301
+    edition: "2019"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: ALL
+    component: resilience-dr
+    applicability: PARTIALLY_APPLICABLE
+    requirement_summary: "Defined + tested RTO/RPO per product; restore validation"
+    technical_control: "EB rollback versions; Supabase backups"
+    process_control: "RTO/RPO undefined"
+    evidence_required: "BC/DR plan; restore test evidence"
+    control_owner: TBD
+    validation_method: "TBD"
+    validation_frequency: TBD
+    status: GAP
+    exceptions: none
+    review_date: TBD
+
+  - control_id: SANS1718-007
+    standard: SANS 1718 family
+    edition: "verify"
+    clause_reference: STANDARD_TEXT_REQUIRED
+    product: (machine/device/WRS only)
+    component: none-in-current-SafeBet-software
+    applicability: NOT_APPLICABLE
+    requirement_summary: "Applies to gambling machines/devices/WRS, not SafeBet software"
+    technical_control: "N/A unless SafeBet consumes certified machine/WRS data"
+    process_control: "Maintain SANS 1718 Applicability Map before any WRS-data consumption"
+    evidence_required: "Applicability decision record"
+    control_owner: TBD
+    validation_method: "N/A"
+    validation_frequency: N/A
+    status: NOT_APPLICABLE
+    exceptions: none
+    review_date: TBD
