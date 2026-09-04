@@ -11,7 +11,8 @@
 // (operator, status, jurisdiction, refs) go through csvCell for CSV-escaping +
 // formula-injection neutralisation.
 
-import { csvCell } from './consumerPlatform/evidence.ts';
+// ARCH-V4-A4: shared evidence framework (Shared Platform Foundation).
+import { csvCell } from './platform/evidence/index.ts';
 import type { FinancialPostureView } from './consumerPlatform/contracts.ts';
 import {
   FINANCIAL_PERIODS, ggrForPeriod, stakesForPeriod, winningsForPeriod, financialStatusLabel,

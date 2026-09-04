@@ -44,7 +44,9 @@ export {
   csvCell, toCsv,
   type EvidenceDomain, type EvidenceScope, type EvidenceSnapshot, type EvidenceEnvelope,
   type EvidenceReconciliation, type EvidencePagination,
-} from './evidence.ts';
+  // ARCH-V4-A4: consume the evidence framework via the SHARED PLATFORM FOUNDATION
+  // contract, not the (now-deprecated) IQ-local path.
+} from '../platform/evidence/index.ts';
 export {
   ConsumerGateway, getConsumerGateway, ConsumerRequestError,
   type ConsumerRequest, type ConsumerSources, type RegulatorSources,
