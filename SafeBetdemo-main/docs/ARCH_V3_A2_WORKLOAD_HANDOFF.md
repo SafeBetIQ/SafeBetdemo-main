@@ -1,3 +1,5 @@
+> **STATUS UPDATE (ARCH-V4-A2, 2026-09-04):** the **Financial rollup refresh** is now ISOLATED onto EventBridge Scheduler → SQS (+DLQ) → dedicated Lambda worker (`safebet-iq-financial-rollup-worker`, reserved concurrency 1); the pg_cron `sbiq-financial-rollup-refresh` is DISABLED. See [ADR-0001](architecture/adr/ADR-0001-financial-workload-isolation.md) and [runbook](runbooks/financial-rollup-worker.md). Remaining workloads below are not yet moved.
+
 # ARCH-V3-A2 — Workload Isolation Hand-off Inventory
 
 Produced by ARCH-V3-A1 (financial/live close-out) as the input to **Track A2 —
