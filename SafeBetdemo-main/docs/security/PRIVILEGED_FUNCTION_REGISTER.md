@@ -50,8 +50,82 @@ anon **DENIED** on revoked fns; service_role/authenticated **retained**; **audit
 (service_role→rollup, 415 events/12 buckets); financial parity RPC==VIEW==wagers−winnings + all-6
 positive; demo tick running; auth 200 (prestige 4.16s / betway 1.89s); 714/714 tests; product routes 200.
 
-## Remaining exposure (future bounded batches — NOT done in A5.1)
-Still `anon`-executable (44) / `PUBLIC` (44) — remediate after per-function caller confirmation:
+## A5.2 batch — REVOKED PUBLIC/anon/authenticated on 12 proven-dormant P0 functions
+Migration: `20260905130000_arch_v4_a5_2_revoke_p0_dormant_privileged.sql` (reversible).
+**Caller proof:** each function has **ZERO** callers in the application (frontend, server, API,
+`.rpc()`, edge, workers, tests, scripts, contexts — full grep), **ZERO** cron, **ZERO** triggers.
+The only DB callers are other SECURITY DEFINER functions in the same **dormant** GRPI/detection
+subsystem (`link_player_to_grpi`→`generate_grpi`; `generate_alerts_for_grpi`→`detect_*`), which run
+as the definer (postgres) and **bypass** the client EXECUTE check. The app's real auth logging is a
+**direct `audit_events` insert via the service client** (`writeAudit`), not `log_auth_event`.
+
+| Function (signature) | Runtime EXECUTE caller | Current→Required grants | Decision | Caller proof |
+|---|---|---|---|---|
+| `log_auth_event(text,text,text,jsonb,uuid,text)` | none (app uses direct audit insert) | anon+pub+auth+svc → svc | revoke pub/anon/auth | grep 0; not called by login route |
+| `clear_force_password_reset()` | none | " | revoke pub/anon/auth | grep 0; no cron/trigger |
+| `generate_grpi(text,text,text)` | `link_player_to_grpi` (secdef, bypass) | " | revoke pub/anon/auth | internal secdef only |
+| `link_player_to_grpi(uuid,uuid,text,text,text)` | none | " | revoke pub/anon/auth | grep 0; dormant entry |
+| `update_global_player_metrics(uuid,numeric,numeric,integer)` | none | " | revoke pub/anon/auth | grep 0 |
+| `detect_binge_sessions/cross_casino_chasing/late_night_activity/loss_chasing/rapid_deposits(uuid)` (5) | `generate_alerts_for_grpi` (secdef, bypass) | " | revoke pub/anon/auth | internal secdef only |
+| `resolve_alert(uuid)` | none | " | revoke pub/anon/auth | grep 0 |
+| `run_full_detection_scan()` | none | " | revoke pub/anon/auth | grep 0 |
+
+service_role retained (future authorised worker/admin). **Verified (all PASS):** anon DENIED on all
+12; service_role retained; **definer (postgres) retains EXECUTE on `generate_grpi`+`detect_*`** so
+internal secdef calls are unaffected; audit chain 0 unhashed/0 dupes; login audit written+hashed
+(writeAudit path healthy); A2 worker runs (46 events/12 buckets); financial parity + all-6 positive;
+demo tick running; product routes 200; 714/714 tests, typecheck + build green, secret-scan clean.
+
+### Cumulative after A5.2
+anon **32** (62→44→**32**, −30 total) · PUBLIC **32** (61→44→**32**, −29) · authenticated **115**
+(131→127→**115**) · service_role **140** (unchanged) · SECURITY DEFINER **141** (unchanged).
+
+## A5.3 batch — live-caller access narrowing (31 of the remaining 32 functions)
+Migrations `20260905140000` (service-only, 29 fns) + `20260905141000` (authenticated-retained, 2 fns).
+Full caller proof across app/edge/workers/tests/scripts/cron/triggers/RLS for all 32:
+- **29 → SERVICE_ROLE ONLY** (revoke anon/public/authenticated): 21 dormant (0 callers) + 8 server
+  functions proven called only via a `SUPABASE_SERVICE_ROLE_KEY` client (admin API routes +
+  regulator-portal edge — `createClient(url, service).rpc(...)`).
+- **2 → AUTHENTICATED REQUIRED** (revoke anon/public, keep authenticated): `get_user_by_email_fast`
+  (browser, called only AFTER `signInWithPassword` succeeds → authenticated, never pre-auth) and
+  `sbiq_verify_audit_chain` (logged-in admin/regulator audit page).
+- **1 → RLS PREDICATE, LEFT UNCHANGED:** `sbiq_may_access_chain_scope` is used in 4 RLS `USING`
+  policies (audit_chain_head/checkpoint, platform_integrity_alert, audit_verification_run); it is
+  evaluated as the querying role, so its grants MUST be retained (removing them would break RLS).
+
+### Classification tally (of the 32)
+ANON REQUIRED **0** · AUTHENTICATED REQUIRED **2** · ROLE-SCOPED/RLS-predicate **1** ·
+SERVICE_ROLE ONLY **29** · DB-INTERNAL (secdef bypass) covered within the above · LEGACY/DORMANT 21
+(within SERVICE_ROLE ONLY) · UNKNOWN **0**.
+
+### A5.3 verification (all PASS)
+Negative tests: service group — anon **DENIED**, authenticated **DENIED**, service_role **PASS**;
+auth group — anon **DENIED**, authenticated **PASS**. RLS predicate retained + **RLS read of
+audit_chain_head works**. Internal secdef chains intact (definer retains EXECUTE). Regulator service
+path proven (`sbiq_regulator_national`/`_operators` execute as service_role; operator-compliance +
+cross-operator views 200). A2 worker runs (14 events/12 buckets). Financial parity + all-6 positive;
+old cron disabled. Login 200 + audit written/hashed; audit 0 unhashed / 0 dupes. Product routes 200.
+714/714 tests, typecheck + build green, secret-scan clean.
+*(Note: regulator `national-overview` view returns 500 — a PRE-EXISTING edge-logic issue, not caused
+by A5.3: the underlying functions execute correctly as service_role and the other regulator views
+work. Outside A5.3 scope.)*
+
+### Cumulative after A5.3
+**anon 62→1** (−61) · **PUBLIC 61→1** (−60) · authenticated 131→**86** · service_role **140**
+(unchanged) · SECURITY DEFINER **141** (unchanged). The single retained anon/PUBLIC grant is the RLS
+predicate `sbiq_may_access_chain_scope` (documented rationale).
+
+## MFA security finding (open)
+**Affected privileged roles:** super_admin (2), regulator (1), casino_admin (7). **Current mechanism:**
+password-only; `mfa_settings` 0 rows / 0 enforced / Supabase Auth MFA available but unused. **Risk:**
+privileged accounts lack second-factor. **Recommendation:** a dedicated MFA-enrolment-then-enforce
+milestone (enforcing now would lock out un-enrolled accounts). **Not implemented in A5.3** (needs
+separate approval). Tracked here so it is not buried.
+
+## Remaining exposure (future bounded batches)
+anon **1** / PUBLIC **1** — the RLS predicate `sbiq_may_access_chain_scope` (justified, retained).
+Remaining A5 debt = A5.4 (SECURITY DEFINER→INVOKER candidates) + A5.5 (ownership review) + broad
+`authenticated` (86) narrowing under a future RBAC/ABAC model. Prior roadmap notes:
 - **A5.2** — remaining anon/PUBLIC read/utility functions (e.g. `is_*`, `get_*`, `mask_*`, health,
   `sbiq_admin_*`, `sbiq_regulator_national`) — confirm each app `.rpc()` caller's role first (several
   ARE app-invoked, e.g. `sbiq_platform_health`, `sbiq_connector_health`, `resolve_player_identity`).

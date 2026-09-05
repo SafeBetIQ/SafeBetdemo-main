@@ -27,10 +27,32 @@ Deliberately **deferred** (need per-function caller proof): auth/identity + play
 authenticated narrowing, INVOKER conversion, and ownership review — batches A5.2–A5.5.
 
 ## Results
-anon 62→**44** (−18); PUBLIC 61→**44** (−17); authenticated 131→127; service_role 140 (unchanged);
-SECURITY DEFINER 141 (unchanged). All A5.1 regression gates PASS (grant enforcement, audit-trigger
-firing + hashing, A2 worker, financial parity + positive, auth, routes, 714/714 tests). MFA state
-recorded = AVAILABLE BUT NOT ENFORCED (deferred; enforcing would lock out un-enrolled accounts).
+**A5.1:** anon 62→**44** (−18); PUBLIC 61→**44** (−17); authenticated 131→127; service_role 140;
+SECURITY DEFINER 141. All A5.1 gates PASS. MFA = AVAILABLE BUT NOT ENFORCED (deferred).
+
+**A5.2** (migration `20260905130000`): revoked PUBLIC/anon/authenticated on **12 proven-dormant P0
+functions** (auth/identity/player-risk/alert) — complete caller proof shows no runtime EXECUTE
+caller (0 app/cron/trigger; only internal secdef calls that bypass grants; app auth-logging uses a
+direct `audit_events` insert, not `log_auth_event`). service_role retained. Result — **cumulative:
+anon 62→32 (−30); PUBLIC 61→32 (−29); authenticated 131→115; service_role 140 & SECURITY DEFINER 141
+unchanged.** All A5.2 gates PASS (anon denied; **definer retains EXECUTE so internal calls
+unaffected**; audit chain intact + login audit written/hashed; A2 worker; financial parity+positive;
+auth; routes; 714/714 tests). Remaining anon/PUBLIC (32) → batches A5.3–A5.5 (per-function caller proof).
+
+**A5.3** (migrations `20260905140000` + `20260905141000`): live-caller narrowing of the remaining
+32 externally-exposed functions. Full caller proof → **29 service-only** (revoke anon/public/auth;
+21 dormant + 8 proven service-client callers), **2 authenticated-retained** (`get_user_by_email_fast`
+post-login, `sbiq_verify_audit_chain` admin/regulator page), **1 left unchanged** because it is an
+**RLS policy predicate** (`sbiq_may_access_chain_scope`, 4 policies — must retain grants for policy
+evaluation). Result — **cumulative: anon 62→1 (−61); PUBLIC 61→1 (−60); authenticated 131→86;
+service_role 140 & SECURITY DEFINER 141 unchanged.** All gates PASS (negative grant tests; RLS
+predicate + RLS read intact; internal secdef chains intact; regulator service path proven; A2 worker;
+financial parity+positive; login+audit; routes; 714/714). MFA finding recorded (privileged roles
+lack second factor; enrolment-then-enforce = separate milestone). A pre-existing regulator
+`national-overview` 500 (edge-logic, grant-independent) noted, outside scope.
+
+**A5 overall remains IN PROGRESS** (A5.4 SECURITY DEFINER→INVOKER, A5.5 ownership, broad
+`authenticated` narrowing — outstanding). Do not mark control complete.
 
 ## Consequences
 - Materially smaller anon/PUBLIC attack surface with zero functional regression.

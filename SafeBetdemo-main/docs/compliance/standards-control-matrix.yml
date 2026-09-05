@@ -44,7 +44,7 @@ controls:
     validation_method: "Read-only ACL query + test matrix (anon denied / authorised pass)"
     validation_frequency: per-milestone
     status: IN_PROGRESS
-    exceptions: "ARCH-V4-A5.1 (2026-09-05) revoked PUBLIC/anon on 18 provably-safe fns (triggers + cron/worker-only): anon 62->44, public 61->44, service_role 140 unchanged, secdef 141 unchanged. Remaining anon/public (44) tracked for batches A5.2-A5.5 (per-fn caller proof). See docs/security/PRIVILEGED_FUNCTION_REGISTER.md + ADR-0005."
+    exceptions: "A5.1 (18 trigger/cron/worker) + A5.2 (12 dormant P0) + A5.3 (31 live-caller-proofed: 29 service-only + 2 authenticated-retained; 1 RLS predicate sbiq_may_access_chain_scope left unchanged) revoked PUBLIC/anon: cumulative anon 62->1, public 61->1, authenticated 131->86, service_role 140 & secdef 141 unchanged. Only remaining anon/public grant = the RLS predicate (justified). Remaining A5 debt: A5.4 (INVOKER), A5.5 (ownership), broad authenticated (86) narrowing. Open MFA finding (privileged roles no 2FA). A5 overall IN PROGRESS. See PRIVILEGED_FUNCTION_REGISTER.md + ADR-0005."
     review_date: TBD
 
   - control_id: FIN-FRESH-003
