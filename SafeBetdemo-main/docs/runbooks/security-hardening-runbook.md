@@ -42,6 +42,23 @@ grant execute on function sbiq_audit_chain_backfill() to public;
 grant execute on function sbiq_run_audit_verification(text) to public;
 ```
 
+## A5.2 rollback (exact)
+Restore prior PUBLIC grants on the 12 proven-dormant P0 functions:
+```
+grant execute on function clear_force_password_reset() to public;
+grant execute on function detect_binge_sessions(uuid) to public;
+grant execute on function detect_cross_casino_chasing(uuid) to public;
+grant execute on function detect_late_night_activity(uuid) to public;
+grant execute on function detect_loss_chasing(uuid) to public;
+grant execute on function detect_rapid_deposits(uuid) to public;
+grant execute on function generate_grpi(text,text,text) to public;
+grant execute on function link_player_to_grpi(uuid,uuid,text,text,text) to public;
+grant execute on function log_auth_event(text,text,text,jsonb,uuid,text) to public;
+grant execute on function resolve_alert(uuid) to public;
+grant execute on function run_full_detection_scan() to public;
+grant execute on function update_global_player_metrics(uuid,numeric,numeric,integer) to public;
+```
+
 ## Regression gates (every batch)
 - **Grant enforcement:** `has_function_privilege('anon', fn, 'EXECUTE')` = false on revoked fns;
   service_role (and any retained role) = true.
