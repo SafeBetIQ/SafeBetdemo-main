@@ -1,6 +1,6 @@
 # ADR-0005 — Privileged-function hardening, batch A5.1 (ARCH-V4-A5)
 
-- **Status:** Accepted (A5.1 applied on Demo; further batches planned)
+- **Status:** Accepted — **A5 CLOSED** (A5.1–A5.5 applied/completed on Demo; hardened + governed)
 - **Date:** 2026-09-05
 - **Products affected:** Shared Platform Foundation (security); SafeBet IQ (callers preserved)
 - **Approver:** pending independent PR review (Demo-only; no Production)
@@ -65,8 +65,30 @@ byte-identical before/after** on deterministic samples → zero behavioural chan
 broadening; RLS predicate + RLS read intact; internal secdef chains intact; A2 worker; financial
 parity+positive; login+audit; routes; 714/714). DB-only, no redeploy.
 
-**A5 overall remains IN PROGRESS** (further INVOKER candidates, A5.5 ownership, broad `authenticated`
-narrowing — outstanding). Do not mark control complete.
+**A5.5** (no migration — governance/CI/docs close-out): re-queried the live estate and found it already
+safe — **138/138 owned by `postgres`**, **138/138 with pinned explicit search_path**, sole PUBLIC/anon
+= the RLS predicate. Produced the **final retained-definer classification of all 138** (protected-read
+58 · write 35 · audit/evidence 12 · maintenance 23 · internal-chain 6 · legacy/dormant 4 · further-
+INVOKER 0 · **UNKNOWN 0**) in `FUNCTION_ACCESS_MATRIX.md`; a **future-regression CI guard**
+(`scripts/ci/privfn-guard.mjs` + `security/privileged-function-baseline.json`, unit-tested) that blocks
+new PUBLIC/anon privileged grants and unpinned SECURITY DEFINER functions in future migrations; a
+default-privileges review (kept the reviewable guard over a broad `ALTER DEFAULT PRIVILEGES`); the
+**hash_identity GUC correction** (role-independent w.r.t. object access, config-dependent on the GRPI
+pepper GUC, service_role-only EXECUTE, no untrusted influence); and the **final MFA disposition**
+(OPEN P1 — hard gate before privileged regulatory-role activation). Final baseline in
+`PRIVILEGED_FUNCTION_BASELINE.md`. All close-out gates PASS (6/6 financial parity; audit 0/0; worker;
+auth; routes; 724/724 tests; typecheck; build; secret-scan; privfn-guard). No DB mutation → no redeploy.
+
+## A5 close
+**Status → Accepted; A5 CLOSED (hardened + governed).** Externally-reachable privileged execution is
+least-privilege and evidenced; the sole PUBLIC/anon exception is justified and explicitly governed;
+every retained SECURITY DEFINER has a recorded rationale; **no material UNKNOWN**; search_path and
+ownership are safe estate-wide; a future-regression guard is in place; financial/auth/audit/evidence
+and A1–A4 remain intact; Production untouched; MFA has an explicit disposition with a hard gate before
+privileged regulatory-role activation. Carried items (consciously accepted): **P1** MFA enforcement
+(gated), broad `authenticated` (84) RBAC/ABAC narrowing; **P2** legacy retirement, further INVOKER
+conversions, GRPI pepper DB-GUC for real-identity environments. The regulator `national-overview` 500
+remains a separate pre-existing defect (grant/mode-independent), unchanged by A5.
 
 ## Consequences
 - Materially smaller anon/PUBLIC attack surface with zero functional regression.

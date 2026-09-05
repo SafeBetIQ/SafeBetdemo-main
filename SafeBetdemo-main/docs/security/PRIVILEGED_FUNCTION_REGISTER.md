@@ -155,12 +155,58 @@ anon **1** (unchanged) · PUBLIC **1** (unchanged) · authenticated **86** (unch
 SECURITY DEFINER) · **SECURITY DEFINER 141→138** (−3, first reduction). Remaining A5 debt: further
 INVOKER candidates (per-fn proof), A5.5 ownership review, broad `authenticated` (86) narrowing.
 
+## A5.5 batch — final retained-definer classification + security baseline close-out
+**No DB mutation.** A5.5 is an analysis/governance/CI close-out: the estate was re-queried live and
+found already in a safe posture (all 138 owned by `postgres`; all 138 with pinned search_path; sole
+PUBLIC/anon = the RLS predicate), so no search_path or ownership change was warranted. Deliverables:
+- **Retained-definer classification of all 138** in `FUNCTION_ACCESS_MATRIX.md` — every retained
+  definer has an explicit elevation reason; **0 UNKNOWN**. Tally: protected-read 58 · privileged-write
+  35 · audit/evidence 12 · maintenance/system 23 · internal-definer-chain 6 · legacy/dormant 4 ·
+  further-INVOKER-candidate 0.
+- **search_path review:** 138/138 SAFE (explicit, trusted-first, `pg_temp` last or fully-qualified);
+  HARDEN REQUIRED 0; UNKNOWN 0; changed 0.
+- **Ownership review:** 138/138 owner `postgres` (EXPECTED TRUSTED); RISK 0; changed 0. No secdef
+  owned by anon/authenticated/app-user.
+- **Future-regression guard:** `scripts/ci/privfn-guard.mjs` (npm `ci:privfn`, unit-tested) statically
+  fails migrations after `20260905150000` that grant PUBLIC/anon on a non-allowlisted function or add a
+  SECURITY DEFINER function without a pinned search_path. Allowlist = `sbiq_may_access_chain_scope`.
+- **Default-privileges review:** documented root cause (PG defaults new-function EXECUTE to PUBLIC);
+  chose the reviewable CI guard over a broad `ALTER DEFAULT PRIVILEGES` (blast radius). See
+  `PRIVILEGED_FUNCTION_BASELINE.md`.
+- **Final baseline:** `PRIVILEGED_FUNCTION_BASELINE.md` + machine-readable
+  `security/privileged-function-baseline.json`.
+
+### hash_identity GUC review (A5.4 terminology correction)
+`hash_identity(text)` was described in A5.4 as "pure." Corrected: it is **role-independent w.r.t.
+database object access** (reads no table) but **configuration-dependent on the GRPI pepper GUC**
+(`current_setting('app.settings.grpi_pepper', true)`). Findings:
+- The GUC is **not currently set at DB level on Demo** → the function uses its built-in dev-pepper
+  fallback (acceptable on synthetic data; pre-existing, unchanged by A5).
+- GUC resolution is **session-level and identical under DEFINER and INVOKER** — the A5.4 conversion did
+  not change pepper handling, hence byte-identical output.
+- EXECUTE is **service_role only** (anon/authenticated DENIED) → **no untrusted caller can invoke it or
+  influence its effective pepper**. No security downgrade from the conversion.
+- The pepper value was **not** printed or retrieved. **Recommendation (P2):** set
+  `app.settings.grpi_pepper` as a proper DB-level GUC (superuser-set) in any environment that holds real
+  identity data.
+
+### Cumulative after A5.5 (final)
+**SECURITY DEFINER 138** · anon **1** · PUBLIC **1** · authenticated **84** (secdef-scoped) ·
+service_role **137** (secdef-scoped) · owner postgres **138/138** · pinned search_path **138/138** ·
+UNKNOWN **0**. No RLS change; no new privileged exposure; A1–A4 intact; Production untouched.
+
 ## MFA security finding (open)
 **Affected privileged roles:** super_admin (2), regulator (1), casino_admin (7). **Current mechanism:**
 password-only; `mfa_settings` 0 rows / 0 enforced / Supabase Auth MFA available but unused. **Risk:**
 privileged accounts lack second-factor. **Recommendation:** a dedicated MFA-enrolment-then-enforce
 milestone (enforcing now would lock out un-enrolled accounts). **Not implemented in A5.3** (needs
 separate approval). Tracked here so it is not buried.
+
+**A5.5 final disposition:** **MFA OPEN P1 — HARD GATE BEFORE PRIVILEGED REGULATORY-ROLE ACTIVATION.**
+Target model: privileged role → MFA enrolled → MFA verified → privileged access allowed (enrol first,
+then enforce; never enforce-before-enrol). Recorded hard gate: no real Guardian privileged user, no
+real Regulator-Suite privileged user, and no production privileged regulatory access until MFA
+enforcement is proven. See `PRIVILEGED_FUNCTION_BASELINE.md`.
 
 ## Remaining exposure (future bounded batches)
 anon **1** / PUBLIC **1** — the RLS predicate `sbiq_may_access_chain_scope` (justified, retained).

@@ -105,6 +105,25 @@ alter function public.mask_phone(text) security definer;
 alter function public.hash_identity(text) security definer;
 ```
 
+## A5.5 — final close-out (no DB mutation)
+A5.5 re-queried the live estate and found it already safe: **138/138 owned by `postgres`**, **138/138
+with a pinned explicit `search_path`**, sole PUBLIC/anon = the RLS predicate. No search_path or
+ownership change was warranted, so **no migration was applied**. Deliverables were classification +
+governance only: `FUNCTION_ACCESS_MATRIX.md`, `PRIVILEGED_FUNCTION_BASELINE.md`,
+`security/privileged-function-baseline.json`, and the CI guard below.
+
+### Future-regression guard
+`npm run ci:privfn` (`scripts/ci/privfn-guard.mjs`) statically scans migrations **after** baseline
+`20260905150000` and fails when one (a) grants EXECUTE to PUBLIC/anon on a non-allowlisted function, or
+(b) adds a SECURITY DEFINER function without a pinned `SET search_path`. Allowlist =
+`sbiq_may_access_chain_scope`. Unit-tested (`tests/privfnGuard.test.mjs`). Run it on every migration PR.
+To add a legitimate exception: add the function to `publicAnonExecuteAllowlist` in the baseline JSON
+**with a written rationale** (independent review required).
+
+### search_path / ownership rollback (A5.5)
+None required — A5.5 changed no function attribute. Had a change been made, the runbook records prior
+`proconfig` (search_path), prior `proowner` (owner), and prior mode before any ALTER.
+
 ## INVOKER-conversion rule (A5.4 learning)
 Only convert SECURITY DEFINER → INVOKER where the function is **pure with respect to execution role**:
 reads NO table, writes nothing, reads no auth/session/`current_user` context, and is NOT an RLS
