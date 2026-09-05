@@ -1,0 +1,22 @@
+{
+  "name": "@safebet/guardian",
+  "version": "0.0.0-c0",
+  "private": true,
+  "description": "SafeBet Guardian — standalone national illegal-gambling intelligence & multi-channel enforcement-orchestration product. ARCH-V4-C0 foundation (synthetic demo only; no real regulator users; no production; no live enforcement integrations).",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test ../../tests/guardian",
+    "serve": "node bin/guardian-service.mjs"
+  },
+  "safebet": {
+    "product": "GUARDIAN",
+    "boundary": "standalone",
+    "runtimeStrategy": "monorepo-package-independent-entrypoint (Option C)",
+    "dataStrategy": "dedicated guardian schema (Option B interim strangler; separate project = final target)",
+    "dependsOnSafebetIqBusinessData": false,
+    "sharedContracts": ["@/lib/platform/audit", "@/lib/platform/evidence"],
+    "mfaRequiredForRealPrivilegedUse": true
+  }
+}

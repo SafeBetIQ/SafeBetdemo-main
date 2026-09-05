@@ -137,6 +137,24 @@ controls:
     exceptions: "SQL aggregation still executes in Postgres (~30s/refresh). Queue/orchestration ISOLATED; compute NOT. Bounded + low-contention (auth p95 1.59s under 10-msg backlog, 0 lock waits). Exit: Option A (external calc) under separate approval, or optimise refresh. See ADR-0002."
     review_date: "2026-12-03"
 
+  - control_id: SEC-PRODUCT-009
+    standard: ISO/IEC 27001 + Architecture Authority v4.0 §7/§10
+    edition: "2022"
+    clause_reference: "Authority §7 (product boundaries), §10 (shared contracts)"
+    product: SAFEBET_GUARDIAN
+    component: guardian-standalone-foundation
+    applicability: APPLICABLE
+    requirement_summary: "New product established with an isolated runtime/API/identity/data boundary; shared services consumed only via governed contracts; no cross-product data leakage; no privileged-execution regression"
+    technical_control: "products/guardian package (Option C) + dedicated guardian schema (Option B, RLS on 7 tables, no anon/public, 0 functions); imports limited to @/lib/platform/audit + evidence; MFA hard gate blocks real privileged users; SoD + jurisdiction scoping"
+    process_control: "ADR-0006; boundary + independence tests; DB RLS negative tests; ci:privfn guard"
+    evidence_required: "boundary/independence tests; DB cross-jurisdiction/cross-product/anon denials; estate unchanged (secdef 138/anon 1/public 1); guardian schema 0 functions"
+    control_owner: TBD
+    validation_method: "node --test (guardian) + DB RLS negatives + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C0 foundation; synthetic-only)"
+    exceptions: "Foundation only — no business modules, no real integrations, no enforcement. Real privileged Guardian users + production privileged regulatory access BLOCKED pending MFA enforcement (ADR-0005 gate). Data boundary = dedicated schema (interim); separate database/project = final target. See docs/products/guardian/."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

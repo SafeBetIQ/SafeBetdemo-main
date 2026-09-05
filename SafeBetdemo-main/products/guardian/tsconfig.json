@@ -1,0 +1,17 @@
+{
+  "//": "Isolated Guardian package typecheck (ARCH-V4-C0). Proves the package builds on its own dependency graph — only its own src + the governed Shared Platform Foundation contracts (reached by relative path). Run: cd products/guardian && npx tsc --noEmit -p tsconfig.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "lib": ["es2020", "dom"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "bin/**/*.ts", "../../lib/platform/**/*.ts"]
+}
