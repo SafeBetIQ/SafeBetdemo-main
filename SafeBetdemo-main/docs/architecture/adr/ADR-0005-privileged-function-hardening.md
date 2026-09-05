@@ -39,8 +39,20 @@ unchanged.** All A5.2 gates PASS (anon denied; **definer retains EXECUTE so inte
 unaffected**; audit chain intact + login audit written/hashed; A2 worker; financial parity+positive;
 auth; routes; 714/714 tests). Remaining anon/PUBLIC (32) → batches A5.3–A5.5 (per-function caller proof).
 
-**A5 overall remains IN PROGRESS** (A5.3 authenticated-narrowing, A5.4 INVOKER conversion, A5.5
-ownership — outstanding). Do not mark control complete.
+**A5.3** (migrations `20260905140000` + `20260905141000`): live-caller narrowing of the remaining
+32 externally-exposed functions. Full caller proof → **29 service-only** (revoke anon/public/auth;
+21 dormant + 8 proven service-client callers), **2 authenticated-retained** (`get_user_by_email_fast`
+post-login, `sbiq_verify_audit_chain` admin/regulator page), **1 left unchanged** because it is an
+**RLS policy predicate** (`sbiq_may_access_chain_scope`, 4 policies — must retain grants for policy
+evaluation). Result — **cumulative: anon 62→1 (−61); PUBLIC 61→1 (−60); authenticated 131→86;
+service_role 140 & SECURITY DEFINER 141 unchanged.** All gates PASS (negative grant tests; RLS
+predicate + RLS read intact; internal secdef chains intact; regulator service path proven; A2 worker;
+financial parity+positive; login+audit; routes; 714/714). MFA finding recorded (privileged roles
+lack second factor; enrolment-then-enforce = separate milestone). A pre-existing regulator
+`national-overview` 500 (edge-logic, grant-independent) noted, outside scope.
+
+**A5 overall remains IN PROGRESS** (A5.4 SECURITY DEFINER→INVOKER, A5.5 ownership, broad
+`authenticated` narrowing — outstanding). Do not mark control complete.
 
 ## Consequences
 - Materially smaller anon/PUBLIC attack surface with zero functional regression.

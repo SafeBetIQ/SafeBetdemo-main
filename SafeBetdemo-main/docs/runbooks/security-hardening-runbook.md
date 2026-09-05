@@ -59,6 +59,50 @@ grant execute on function run_full_detection_scan() to public;
 grant execute on function update_global_player_metrics(uuid,numeric,numeric,integer) to public;
 ```
 
+## A5.3 rollback (exact)
+Restore prior PUBLIC grants on the 31 changed functions:
+```
+-- 3a (service-only, 29): grant execute on function <sig> to public;  (see migration 20260905140000)
+grant execute on function check_player_self_exclusion(text,text,text) to public;
+grant execute on function generate_alerts_for_grpi(uuid) to public;
+grant execute on function get_alerts_by_pattern() to public;
+grant execute on function get_assessment_stats(uuid) to public;
+grant execute on function get_bie_grpi_profiles(integer,integer) to public;
+grant execute on function get_cross_operator_metrics() to public;
+grant execute on function get_grpi_compliance_queue(integer) to public;
+grant execute on function get_grpi_cross_casino_alerts(integer) to public;
+grant execute on function get_grpi_dashboard_rows(integer,integer) to public;
+grant execute on function get_grpi_summary() to public;
+grant execute on function get_player_audit_count(uuid,integer) to public;
+grant execute on function get_player_cross_casino_profile(uuid) to public;
+grant execute on function get_player_recent_audit_events(uuid,integer) to public;
+grant execute on function get_severity_distribution() to public;
+grant execute on function hash_identity(text) to public;
+grant execute on function recalculate_grpi_risk_score(uuid) to public;
+grant execute on function sbiq_admin_financial_section(timestamp with time zone) to public;
+grant execute on function sbiq_admin_overview_snapshot(boolean) to public;
+grant execute on function sbiq_admin_refresh_registered() to public;
+grant execute on function sbiq_admin_refresh_registered_manual(uuid,uuid) to public;
+grant execute on function sbiq_admin_registered_status() to public;
+grant execute on function sbiq_demo_activate_showcase(text,uuid,text,integer,uuid,uuid) to public;
+grant execute on function sbiq_demo_partition_readiness(boolean) to public;
+grant execute on function sbiq_demo_sim_health_snapshot() to public;
+grant execute on function sbiq_financial_rollup_backfill(integer) to public;
+grant execute on function sbiq_financial_rollup_status() to public;
+grant execute on function sbiq_regulator_national(text) to public;
+grant execute on function sbiq_regulator_operators(text) to public;
+grant execute on function sbiq_verify_audit_chain_range(text,bigint,bigint) to public;
+-- 3b (authenticated-retained, 2): (migration 20260905141000)
+grant execute on function get_user_by_email_fast(text) to public;
+grant execute on function sbiq_verify_audit_chain(text) to public;
+```
+
+## RLS-predicate rule (A5.3 learning)
+Before revoking authenticated/anon on any function, check `pg_policies` for references to it
+(`qual`/`with_check`). A function used as an RLS `USING`/`WITH CHECK` predicate is evaluated as the
+querying role and MUST retain EXECUTE for that role — **leave it unchanged** (e.g.
+`sbiq_may_access_chain_scope`).
+
 ## Regression gates (every batch)
 - **Grant enforcement:** `has_function_privilege('anon', fn, 'EXECUTE')` = false on revoked fns;
   service_role (and any retained role) = true.
