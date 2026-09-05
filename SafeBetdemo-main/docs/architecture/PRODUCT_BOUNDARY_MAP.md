@@ -15,7 +15,7 @@ Estate: **330 tables · 24 views · 157 functions** (511 objects) in a single `p
 | **Demo simulation** | 26 | `sbiq_demo_*`, simulator config/flags/run-log/showcase — DEMO ONLY |
 | **Legacy (Academy)** | 18 | quiz/training/certificate — excluded from v4 → retire (see legacy-retirement-register.md) |
 | **`guardian_*` analytics (RECLASSIFY → IQ)** | 7 | minor-protection RG analytics — NOT the v4 Guardian product (see §4) |
-| **GUARDIAN target** | 0 | greenfield — namespace reserved, no business objects |
+| **GUARDIAN (C0 foundation)** | code pkg `products/guardian` + `guardian` schema (7 tables, RLS, 0 fns) | standalone product foundation — synthetic only; consumes Shared Foundation via contracts; no IQ business dependency (see ADR-0006 + docs/products/guardian/) |
 | **REGULATOR SUITE target** | 0 | greenfield — namespace reserved, no business objects |
 
 Residual genuinely-ambiguous objects (~a handful) are flagged UNKNOWN in the Data Ownership
