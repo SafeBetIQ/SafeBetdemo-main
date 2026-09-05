@@ -115,6 +115,46 @@ work. Outside A5.3 scope.)*
 (unchanged) · SECURITY DEFINER **141** (unchanged). The single retained anon/PUBLIC grant is the RLS
 predicate `sbiq_may_access_chain_scope` (documented rationale).
 
+## A5.4 batch — SECURITY DEFINER → SECURITY INVOKER (3 proven-pure functions)
+Migration: `20260905150000_arch_v4_a5_4_definer_to_invoker_pure.sql` (reversible). First A5 batch to
+change the **execution mode** (grants untouched). Classification of the full 141-fn estate:
+**A — DEFINER REQUIRED (majority):** access protected tables / bypass RLS / write projections / read
+identity context. Left unchanged. **B — INVOKER CANDIDATE:** only the pure-computation subset (below).
+**C/D/E/F:** unchanged this batch. Excluded from batch 1 by rule: auth, tenant/scope resolution,
+regulator scope, financial certification/rollup, audit append/hash, evidence integrity, service-role
+admin, **RLS predicates** (`sbiq_may_access_chain_scope` — untouched), identity federation, cross-operator.
+
+**Why pure functions are safe to convert:** a SECURITY DEFINER function that reads no table, writes
+nothing, and reads no auth/session context produces output that is a deterministic function of its
+arguments alone. The execution role cannot change the result, so DEFINER elevation confers no needed
+capability — it is unjustified privilege. INVOKER removes the elevated context with **zero behavioural
+change**, proven by byte-identical output before/after.
+
+| Function (sig) | Reads tables? | Writes? | Auth/session ctx? | RLS predicate? | Decision | Proof |
+|---|---|---|---|---|---|---|
+| `mask_email(text)` | no | no | no | no | **INVOKER** | pure string mask; out `jo***@example.com` identical pre/post |
+| `mask_phone(text)` | no | no | no | no | **INVOKER** | pure string mask; out `+**-****-4567` identical pre/post |
+| `hash_identity(text)` | no | no | `current_setting(pepper)` GUC only (no table) | no | **INVOKER** | `digest()` over pepper+input; out `1477c528fe3e39cb…` identical pre/post |
+
+`hash_identity` reads only the `app.settings.grpi_pepper` GUC via `current_setting(...,true)` (a
+config parameter, not a table, and role-independent), so it remains pure with respect to execution role.
+
+### A5.4 verification (all PASS)
+Mode changed: `prosecdef=false` on all 3 (was true). **Output byte-identical** to the pre-conversion
+capture for all 3 (deterministic samples above) → zero behavioural change. **Grants UNCHANGED** (no
+broadening): `mask_email` anon still DENIED / service_role retained; `hash_identity` service_role
+retained — the A5.3 access restrictions remain authoritative. `sbiq_may_access_chain_scope` unchanged
+(anon retained, RLS read of `audit_chain_head` works). Financial parity RPC==VIEW==(wagers−winnings) +
+all-6 positive; audit chain 0 unhashed / 0 dupes; A2 worker `rollup_success` (47 events/12 buckets);
+login 200 (prestige 4.66s / betway 1.79s); product routes 200; old cron disabled; 714/714 tests,
+typecheck + build green, secret-scan clean.
+
+### Cumulative after A5.4
+anon **1** (unchanged) · PUBLIC **1** (unchanged) · authenticated **86** (unchanged) · service_role
+**140** (grants unchanged; secdef-scoped count shows 137 only because the 3 converted fns are no longer
+SECURITY DEFINER) · **SECURITY DEFINER 141→138** (−3, first reduction). Remaining A5 debt: further
+INVOKER candidates (per-fn proof), A5.5 ownership review, broad `authenticated` (86) narrowing.
+
 ## MFA security finding (open)
 **Affected privileged roles:** super_admin (2), regulator (1), casino_admin (7). **Current mechanism:**
 password-only; `mfa_settings` 0 rows / 0 enforced / Supabase Auth MFA available but unused. **Risk:**
