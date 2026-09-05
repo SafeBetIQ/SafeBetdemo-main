@@ -41,10 +41,10 @@ controls:
     process_control: "Track A5 remediation; ADR for any exception"
     evidence_required: "Function ACL inventory"
     control_owner: TBD
-    validation_method: "Read-only ACL query"
+    validation_method: "Read-only ACL query + test matrix (anon denied / authorised pass)"
     validation_frequency: per-milestone
-    status: NON_CONFORMANT
-    exceptions: "61 public-exec / 62 anon-exec / 131 authenticated-exec secdef fns (measured 2026-09-04)"
+    status: IN_PROGRESS
+    exceptions: "ARCH-V4-A5.1 (2026-09-05) revoked PUBLIC/anon on 18 provably-safe fns (triggers + cron/worker-only): anon 62->44, public 61->44, service_role 140 unchanged, secdef 141 unchanged. Remaining anon/public (44) tracked for batches A5.2-A5.5 (per-fn caller proof). See docs/security/PRIVILEGED_FUNCTION_REGISTER.md + ADR-0005."
     review_date: TBD
 
   - control_id: FIN-FRESH-003
