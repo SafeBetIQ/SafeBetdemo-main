@@ -1,0 +1,25 @@
+{
+  "_comment": "ARCH-V4-A5.5 privileged-function security baseline (Demo). Consumed by scripts/ci/privfn-guard.mjs to prevent future migrations from silently reintroducing broad privileged execution. Static scan — no DB credentials required. See docs/security/PRIVILEGED_FUNCTION_BASELINE.md.",
+  "baselineMigrationVersion": "20260905150000",
+  "estateAsOf": {
+    "canonicalDemoSha": "a425ce3d2310af33fd74f88aeec6cff1e5613dc9",
+    "securityDefiner": 138,
+    "publicExecute": 1,
+    "anonExecute": 1,
+    "authenticatedExecute": 84,
+    "serviceRoleExecute": 137,
+    "allOwnedBy": "postgres",
+    "allSearchPathPinned": true
+  },
+  "publicAnonExecuteAllowlist": [
+    {
+      "function": "sbiq_may_access_chain_scope",
+      "reason": "RLS USING predicate for 4 audit policies (ach_read/acc_read/avr_read/pia_read). Evaluated as the querying role, so anon/authenticated/service_role must retain EXECUTE for policy evaluation. Does not read chain-data tables directly; enforces scope. Removing the grant would break RLS reads. Governed exception (Authority §11.1)."
+    }
+  ],
+  "rules": {
+    "denyPublicOrAnonGrantOnFunction": "Migrations after baselineMigrationVersion must not GRANT EXECUTE on any function to PUBLIC or anon unless the function is in publicAnonExecuteAllowlist.",
+    "requireSearchPathOnNewSecurityDefiner": "Any CREATE [OR REPLACE] FUNCTION ... SECURITY DEFINER introduced after baselineMigrationVersion must pin an explicit SET search_path.",
+    "note": "Grandfathers all pre-baseline migration history; governs future privileged exposure only."
+  }
+}
