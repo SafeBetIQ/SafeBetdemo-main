@@ -11,12 +11,35 @@ Guardian source/test/doc changes do **not** require a SafeBet IQ business releas
 current monorepo the build boundary is proven by the isolated package typecheck + the boundary
 tests; a separate deployable service is the C1+ target.
 
-## Deployment (C0)
-C0 introduces **source + a reversible DB schema + docs/CI** only. No separate Guardian runtime
-was deployed (Option C package; the IQ app is not redeployed for Guardian source that its
-routes reference only additively — confirm per change). If/when a standalone Guardian runtime
-is deployed, prove provenance independently: **Git = Build = Guardian deploy = `/api/guardian/version`**,
-and never report the SafeBet IQ runtime SHA as Guardian's.
+## Deployment (C0.1) — independent Lambda runtime
+Guardian runs on its **own** AWS Lambda + Function URL (ADR-0007), separate from the SafeBet IQ
+runtime/release/version. Build + deploy:
+```
+node scripts/guardian/build-guardian-lambda.mjs          # esbuild bundle; bakes exact Git SHA
+aws lambda update-function-code --function-name safebet-guardian-demo \
+  --zip-file fileb://products/guardian/dist/guardian-lambda.zip --region eu-west-1
+```
+- Function: `safebet-guardian-demo` (nodejs20.x, x86_64, handler `index.handler`).
+- Role: `safebet-guardian-demo-lambda-role` (CloudWatch Logs only — least privilege; the
+  foundation endpoints are pure synthetic compute, no DB/secrets).
+- Endpoint: the Lambda **Function URL** (dedicated Guardian endpoint; the intended future
+  hostname is `guardian-demo.safebetiq.com` once DNS is authorised).
+- Log group: `/aws/lambda/safebet-guardian-demo`.
+- **Provenance:** the artifact bakes the exact source SHA; prove **Git = build = deploy =
+  live `/version`** on every deploy. Never report the SafeBet IQ runtime SHA as Guardian's.
+
+### Runtime rollback (≠ data rollback)
+- Roll back code: `aws lambda update-function-code … --zip-file fileb://<prior-artifact>` (or a
+  published version alias once versions exist).
+- Remove entirely: delete the Function URL config, then `aws lambda delete-function
+  --function-name safebet-guardian-demo`, then the IAM role. Previous state = no deployed runtime.
+- The schema rollback (`DROP SCHEMA guardian CASCADE`) is a **separate** data concern — not the
+  runtime rollback. SafeBet IQ is unaffected either way.
+
+### Note on the Next `/api/guardian/*` routes
+The additive `/api/guardian/{health,version,foundation}` routes remain in the IQ app as a
+convenience surface, but they are **not** the independent runtime — the Lambda Function URL is.
+The IQ app is not redeployed for Guardian in C0.1 (`demo.safebetiq.com` untouched).
 
 ## Rollback
 - **DB schema:** `DROP SCHEMA guardian CASCADE;` then delete the ledger row

@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Guardian Lambda build artifacts (ARCH-V4-C0.1)
+products/guardian/dist/
