@@ -51,8 +51,22 @@ financial parity+positive; login+audit; routes; 714/714). MFA finding recorded (
 lack second factor; enrolment-then-enforce = separate milestone). A pre-existing regulator
 `national-overview` 500 (edge-logic, grant-independent) noted, outside scope.
 
-**A5 overall remains IN PROGRESS** (A5.4 SECURITY DEFINER→INVOKER, A5.5 ownership, broad
-`authenticated` narrowing — outstanding). Do not mark control complete.
+**A5.4** (migration `20260905150000`): first **execution-mode** batch — converted **3 proven-pure**
+functions from SECURITY DEFINER to SECURITY INVOKER: `mask_email(text)`, `mask_phone(text)`,
+`hash_identity(text)`. Each reads no table, writes nothing, reads no auth/session context, and is not
+an RLS predicate, so output is a deterministic function of arguments and the execution role cannot
+affect it — DEFINER was unjustified. Grants were **not** changed (A5.3 restrictions remain
+authoritative); only the security mode flipped. Excluded from this batch by rule: auth, tenant/scope
+resolution, regulator scope, financial certification/rollup, audit append/hash, evidence integrity,
+service-role admin, RLS predicates (`sbiq_may_access_chain_scope` untouched), identity federation,
+cross-operator. Result — **SECURITY DEFINER 141→138 (−3, first reduction)**; anon **1**, PUBLIC **1**,
+authenticated **86**, service_role grants unchanged. All gates PASS (prosecdef=false ×3; **output
+byte-identical before/after** on deterministic samples → zero behavioural change; grants unchanged/no
+broadening; RLS predicate + RLS read intact; internal secdef chains intact; A2 worker; financial
+parity+positive; login+audit; routes; 714/714). DB-only, no redeploy.
+
+**A5 overall remains IN PROGRESS** (further INVOKER candidates, A5.5 ownership, broad `authenticated`
+narrowing — outstanding). Do not mark control complete.
 
 ## Consequences
 - Materially smaller anon/PUBLIC attack surface with zero functional regression.

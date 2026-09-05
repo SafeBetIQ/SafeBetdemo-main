@@ -97,6 +97,24 @@ grant execute on function get_user_by_email_fast(text) to public;
 grant execute on function sbiq_verify_audit_chain(text) to public;
 ```
 
+## A5.4 rollback (exact)
+Restore SECURITY DEFINER on the 3 pure functions converted to INVOKER (grants were not changed):
+```
+alter function public.mask_email(text) security definer;
+alter function public.mask_phone(text) security definer;
+alter function public.hash_identity(text) security definer;
+```
+
+## INVOKER-conversion rule (A5.4 learning)
+Only convert SECURITY DEFINER → INVOKER where the function is **pure with respect to execution role**:
+reads NO table, writes nothing, reads no auth/session/`current_user` context, and is NOT an RLS
+`USING`/`WITH CHECK` predicate. For such functions the output is a deterministic function of arguments,
+so the role cannot change the result → DEFINER is unjustified and INVOKER is behaviour-preserving
+(prove by capturing deterministic output before and confirming byte-identical after). A GUC read via
+`current_setting('app.settings.*', true)` is config, not a table, and is role-independent — still pure.
+Do **not** convert functions that touch tables, bypass RLS deliberately, resolve tenant/regulator scope,
+certify financials, append/hash audit, or run as service-role admin — their elevation is required.
+
 ## RLS-predicate rule (A5.3 learning)
 Before revoking authenticated/anon on any function, check `pg_policies` for references to it
 (`qual`/`with_check`). A function used as an RLS `USING`/`WITH CHECK` predicate is evaluated as the

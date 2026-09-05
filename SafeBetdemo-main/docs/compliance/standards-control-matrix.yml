@@ -26,7 +26,7 @@ controls:
     validation_method: "Automated RLS test + manual authz review"
     validation_frequency: per-release
     status: PARTIAL
-    exceptions: "141 SECURITY DEFINER fns (62 anon-exec) = known debt (§11.1)"
+    exceptions: "138 SECURITY DEFINER fns (1 anon-exec = RLS predicate) = tracked debt, A5 in progress (§11.1)"
     review_date: TBD
 
   - control_id: SEC-PRIVFN-002
@@ -44,7 +44,7 @@ controls:
     validation_method: "Read-only ACL query + test matrix (anon denied / authorised pass)"
     validation_frequency: per-milestone
     status: IN_PROGRESS
-    exceptions: "A5.1 (18 trigger/cron/worker) + A5.2 (12 dormant P0) + A5.3 (31 live-caller-proofed: 29 service-only + 2 authenticated-retained; 1 RLS predicate sbiq_may_access_chain_scope left unchanged) revoked PUBLIC/anon: cumulative anon 62->1, public 61->1, authenticated 131->86, service_role 140 & secdef 141 unchanged. Only remaining anon/public grant = the RLS predicate (justified). Remaining A5 debt: A5.4 (INVOKER), A5.5 (ownership), broad authenticated (86) narrowing. Open MFA finding (privileged roles no 2FA). A5 overall IN PROGRESS. See PRIVILEGED_FUNCTION_REGISTER.md + ADR-0005."
+    exceptions: "A5.1 (18 trigger/cron/worker) + A5.2 (12 dormant P0) + A5.3 (31 live-caller-proofed: 29 service-only + 2 authenticated-retained; 1 RLS predicate sbiq_may_access_chain_scope left unchanged) revoked PUBLIC/anon; A5.4 (3 proven-pure fns mask_email/mask_phone/hash_identity) converted SECURITY DEFINER->INVOKER (grants unchanged, output byte-identical). Cumulative: anon 62->1, public 61->1, authenticated 131->86, service_role 140 unchanged, SECURITY DEFINER 141->138 (-3). Only remaining anon/public grant = the RLS predicate (justified). Remaining A5 debt: further INVOKER candidates, A5.5 (ownership), broad authenticated (86) narrowing. Open MFA finding (privileged roles no 2FA). A5 overall IN PROGRESS. See PRIVILEGED_FUNCTION_REGISTER.md + ADR-0005."
     review_date: TBD
 
   - control_id: FIN-FRESH-003
