@@ -50,8 +50,38 @@ anon **DENIED** on revoked fns; service_role/authenticated **retained**; **audit
 (service_role→rollup, 415 events/12 buckets); financial parity RPC==VIEW==wagers−winnings + all-6
 positive; demo tick running; auth 200 (prestige 4.16s / betway 1.89s); 714/714 tests; product routes 200.
 
-## Remaining exposure (future bounded batches — NOT done in A5.1)
-Still `anon`-executable (44) / `PUBLIC` (44) — remediate after per-function caller confirmation:
+## A5.2 batch — REVOKED PUBLIC/anon/authenticated on 12 proven-dormant P0 functions
+Migration: `20260905130000_arch_v4_a5_2_revoke_p0_dormant_privileged.sql` (reversible).
+**Caller proof:** each function has **ZERO** callers in the application (frontend, server, API,
+`.rpc()`, edge, workers, tests, scripts, contexts — full grep), **ZERO** cron, **ZERO** triggers.
+The only DB callers are other SECURITY DEFINER functions in the same **dormant** GRPI/detection
+subsystem (`link_player_to_grpi`→`generate_grpi`; `generate_alerts_for_grpi`→`detect_*`), which run
+as the definer (postgres) and **bypass** the client EXECUTE check. The app's real auth logging is a
+**direct `audit_events` insert via the service client** (`writeAudit`), not `log_auth_event`.
+
+| Function (signature) | Runtime EXECUTE caller | Current→Required grants | Decision | Caller proof |
+|---|---|---|---|---|
+| `log_auth_event(text,text,text,jsonb,uuid,text)` | none (app uses direct audit insert) | anon+pub+auth+svc → svc | revoke pub/anon/auth | grep 0; not called by login route |
+| `clear_force_password_reset()` | none | " | revoke pub/anon/auth | grep 0; no cron/trigger |
+| `generate_grpi(text,text,text)` | `link_player_to_grpi` (secdef, bypass) | " | revoke pub/anon/auth | internal secdef only |
+| `link_player_to_grpi(uuid,uuid,text,text,text)` | none | " | revoke pub/anon/auth | grep 0; dormant entry |
+| `update_global_player_metrics(uuid,numeric,numeric,integer)` | none | " | revoke pub/anon/auth | grep 0 |
+| `detect_binge_sessions/cross_casino_chasing/late_night_activity/loss_chasing/rapid_deposits(uuid)` (5) | `generate_alerts_for_grpi` (secdef, bypass) | " | revoke pub/anon/auth | internal secdef only |
+| `resolve_alert(uuid)` | none | " | revoke pub/anon/auth | grep 0 |
+| `run_full_detection_scan()` | none | " | revoke pub/anon/auth | grep 0 |
+
+service_role retained (future authorised worker/admin). **Verified (all PASS):** anon DENIED on all
+12; service_role retained; **definer (postgres) retains EXECUTE on `generate_grpi`+`detect_*`** so
+internal secdef calls are unaffected; audit chain 0 unhashed/0 dupes; login audit written+hashed
+(writeAudit path healthy); A2 worker runs (46 events/12 buckets); financial parity + all-6 positive;
+demo tick running; product routes 200; 714/714 tests, typecheck + build green, secret-scan clean.
+
+### Cumulative after A5.2
+anon **32** (62→44→**32**, −30 total) · PUBLIC **32** (61→44→**32**, −29) · authenticated **115**
+(131→127→**115**) · service_role **140** (unchanged) · SECURITY DEFINER **141** (unchanged).
+
+## Remaining exposure (future bounded batches — NOT done in A5.1/A5.2)
+Still `anon`-executable (32) / `PUBLIC` (32) — remediate after per-function caller confirmation:
 - **A5.2** — remaining anon/PUBLIC read/utility functions (e.g. `is_*`, `get_*`, `mask_*`, health,
   `sbiq_admin_*`, `sbiq_regulator_national`) — confirm each app `.rpc()` caller's role first (several
   ARE app-invoked, e.g. `sbiq_platform_health`, `sbiq_connector_health`, `resolve_player_identity`).
