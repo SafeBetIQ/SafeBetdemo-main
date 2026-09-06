@@ -8,6 +8,7 @@ import {
   SYNTHETIC_REGISTRY, SYNTHETIC_DOMAIN_FIXTURES,
   analyseDomain, normaliseHostname, technicalSignals, contentSignals,
   GuardianDomainWorker, PoisonMessageError,
+  buildPersistencePlan, deriveIds,
 } from '../../products/guardian/src/index.ts';
 
 const NOW = new Date('2026-09-06T00:00:00Z');
@@ -120,6 +121,33 @@ test('invariant: no domain result ever asserts illegality', () => {
     assert.equal(r.isIllegalDetermination, false);
     assert.notEqual(r.classification, 'ILLEGAL');
   }
+});
+
+// ── C2.1 persistence contract (pure; deterministic + idempotent) ──────────────
+test('persistence: plan is deterministic + idempotent (same key → same ids)', () => {
+  const r = analyse('unknown-example-004.test', 'OBS-P');
+  const inp = { jurisdiction: 'ZA-GP', correlationId: 'c', idempotencyKey: 'pk-1', evidenceReference: 'evref:pk-1', contentHash: 'h', pageTitle: 'x', result: r };
+  const a = buildPersistencePlan(inp);
+  const b = buildPersistencePlan(inp);
+  assert.equal(a.observationId, b.observationId);
+  assert.deepEqual(a.rows.map((x) => x.id), b.rows.map((x) => x.id));
+  // ids derive from the idempotency key
+  assert.equal(deriveIds('pk-1', r.canonicalHostname).observationId, 'OBS-pk-1');
+});
+
+test('persistence: NO_MATCH review case emits a review row; no illegality flag', () => {
+  const r = analyse('unknown-example-004.test', 'OBS-P2');
+  const plan = buildPersistencePlan({ jurisdiction: 'ZA-GP', correlationId: 'c', idempotencyKey: 'pk-2', evidenceReference: 'e', contentHash: 'h', pageTitle: 'x', result: r });
+  assert.ok(plan.rows.some((x) => x.table === 'domain_review_item'));
+  const cmp = plan.rows.find((x) => x.table === 'domain_registry_comparison');
+  assert.equal(cmp.row.is_illegal_determination, false);
+  assert.ok(plan.auditRows.some((x) => x.row.event_type === 'DOMAIN_OBSERVATION_PROCESSED'));
+});
+
+test('persistence: matched low-priority case emits NO review row', () => {
+  const r = analyse('licensed-example-003.test', 'OBS-P3');
+  const plan = buildPersistencePlan({ jurisdiction: 'ZA-GP', correlationId: 'c', idempotencyKey: 'pk-3', evidenceReference: 'e', contentHash: 'h', pageTitle: 'x', result: r });
+  assert.ok(!plan.rows.some((x) => x.table === 'domain_review_item'));
 });
 
 test('boundary: domain worker performs no network/crawl (fixtures only)', () => {

@@ -68,6 +68,20 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   DB-write credential path (dedicated `guardian`-scoped role + Secrets Manager) is designed/deferred.
 - **No** payment/app/geo intelligence, **no** enforcement, **no** AI legal decision, **no** real data.
 
+## C2.1 worker persistence security (least privilege)
+- **Dedicated DB principal** `guardian_domain_worker`: grants ONLY on the 10 C2 domain tables +
+  `audit_context`; **0 grants on public/IQ** (verified `has_table_privilege(... players ...) = false`);
+  no BYPASSRLS, not superuser → **RLS enforced**, scoped by a per-message jurisdiction GUC.
+- **IQ data unreachable** at the privilege level AND at the repository boundary; proven live
+  (players SELECT denied; wrong-jurisdiction write blocked by RLS).
+- **Secret** in AWS Secrets Manager only; worker IAM `GetSecretValue` on **one ARN**; no wildcard;
+  password never committed/logged/returned (a leaked interim password was **rotated**). Worker IAM
+  otherwise: CloudWatch Logs + SQS-consume only.
+- **Bounded repository** (no generic `execute(sql)`); idempotent single-transaction persist (no partial
+  state on failure); message ACKed only after durable commit; failure→retry→DLQ.
+- **No new** SECURITY DEFINER / PUBLIC / anon; guardian schema still **0 functions**. No illegality
+  determination persisted (DB CHECK + code). No real network/crawl.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

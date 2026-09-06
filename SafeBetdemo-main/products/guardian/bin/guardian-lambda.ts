@@ -57,6 +57,14 @@ export const handler = async (event: FnUrlEvent) => {
       dataBoundary: 'guardian-schema',
       sharedContracts: ['@/lib/platform/audit', '@/lib/platform/evidence'],
       dependsOnSafebetIqRuntime: false,
+      // C2.1 component posture (configuration state; no secrets, no live probe from the API).
+      domainIntelligence: {
+        domainWorker: 'HEALTHY',
+        queue: 'guardian-domain-observation',
+        dlq: 'guardian-domain-observation-dlq',
+        persistence: 'HEALTHY',
+        persistencePrincipal: 'guardian_domain_worker (least-privilege; guardian schema only)',
+      },
     });
   }
 

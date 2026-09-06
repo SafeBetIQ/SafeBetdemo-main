@@ -58,16 +58,30 @@ domain_content_signal, domain_registry_comparison, domain_entity_link, domain_re
 domain_change_history) — **31 guardian tables total**, all RLS-enabled, still **0 functions**,
 no anon/public grants. The comparison table has a DB CHECK forbidding an illegality flag.
 
-## Runtime data-access (least privilege) — current posture
-Both the Guardian API Lambda and the C2 domain **worker** Lambda run **credential-free** (no
-DB credentials): the API serves a build-time synthetic snapshot and the worker emits its
-non-legal result to CloudWatch. The `guardian` schema is the store of record (seeded + proven
-via SQL/RLS). This is the strongest least-privilege posture for a synthetic Demo. The
-**runtime DB-write credential path** — a dedicated Postgres role scoped ONLY to the `guardian`
-schema, its connection secret in AWS Secrets Manager, the worker Lambda granted
-`secretsmanager:GetSecretValue` on that single secret (never an IQ credential, never in
-source/logs/responses) — is **designed and remains the immediate hardening step** to persist
-worker output to the schema. Documented so the debt is not lost.
+## Runtime data-access (least privilege) — IMPLEMENTED (C2.1)
+The **API** Lambda remains credential-free (serves a synthetic snapshot). The **domain worker**
+Lambda now persists its results to the `guardian` schema through a **dedicated least-privilege
+Postgres role** `guardian_domain_worker`:
+- **Grants:** USAGE on `guardian` + SELECT/INSERT on the 10 C2 domain tables + `audit_context`
+  **only**. **No grants on `public`/SafeBet IQ tables** → IQ business data is unreachable at the
+  privilege level (verified: `has_table_privilege(... players/casino_event_log ...) = false`).
+- **RLS enforced** (role has no BYPASSRLS, is not owner): dedicated policies scope every
+  read/write by a per-message jurisdiction GUC (`app.guardian.jurisdiction`) the worker sets in
+  its transaction → wrong-jurisdiction writes are blocked at the DB.
+- **Secret:** connection JSON in AWS Secrets Manager (`safebet-guardian/domain-worker-db`); the
+  worker role IAM has `secretsmanager:GetSecretValue` on **that one ARN only**. Not an IQ
+  credential; never committed/logged/returned. Rotation: `alter role … password` + update secret.
+- **Bounded contract:** the worker persists only via `DomainObservationRepository`
+  (`products/guardian/src/domain/repository.ts` plan + fixed parameterised inserts) — **no
+  generic `execute(sql)`**. Idempotent (deterministic ids + `on conflict do nothing`), one
+  transaction (no partial state). Proven live: persist, duplicate-suppression, non-destructive
+  history, wrong-jurisdiction denial, poison→DLQ.
+
+## Interim exception + P1 exit target
+The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
+IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed
+interim Demo boundary** — schema+privilege isolation, not a separate cluster. **Separate,
+independently governed Guardian database/project remains the P1 exit target** (recorded, not lost).
 
 ## POPIA / minimisation
 Evidence is stored as a **reference** (id + integrity hash) with `retention_until` and

@@ -23,6 +23,9 @@ mkdirSync(DIST, { recursive: true });
 await build({
   entryPoints: [ENTRY], outfile: path.join(DIST, 'index.js'),
   bundle: true, platform: 'node', target: 'node20', format: 'cjs', legalComments: 'none',
+  // pg is bundled; its optional native binding is excluded (pure-JS path used).
+  // The AWS SDK v3 is provided by the Node 20 Lambda runtime → keep it external.
+  external: ['pg-native', '@aws-sdk/*'],
   define: { __GUARDIAN_GIT_COMMIT__: JSON.stringify(sha), __GUARDIAN_DEPLOYMENT_VERSION__: JSON.stringify(deploymentVersion), __GUARDIAN_BUILT_AT__: JSON.stringify(builtAt) },
 });
 writeFileSync(path.join(DIST, 'package.json'), JSON.stringify({ type: 'commonjs' }));
