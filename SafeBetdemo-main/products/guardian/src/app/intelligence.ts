@@ -7,8 +7,9 @@
 
 import type { RegistrySnapshot } from '../registry/types.ts';
 import { resolveLegalReference } from '../registry/resolve.ts';
-import { SYNTHETIC_DOMAIN_FIXTURES } from '../domain/fixtures.ts';
-import { normaliseHostname } from '../domain/normalise.ts';
+// C3.1: consume Domain Intelligence ONLY through its governed contract — no raw
+// domain fixtures/tables. Domain Intelligence owns resolveDomainReference.
+import { resolveDomainReference } from '../domain/contract.ts';
 import { normaliseAppIdentifier } from './normalise.ts';
 import { appContentSignals, appTechnicalSignals, extractAppLicenceReference } from './signals.ts';
 import type { AppFixture, AppIntelligenceResult, AppReasonCode, AppDomainRef } from './types.ts';
@@ -21,9 +22,15 @@ export function resolveAppDomainLinks(fx: AppFixture): AppDomainRef[] {
   const refs: AppDomainRef[] = [];
   const add = (linkType: AppDomainRef['linkType'], declared: string | null | undefined) => {
     if (!declared) return;
-    const canonical = normaliseHostname(declared).canonical;
-    const known = Object.values(SYNTHETIC_DOMAIN_FIXTURES).find((d) => d.jurisdiction === fx.jurisdiction && normaliseHostname(d.hostname).canonical === canonical);
-    refs.push({ linkType, declaredDomain: canonical, matchedDomainId: known ? `DOM-${canonical}` : null, confidence: known ? 'MEDIUM' : 'LOW' });
+    // Governed Domain contract — App Intelligence never inspects Domain base tables.
+    const ref = resolveDomainReference({ hostname: declared, jurisdiction: fx.jurisdiction });
+    refs.push({
+      linkType,
+      declaredDomain: ref.canonicalHostname,
+      referenceMatchState: ref.matchState,
+      matchedDomainId: ref.domainReferenceId,   // opaque id (resolved to the real id at persistence via the DB contract)
+      confidence: ref.matchState === 'REFERENCED' ? 'MEDIUM' : 'LOW',
+    });
   };
   add('APP_DECLARED_WEBSITE', fx.declaredWebsite);
   add('APP_SUPPORT_DOMAIN', fx.supportReference);

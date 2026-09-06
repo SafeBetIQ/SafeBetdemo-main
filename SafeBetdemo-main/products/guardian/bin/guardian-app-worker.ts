@@ -60,10 +60,12 @@ async function persist(plan: AppPersistencePlan): Promise<{ persisted: number; a
     for (const r of plan.rows) {
       if (r.table === 'mobile_app_subject') continue;
       if ('app_subject_id' in r.row) r.row.app_subject_id = actualId;
-      // Governed app→domain link: resolve the REAL C2 domain_id (or NULL) — never guess an FK.
+      // Governed app→domain link: resolve the REAL Domain reference id via the Domain
+      // Reference Contract (view guardian.domain_reference) — NOT the C2 base table. The
+      // view is jurisdiction-scoped by the GUC already set above.
       if (r.table === 'mobile_app_domain_link') {
-        const dom = await client.query('select domain_id from guardian.domain_subject where canonical_hostname=$1 and jurisdiction=$2', [r.row.declared_domain, plan.jurisdiction]);
-        r.row.matched_domain_id = dom.rowCount ? String(dom.rows[0].domain_id) : null;
+        const dom = await client.query('select domain_reference_id from guardian.domain_reference where canonical_hostname=$1', [r.row.declared_domain]);
+        r.row.matched_domain_id = dom.rowCount ? String(dom.rows[0].domain_reference_id) : null;
       }
       const q = insertSql(r.table, r.row, CONFLICT[r.table]);
       persisted += (await client.query(q.text, q.values)).rowCount ?? 0;

@@ -63,7 +63,13 @@ export interface AppFixture {
 
 export interface AppContentSignal { signalType: string; present: boolean; detail?: string }
 export interface AppTechnicalSignal { signalType: string; value: string }
-export interface AppDomainRef { linkType: AppDomainLinkType; declaredDomain: string; matchedDomainId: string | null; confidence: 'LOW' | 'MEDIUM' | 'HIGH' }
+export interface AppDomainRef {
+  linkType: AppDomainLinkType;
+  declaredDomain: string;
+  referenceMatchState: 'REFERENCED' | 'DOMAIN_REFERENCE_NOT_FOUND';  // from the governed Domain contract
+  matchedDomainId: string | null;   // opaque Domain-owned reference id (resolved at persistence via the contract; null at analysis)
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH';
+}
 
 export interface AppIntelligenceResult {
   product: 'GUARDIAN';
