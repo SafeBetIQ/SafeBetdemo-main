@@ -22,6 +22,16 @@
 (Shared-evidence adapter) · `worker` (idempotent foundation worker) · `observability`
 (health/version) · `index` (composition root + `guardianFoundationDescriptor`).
 
+## Branded Demo edge (ARCH-V4-C3.2)
+- **Demo hostname:** `https://guardian-demo.safebetiq.com` (API Gateway HTTP API `safebet-guardian-demo-edge`
+  → Lambda `safebet-guardian-demo`; ACM TLS 1.2; Route 53 alias in the authoritative safebetiq.com zone).
+- **Future Production hostname (NOT created):** `guardian.safebetiq.com` — planned only; not live.
+- **Auth model:** `/health` + `/version` public; `/apps`, `/domains`, `/registry`, `/foundation`
+  require **AWS_IAM** (SigV4) → 403 unauthenticated. Proven: branded `/health`=200, `/version`=200
+  (`product=GUARDIAN`, SHA `2d9ca93…`), privileged=403.
+- **Raw AWS Lambda Function URL:** retained as an **internal infrastructure endpoint** (not the
+  normal external address). CORS: none configured (no permissive `*`). Rate: API Gateway default throttling.
+
 ## API namespace (`/api/guardian`)
 | Endpoint | Purpose |
 |---|---|
