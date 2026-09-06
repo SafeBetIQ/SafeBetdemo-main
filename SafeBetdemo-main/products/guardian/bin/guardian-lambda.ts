@@ -18,6 +18,7 @@ import {
   GuardianFoundationWorker, toAuditEventFields, hashGuardianEvent, verifyGuardianChain,
   guardianChainScope, type GuardianVersion,
   SYNTHETIC_REGISTRY, matchOperator, resolveLegalReference,
+  SYNTHETIC_DOMAIN_FIXTURES, analyseDomain,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -134,6 +135,34 @@ export const handler = async (event: FnUrlEvent) => {
     const resolution = resolveLegalReference(SYNTHETIC_REGISTRY, subject);
     // Explicitly surface the safety invariant in the API contract.
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', match, resolution, isIllegalDetermination: false });
+  }
+
+  // ── Domain & Website Intelligence (C2) — synthetic; every result is NON-LEGAL.
+  //    No endpoint returns illegal=true; each carries isIllegalDetermination:false.
+  if (path === '/domains' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const domains = Object.values(SYNTHETIC_DOMAIN_FIXTURES)
+      .filter((f) => f.jurisdiction === jur)
+      .map((f) => ({ canonicalHostname: f.hostname, jurisdiction: f.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: domains.length, domains });
+  }
+  if (path === '/domains/observe' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? '');
+    const host = String(b.fixtureHostname ?? '');
+    if (!jur || !host) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureHostname required' });
+    const fx = SYNTHETIC_DOMAIN_FIXTURES[host];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic fixture (no real domains are fetched)', fixtureHostname: host });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = analyseDomain(SYNTHETIC_REGISTRY, fx, { observationId: `OBS-${Date.now()}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, note: 'non-legal intelligence' }, result });
+  }
+  if (path.startsWith('/domains/') && method === 'GET') {
+    const host = decodeURIComponent(path.slice('/domains/'.length));
+    const fx = SYNTHETIC_DOMAIN_FIXTURES[host];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'domain not found', hostname: host });
+    const result = analyseDomain(SYNTHETIC_REGISTRY, fx, { observationId: `OBS-${host}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', domain: { canonicalHostname: fx.hostname, jurisdiction: fx.jurisdiction }, latestResult: result, isIllegalDetermination: false });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

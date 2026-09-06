@@ -36,6 +36,18 @@ the 14 C1 tables (`drop table ... cascade` — see the migration's table list) +
 ledger row `20260905170000`; the 7 C0 tables and all SafeBet IQ objects are untouched. This
 is separate from the runtime rollback below.
 
+### C2 Domain Intelligence (data + async infra)
+- Migration `20260905180000_arch_v4_c2_guardian_domain_intelligence.sql` adds 10 domain tables
+  (RLS, append-only history, illegality-CHECK, synthetic seed; 0 functions; no anon/public).
+  **Data rollback:** drop the 10 C2 tables (cascade) + remove ledger `20260905180000`.
+- **Durable async path:** SQS `guardian-domain-observation` + DLQ `guardian-domain-observation-dlq`
+  + worker Lambda `safebet-guardian-domain-worker` (role `safebet-guardian-domain-worker-role`,
+  logs + SQS consume; **no DB/secrets**) + event source mapping (batch 5, `ReportBatchItemFailures`,
+  redrive maxReceiveCount 2). Build: `node scripts/guardian/build-guardian-domain-worker.mjs` →
+  `products/guardian/dist-worker/guardian-domain-worker.zip`; deploy via `aws lambda update-function-code`.
+  **Infra rollback:** delete the event source mapping, the worker Lambda, the two queues, and the
+  worker role. SafeBet IQ + the C0/C1 Guardian runtime are unaffected.
+
 ### Runtime rollback (≠ data rollback)
 - Roll back code: `aws lambda update-function-code … --zip-file fileb://<prior-artifact>` (or a
   published version alias once versions exist).
