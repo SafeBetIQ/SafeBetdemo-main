@@ -191,6 +191,24 @@ controls:
     exceptions: "Synthetic .test domains only; no real network crawl/DNS; no mobile/payment/geo intelligence; no enforcement; no AI legal decision. Worker/API credential-free; least-privilege DB-write credential path (dedicated guardian-scoped role + Secrets Manager) designed/deferred; separate Guardian DB deferred. Real privileged users blocked pending MFA. See docs/products/guardian/."
     review_date: TBD
 
+  - control_id: SEC-DOMAIN-PERSIST-012
+    standard: ISO/IEC 27001 + 22301 + Architecture Authority v4.0 §7/§10/§11
+    edition: "2022 / 2019(22301)"
+    clause_reference: "Authority §11 (least privilege); secret management; idempotent recovery"
+    product: SAFEBET_GUARDIAN
+    component: domain-worker-persistence
+    applicability: APPLICABLE
+    requirement_summary: "Durable domain worker persists to Guardian-owned data via a least-privilege principal, managed secret, bounded repository, idempotent transactional writes, jurisdiction enforcement, and no SafeBet IQ data access"
+    technical_control: "dedicated Postgres role guardian_domain_worker (grants ONLY on 10 C2 domain tables + audit_context; no public/IQ grants; RLS enforced via jurisdiction GUC); connection secret in Secrets Manager (worker IAM GetSecretValue on one ARN); DomainObservationRepository (no generic execute); one-transaction idempotent persist (deterministic ids + on-conflict); SQS ReportBatchItemFailures + DLQ + CloudWatch alarm"
+    process_control: "ADR-0010; live tests (persist/duplicate/history/wrong-jurisdiction/poison-DLQ/IQ-denial); ci:privfn; MFA hard gate; password rotated + not committed"
+    evidence_required: "live persist proof; duplicate suppression (1 authoritative obs); non-destructive history; wrong-jur write blocked by RLS; IQ players SELECT denied; poison->DLQ, 0 partial state; estate unchanged (secdef 138/anon 1); guardian 0 functions"
+    control_owner: TBD
+    validation_method: "live SQS->worker->DB + DB verification + has_table_privilege checks + privfn-guard"
+    validation_frequency: per-change
+    status: "PARTIAL - CONTROLLED EXCEPTION (least-privilege on shared Supabase cluster; separate Guardian DB = P1 exit)"
+    exceptions: "Interim: guardian_domain_worker connects to the same Supabase cluster as SafeBet IQ (schema + least-privilege principal isolation, NOT a separate cluster). Separate independently-governed Guardian database = P1 exit target. Synthetic only; no real network/crawl; no enforcement; no AI legal decision. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0010."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"
