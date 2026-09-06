@@ -20,6 +20,7 @@ import {
   SYNTHETIC_REGISTRY, matchOperator, resolveLegalReference,
   SYNTHETIC_DOMAIN_FIXTURES, analyseDomain,
   SYNTHETIC_APP_FIXTURES, analyseApp,
+  SYNTHETIC_PAYMENT_FIXTURES, analysePayment,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -197,6 +198,31 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'app not found', appIdentifier: id });
     const result = analyseApp(SYNTHETIC_REGISTRY, fx, { observationId: `AOBS-${id}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', app: { canonicalAppIdentifier: fx.appIdentifier, jurisdiction: fx.jurisdiction, platformType: fx.platformType }, latestResult: result, isIllegalDetermination: false });
+  }
+
+  // ── Payment Intelligence (C4) — provider-neutral, synthetic; NON-LEGAL + NON-ENFORCEMENT.
+  if ((path === '/payments' || path === '/merchants') && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const items = Object.values(SYNTHETIC_PAYMENT_FIXTURES).filter((f) => f.jurisdiction === jur)
+      .map((f) => ({ merchantReference: f.merchantReference, merchantDescriptor: f.merchantDescriptor, channel: f.channel, providerType: f.providerType, jurisdiction: f.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: items.length, [path === '/merchants' ? 'merchants' : 'payments']: items });
+  }
+  if (path === '/payments/observe' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureMerchantReference ?? '');
+    if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureMerchantReference required' });
+    const fx = SYNTHETIC_PAYMENT_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic payment fixture (no real payment data accessed)', fixtureMerchantReference: ref });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = analysePayment(SYNTHETIC_REGISTRY, fx, { observationId: `POBS-${Date.now()}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, isEnforcementAuthorised: false, note: 'non-legal, non-enforcement intelligence' }, result });
+  }
+  if ((path.startsWith('/payments/') || path.startsWith('/merchants/')) && method === 'GET') {
+    const ref = decodeURIComponent(path.split('/')[2] ?? '');
+    const fx = SYNTHETIC_PAYMENT_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'payment/merchant not found', reference: ref });
+    const result = analysePayment(SYNTHETIC_REGISTRY, fx, { observationId: `POBS-${ref}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', subject: { merchantReference: fx.merchantReference, jurisdiction: fx.jurisdiction, channel: fx.channel }, latestResult: result, isIllegalDetermination: false, isEnforcementAuthorised: false });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

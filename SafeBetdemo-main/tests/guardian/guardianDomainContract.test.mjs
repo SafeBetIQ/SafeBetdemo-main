@@ -30,3 +30,12 @@ test('contract: wrong-jurisdiction hostname → NOT_FOUND (no cross-jurisdiction
   const wc = resolveDomainReference({ hostname: 'western-example-100.test', jurisdiction: 'ZA-WC' });
   assert.equal(wc.matchState, 'REFERENCED');
 });
+
+// C4: App Reference Contract (owner App Intelligence).
+import { resolveAppReference } from '../../products/guardian/src/index.ts';
+test('app-contract: known app → REFERENCED; unknown → APP_REFERENCE_NOT_FOUND; wrong-jur denied', () => {
+  const k = resolveAppReference({ appIdentifier: 'com.safebet.synthetic.bet003', jurisdiction: 'ZA-GP' });
+  assert.equal(k.matchState, 'REFERENCED');
+  assert.equal(resolveAppReference({ appIdentifier: 'com.unknown.app', jurisdiction: 'ZA-GP' }).matchState, 'APP_REFERENCE_NOT_FOUND');
+  assert.equal(resolveAppReference({ appIdentifier: 'za.synthetic.western100', jurisdiction: 'ZA-GP' }).matchState, 'APP_REFERENCE_NOT_FOUND');
+});

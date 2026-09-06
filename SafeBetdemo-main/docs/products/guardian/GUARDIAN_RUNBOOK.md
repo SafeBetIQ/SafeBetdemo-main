@@ -82,6 +82,16 @@ is separate from the runtime rollback below.
   **Infra rollback:** delete the event source mapping, the worker Lambda, the two queues, and the
   worker role. SafeBet IQ + the C0/C1 Guardian runtime are unaffected.
 
+### C4 Payment Intelligence (data + async infra + payment worker principal)
+- Migrations `20260905230000` (9 payment tables, RLS, illegality+enforcement CHECK, seed) +
+  `20260905240000` (App Reference Contract view + role `guardian_payment_worker`, no password, grants +
+  RLS). Data rollback: drop the 9 C4 tables + `app_reference` view + both ledger rows + drop role.
+- **Async infra:** SQS `guardian-payment-observation` + DLQ + worker Lambda `safebet-guardian-payment-worker`
+  (role `safebet-guardian-payment-worker-role`: logs + SQS + `GetSecretValue` on `safebet-guardian/payment-worker-db`)
+  + event source mapping (batch 5, ReportBatchItemFailures, maxReceiveCount 2) + CloudWatch DLQ alarm.
+  Build: `node scripts/guardian/build-guardian-payment-worker.mjs`; deploy via `update-function-code`.
+- **Rotate/rollback:** as per the app/domain workers; independent; SafeBet IQ + C2/C3 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·

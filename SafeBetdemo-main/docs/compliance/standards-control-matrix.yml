@@ -227,6 +227,24 @@ controls:
     exceptions: "Synthetic app subjects only; no real platform/marketplace/binary/device access; no APP_PLATFORM_REFERRAL; no payment/geo intelligence; no enforcement; no AI legal decision; no provider partnership. Least-privilege persistence on shared Supabase cluster (guardian_app_worker); separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0011."
     review_date: TBD
 
+  - control_id: SEC-PAYMENT-014
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023"
+    clause_reference: "Authority §7/§10; POPIA minimisation; no automated legal/payment decision"
+    product: SAFEBET_GUARDIAN
+    component: payment-intelligence
+    applicability: APPLICABLE
+    requirement_summary: "Provider-neutral, privacy-minimised merchant/payment-channel intelligence over synthetic subjects: registry+domain+app comparison via governed contracts, explainable review, durable queue/DLQ, least-privilege persistence, and NO automated illegality determination, enforcement, or payment action"
+    technical_control: "guardian schema 9 C4 payment tables (RLS, append-only history, DB CHECKs forbidding illegality AND enforcement; no PAN/CVV/raw data); products/guardian/src/payment deterministic engine via resolveLegalReference + domain_reference + app_reference contracts; SQS+DLQ+payment worker Lambda; dedicated guardian_payment_worker role (payment tables + audit + contract views only; no public/IQ, no C2/C3 base); new App Reference Contract view"
+    process_control: "ADR-0014; scenario tests 1-12; DB RLS negatives; live SQS/DLQ + persistence + governed-link tests; ci:privfn; MFA hard gate; provider-neutral; PROPOSED-NO-LIVE-INTEGRATION"
+    evidence_required: "scenario tests; NO_MATCH!=ILLEGAL + illegality/enforcement CHECK; governed domain/app links via views (DOM-SYNTH-0003/APP-SYNTH-0003); cross-jurisdiction+IQ+anon denials; idempotency+poison->DLQ live; payment_worker 0 public/IQ/base-table grants; estate unchanged (secdef 138/anon 1); guardian 0 functions"
+    control_owner: TBD
+    validation_method: "node --test (guardian payment) + DB RLS negatives + live SQS/DLQ + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C4 foundation; provider-neutral; synthetic-only)"
+    exceptions: "Synthetic payment/merchant only; no real bank/PSP/provider integration; no PAN/CVV/raw customer data; no PAYMENT_REFERRAL/enforcement/provider-response; no geo; no AI legal/payment decision. Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0014."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

@@ -122,6 +122,17 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   jurisdiction predicate (not owner-RLS-bypass reliant), granted only to `guardian_app_worker`
   (anon/authenticated denied); base-table `domain_subject` access removed.
 
+## C4 Payment Intelligence security
+- **9 payment tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  **0 new functions**; comparison-table CHECKs forbid `is_illegal_determination`=true AND
+  `is_enforcement_authorised`=true. **Privacy:** no PAN/CVV/account/raw customer data (aggregates only).
+- **Separate dedicated principal** `guardian_payment_worker`: grants only on payment tables + audit +
+  SELECT on the `domain_reference`/`app_reference` contract views; **0 public/IQ grants, 0 C2/C3 base
+  tables** (verified). No BYPASSRLS → RLS via jurisdiction GUC.
+- Provider-neutral; no real bank/PSP/marketplace access; unknown reference → poison, never accessed.
+- Own secret; payment worker IAM `GetSecretValue` on one ARN; logs + SQS only. Bounded repository
+  (no generic SQL); idempotent single-transaction persist. No enforcement/PAYMENT_REFERRAL; no AI decision.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

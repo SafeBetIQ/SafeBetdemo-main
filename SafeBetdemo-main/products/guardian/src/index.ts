@@ -19,6 +19,7 @@ export * from './observability.ts';
 export * from './registry/index.ts';
 export * from './domain/index.ts';
 export * from './app/index.ts';
+export * from './payment/index.ts';
 
 import { guardianHealth, guardianVersion } from './observability.ts';
 import { GUARDIAN_PRODUCT, GUARDIAN_SCHEMA_VERSION, GUARDIAN_INVARIANTS } from './product.ts';

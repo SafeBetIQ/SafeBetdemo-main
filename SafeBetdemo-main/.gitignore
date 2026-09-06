@@ -45,3 +45,4 @@ next-env.d.ts
 products/guardian/dist/
 products/guardian/dist-worker/
 products/guardian/dist-app-worker/
+products/guardian/dist-payment-worker/
