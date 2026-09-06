@@ -37,6 +37,23 @@ hosting, mobile/app platforms). Any adapter is labelled **PROPOSED — NO LIVE E
 INTEGRATION**. Provider-neutral language (no specific app-store/platform named). Guardian never
 self-executes enforcement; automated signal ≠ legal finding; no automatic blocking.
 
+## C1 Legal Operator Registry security
+- **14 registry tables**, all RLS-enabled; scoped by jurisdiction claim + `access_scope`.
+  National/shared reference is cross-jurisdiction for **Guardian principals only**;
+  non-Guardian (IQ) roles and `anon` are **denied all** registry data (proven).
+- **0 new functions** in the `guardian` schema (still 0 SECURITY DEFINER, 0 PUBLIC, 0 anon).
+  Grants: SELECT/INSERT to `authenticated` + `service_role` only.
+- **Legal-inference safety:** no `ILLEGAL` value exists anywhere; `resolveLegalReference`
+  carries `isIllegalDetermination:false`; NO_MATCH ≠ illegal; ambiguity/conflict → human
+  review. No AI legal determination. No enforcement.
+- **Provenance/integrity:** source records carry `content_hash` + an evidence **reference**
+  (never the body); history is append-only; supersession preserved.
+- **Runtime credential posture:** the Lambda holds **no DB credentials** (serves a synthetic
+  snapshot); the live DB-read credential path is designed for C2 (Secrets Manager, dedicated
+  read-only role scoped to the `guardian` schema — never an IQ credential, never in source/logs).
+- **No** domain/app/payment/geo intelligence, **no** enforcement, **no** real regulator
+  integration, **no** real data.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

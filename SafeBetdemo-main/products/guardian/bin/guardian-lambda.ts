@@ -17,6 +17,7 @@ import {
   makeGuardianPrincipal, evaluateSod, makeCase, makeEvidenceReference, makeEnvelope,
   GuardianFoundationWorker, toAuditEventFields, hashGuardianEvent, verifyGuardianChain,
   guardianChainScope, type GuardianVersion,
+  SYNTHETIC_REGISTRY, matchOperator, resolveLegalReference,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -33,10 +34,18 @@ function provenance(): Partial<GuardianVersion> {
   return { gitCommit: GIT, deploymentVersion: DEPLOY, builtAt: BUILT_AT, environment: process.env.NEXT_PUBLIC_ENV ?? 'demo' };
 }
 
-type FnUrlEvent = { rawPath?: string; requestContext?: { http?: { method?: string } } };
+type FnUrlEvent = { rawPath?: string; rawQueryString?: string; body?: string; isBase64Encoded?: boolean; requestContext?: { http?: { method?: string } } };
 
 export const handler = async (event: FnUrlEvent) => {
   const path = (event?.rawPath ?? '/').replace(/\/+$/, '') || '/';
+  const method = event?.requestContext?.http?.method ?? 'GET';
+  const query = new URLSearchParams(event?.rawQueryString ?? '');
+  const parseBody = (): Record<string, unknown> => {
+    try {
+      const raw = event?.isBase64Encoded ? Buffer.from(event.body ?? '', 'base64').toString('utf8') : (event?.body ?? '');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
   const json = (status: number, body: unknown) => ({ statusCode: status, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
   if (path === '/health' || path === '/') {
@@ -84,6 +93,47 @@ export const handler = async (event: FnUrlEvent) => {
       workerIdempotent: replay.duplicate === true && worker.processedCount() === 1,
       note: 'SYNTHETIC foundation proof — no detection, no enforcement, no SafeBet IQ business data.',
     });
+  }
+
+  // ── Legal Operator Registry (C1) — synthetic snapshot; store of record = guardian schema.
+  //    Jurisdiction is required and scopes every response (no cross-jurisdiction leak).
+  //    No endpoint returns illegal=true; responses carry fact + source + verification +
+  //    match + human-review state.
+  if (path === '/registry/operators' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const operators = SYNTHETIC_REGISTRY.operators.filter((o) => o.jurisdiction === jur);
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: operators.length, operators });
+  }
+  if (path.startsWith('/registry/operators/') && method === 'GET') {
+    const id = path.slice('/registry/operators/'.length);
+    const op = SYNTHETIC_REGISTRY.operators.find((o) => o.operatorId === id) ?? null;
+    if (!op) return json(404, { product: 'GUARDIAN', error: 'operator not found', operatorId: id });
+    const licences = SYNTHETIC_REGISTRY.licences.filter((l) => l.operatorId === id);
+    const brands = SYNTHETIC_REGISTRY.operatorBrands.filter((r) => r.operatorId === id);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', operator: op, licences, brandRelationships: brands });
+  }
+  if (path.startsWith('/registry/licences/') && method === 'GET') {
+    const id = path.slice('/registry/licences/'.length);
+    const lic = SYNTHETIC_REGISTRY.licences.find((l) => l.licenceId === id) ?? null;
+    if (!lic) return json(404, { product: 'GUARDIAN', error: 'licence not found', licenceId: id });
+    const sources = SYNTHETIC_REGISTRY.sourceRecords.filter((r) => r.subjectReference === lic.licenceReference);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', licence: lic, sourceRecords: sources });
+  }
+  if (path.startsWith('/registry/sources/') && method === 'GET') {
+    const id = path.slice('/registry/sources/'.length);
+    const rec = SYNTHETIC_REGISTRY.sourceRecords.find((r) => r.recordId === id) ?? null;
+    if (!rec) return json(404, { product: 'GUARDIAN', error: 'source record not found', recordId: id });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', sourceRecord: rec });
+  }
+  if (path === '/registry/match' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? '');
+    if (!jur) return json(400, { product: 'GUARDIAN', error: 'jurisdiction required' });
+    const subject = { jurisdiction: jur, legalName: b.legalName as string | undefined, licenceReference: b.licenceReference as string | undefined, registrationReference: b.registrationReference as string | undefined, brandName: b.brandName as string | undefined };
+    const match = matchOperator(SYNTHETIC_REGISTRY, subject);
+    const resolution = resolveLegalReference(SYNTHETIC_REGISTRY, subject);
+    // Explicitly surface the safety invariant in the API contract.
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', match, resolution, isIllegalDetermination: false });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

@@ -28,6 +28,14 @@ aws lambda update-function-code --function-name safebet-guardian-demo \
 - **Provenance:** the artifact bakes the exact source SHA; prove **Git = build = deploy =
   live `/version`** on every deploy. Never report the SafeBet IQ runtime SHA as Guardian's.
 
+### C1 registry (data)
+Migration `20260905170000_arch_v4_c1_guardian_legal_operator_registry.sql` adds 14 registry
+tables to the `guardian` schema (RLS, effective-dating, append-only history, provenance,
+staging→authoritative, synthetic seed; 0 functions; no anon/public). **Data rollback:** drop
+the 14 C1 tables (`drop table ... cascade` — see the migration's table list) + remove the
+ledger row `20260905170000`; the 7 C0 tables and all SafeBet IQ objects are untouched. This
+is separate from the runtime rollback below.
+
 ### Runtime rollback (≠ data rollback)
 - Roll back code: `aws lambda update-function-code … --zip-file fileb://<prior-artifact>` (or a
   published version alias once versions exist).
