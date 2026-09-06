@@ -16,6 +16,7 @@ export * from './audit.ts';
 export * from './evidence.ts';
 export * from './worker.ts';
 export * from './observability.ts';
+export * from './registry/index.ts';
 
 import { guardianHealth, guardianVersion } from './observability.ts';
 import { GUARDIAN_PRODUCT, GUARDIAN_SCHEMA_VERSION, GUARDIAN_INVARIANTS } from './product.ts';

@@ -155,6 +155,24 @@ controls:
     exceptions: "Foundation only — no business modules, no real integrations, no enforcement. Real privileged Guardian users + production privileged regulatory access BLOCKED pending MFA enforcement (ADR-0005 gate). Data boundary = dedicated schema (interim); separate database/project = final target. See docs/products/guardian/."
     review_date: TBD
 
+  - control_id: SEC-REGISTRY-010
+    standard: ISO/IEC 27001 + 27701 + 42001 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019(42001)"
+    clause_reference: "Authority §7/§10; POPIA minimisation/provenance"
+    product: SAFEBET_GUARDIAN
+    component: legal-operator-registry
+    applicability: APPLICABLE
+    requirement_summary: "Authoritative legal/reference model with provenance, effective-dating, history, deterministic matching, jurisdiction isolation, human review of ambiguity, and NO automated illegality determination"
+    technical_control: "guardian schema 14 C1 tables (RLS, effective-dating, append-only history, provenance, staging->authoritative); products/guardian/src/registry deterministic matcher + resolveLegalReference (isIllegalDetermination:false); source authority levels + conflict detection + freshness; publication SoD"
+    process_control: "ADR-0008; scenario tests 1-7; DB RLS negatives; ci:privfn; MFA hard gate; PROPOSED-NO-LIVE-REGULATOR-INTEGRATION"
+    evidence_required: "scenario tests; NO_MATCH!=ILLEGAL invariant test; conflict->human-review; cross-jurisdiction + IQ + anon denials; estate unchanged (secdef 138/anon 1); guardian 0 functions"
+    control_owner: TBD
+    validation_method: "node --test (guardian registry) + DB RLS negatives + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C1 foundation; synthetic-only)"
+    exceptions: "Synthetic data only; no real regulator/NGB/PLA integration; no domain/app/payment/geo intelligence; no enforcement; no AI legal decision. Runtime serves synthetic snapshot (no DB credential); live DB-read credential path + separate Guardian DB deferred to C2. Real privileged users blocked pending MFA. See docs/products/guardian/."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

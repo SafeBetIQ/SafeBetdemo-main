@@ -30,8 +30,11 @@ test('boundary: Guardian package contains source files', () => {
 });
 
 test('boundary: no Guardian source imports a SafeBet IQ business/app module', () => {
-  // Allowed cross-product imports: ONLY the governed Shared Platform Foundation.
+  // Allowed cross-package imports: ONLY the governed Shared Platform Foundation.
+  // Everything else must resolve to a path INSIDE the Guardian package itself
+  // (intra-package imports, including from subdirectories, are fine).
   const ALLOWED_CROSS = ['lib/platform/audit', 'lib/platform/evidence'];
+  const forbiddenAreas = ['lib/consumerPlatform', 'lib/certified', 'lib/regulator', 'lib/operator', 'app/casino', 'app/admin', 'app/regulator', 'lib/supabase', 'lib/auth'];
   const offenders = [];
   const importRe = /\bfrom\s+['"]([^'"]+)['"]/g;
   for (const f of files) {
@@ -39,17 +42,14 @@ test('boundary: no Guardian source imports a SafeBet IQ business/app module', ()
     let m;
     while ((m = importRe.exec(src)) !== null) {
       const spec = m[1];
-      if (spec.startsWith('node:') || spec.startsWith('./') || spec.startsWith('../src') || spec === '../src/index.ts') continue;
-      // Any import that reaches outside the package must be an allowed shared contract.
-      if (spec.includes('..')) {
-        const normalized = spec.replace(/\\/g, '/');
-        const ok = ALLOWED_CROSS.some((a) => normalized.includes(a));
-        // Forbid anything reaching into SafeBet IQ business areas.
-        const forbiddenAreas = ['lib/consumerPlatform', 'lib/certified', 'lib/regulator', 'lib/operator', 'app/casino', 'app/admin', 'app/regulator', 'lib/supabase', 'lib/auth'];
-        if (!ok || forbiddenAreas.some((a) => normalized.includes(a))) {
-          offenders.push(`${path.relative(ROOT, f)} → ${spec}`);
-        }
-      }
+      if (spec.startsWith('node:')) continue;
+      if (!spec.startsWith('.')) continue; // bare specifiers aren't used; ignore
+      const resolved = path.resolve(path.dirname(f), spec).replace(/\\/g, '/');
+      // Intra-package import → always allowed.
+      if (resolved.startsWith(GUARDIAN_SRC.replace(/\\/g, '/'))) continue;
+      // Otherwise it must be one of the governed shared contracts and never an IQ area.
+      const ok = ALLOWED_CROSS.some((a) => resolved.includes(a)) && !forbiddenAreas.some((a) => resolved.includes(a));
+      if (!ok) offenders.push(`${path.relative(ROOT, f)} → ${spec}`);
     }
   }
   assert.deepEqual(offenders, [], `Guardian must import only Shared Platform Foundation:\n${offenders.join('\n')}`);
