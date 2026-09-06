@@ -25,6 +25,14 @@ tables or arbitrary query capability. This catalogue records the owned contracts
 - **Separate-database compatibility:** because App Intelligence depends only on this contract,
   Domain Intelligence may move its datastore (P1 exit) without rewriting App Intelligence.
 
+## App Reference Contract (ARCH-V4-C4)
+- **Owner:** Mobile App Intelligence (C3). **Consumers:** Payment Intelligence (C4); future modules.
+- **Purpose/interface:** bounded, jurisdiction-scoped app reference — input `{ appIdentifier, jurisdiction }`;
+  output `{ matchState (REFERENCED | APP_REFERENCE_NOT_FOUND), canonicalAppIdentifier, jurisdiction,
+  appReferenceId, freshness, referenceStatus }`. Implementations: TS `resolveAppReference(...)` +
+  DB view `guardian.app_reference` (owner postgres; own jurisdiction predicate; plain view, not
+  SECURITY DEFINER). Consumers get SELECT on the view only — never `guardian.mobile_app_subject`.
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

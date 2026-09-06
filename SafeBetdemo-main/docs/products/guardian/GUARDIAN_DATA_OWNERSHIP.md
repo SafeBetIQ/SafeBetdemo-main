@@ -87,6 +87,14 @@ the governed app→domain link); **no grants on public/IQ** and no write on the 
 tables. Its secret is `safebet-guardian/app-worker-db`; the app worker IAM has
 `GetSecretValue` on that one ARN.
 
+## C4 addition — Payment Intelligence (9 tables) + dedicated worker principal + App Reference Contract
+9 C4 payment tables (**50 guardian tables total**), RLS on all, 0 functions, no anon/public;
+comparison-table CHECKs forbid illegality AND enforcement flags; no PAN/CVV/raw bank/card data. A
+separate least-privilege role `guardian_payment_worker` (payment tables + audit_context + SELECT on the
+governed `domain_reference`/`app_reference` contract views; **no public/IQ, no C2/C3 base tables**) with
+its own secret `safebet-guardian/payment-worker-db`. New governed **App Reference Contract** view
+`guardian.app_reference` (owner Mobile App Intelligence).
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed
