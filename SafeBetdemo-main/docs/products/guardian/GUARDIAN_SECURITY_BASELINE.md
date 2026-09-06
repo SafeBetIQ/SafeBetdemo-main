@@ -95,6 +95,19 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   single-transaction persist. Governed app→domain link resolves the real C2 `domain_id` or NULL.
 - No `APP_PLATFORM_REFERRAL`, no payment/geo intelligence, no enforcement, no AI legal decision.
 
+## C3.1 App→Domain contract boundary (raw coupling removed)
+- The app worker previously had **direct SELECT on `guardian.domain_subject`** (raw C2
+  coupling). C3.1 replaces it with the **Domain-owned bounded contract** `guardian.domain_reference`
+  (a plain view; **not** a SECURITY DEFINER function; no PUBLIC/anon grant) exposing only bounded
+  reference fields, jurisdiction-scoped by the `app.guardian.jurisdiction` GUC.
+- **Privilege change:** `revoke select on guardian.domain_subject from guardian_app_worker`
+  (+ dropped its base-table policy) → app worker has **0 grants on C2 base tables**; it holds
+  SELECT on the contract view only. Verified live: base-table access **DENIED**; contract view
+  resolves the real reference id (`DOM-SYNTH-0003`); wrong-jurisdiction → not found.
+- No new SECURITY DEFINER / PUBLIC / anon; guardian schema still **0 functions**. Legal semantics
+  unchanged (NO_MATCH ≠ illegal; `isIllegalDetermination:false`). App Intelligence now survives a
+  future separate-Guardian-database move without rewrite.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

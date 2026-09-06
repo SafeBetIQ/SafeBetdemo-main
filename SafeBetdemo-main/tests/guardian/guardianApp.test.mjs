@@ -19,7 +19,7 @@ test('scenario 1/2/11: licensed app + licence + declares known C2 domain → mat
   assert.equal(r.classification, 'REFERENCE_MATCHED');
   assert.equal(r.isIllegalDetermination, false);
   const declared = r.domainReferences.find((d) => d.linkType === 'APP_DECLARED_WEBSITE');
-  assert.equal(declared.matchedDomainId, 'DOM-licensed-example-003.test'); // governed app→domain link to known C2 domain
+  assert.equal(declared.referenceMatchState, 'REFERENCED'); // governed Domain contract: known reference
 });
 
 test('scenario 3: unknown gambling app, no registry ref → NO_MATCH, high priority, NOT illegal', () => {
@@ -81,16 +81,18 @@ test('scenario 10: different key/hash → distinct observation (history preserve
   assert.notEqual(o1.result.observationId, o2.result.observationId); assert.equal(w.processedCount(), 2);
 });
 
-test('scenario 11: app declares KNOWN domain → governed app-domain link', () => {
+test('scenario 11: app declares KNOWN domain → governed Domain contract REFERENCED (no raw table)', () => {
   const links = resolveAppDomainLinks(SYNTHETIC_APP_FIXTURES['com.safebet.synthetic.bet003']);
   const declared = links.find((l) => l.linkType === 'APP_DECLARED_WEBSITE');
-  assert.equal(declared.matchedDomainId, 'DOM-licensed-example-003.test');
+  assert.equal(declared.referenceMatchState, 'REFERENCED');
+  assert.equal(declared.matchedDomainId, null); // opaque id resolved only at persistence via the DB contract
 });
 
 test('scenario 12: app declares UNKNOWN domain → reference recorded, no match, no illegality', () => {
   const r = analyse('app.synthetic.unknowndomain012');
   const declared = r.domainReferences.find((l) => l.linkType === 'APP_DECLARED_WEBSITE');
   assert.equal(declared.declaredDomain, 'never-seen-999.test');
+  assert.equal(declared.referenceMatchState, 'DOMAIN_REFERENCE_NOT_FOUND');
   assert.equal(declared.matchedDomainId, null);
   assert.equal(r.isIllegalDetermination, false);
 });
