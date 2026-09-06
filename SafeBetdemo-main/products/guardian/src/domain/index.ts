@@ -1,0 +1,8 @@
+// ─── SafeBet Guardian — Domain Intelligence module surface (ARCH-V4-C2) ───────
+
+export * from './types.ts';
+export * from './normalise.ts';
+export * from './signals.ts';
+export * from './intelligence.ts';
+export * from './fixtures.ts';
+export * from './worker.ts';

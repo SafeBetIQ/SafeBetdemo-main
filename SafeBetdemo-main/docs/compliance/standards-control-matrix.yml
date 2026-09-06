@@ -173,6 +173,24 @@ controls:
     exceptions: "Synthetic data only; no real regulator/NGB/PLA integration; no domain/app/payment/geo intelligence; no enforcement; no AI legal decision. Runtime serves synthetic snapshot (no DB credential); live DB-read credential path + separate Guardian DB deferred to C2. Real privileged users blocked pending MFA. See docs/products/guardian/."
     review_date: TBD
 
+  - control_id: SEC-DOMAIN-011
+    standard: ISO/IEC 27001 + 42001 + 22301 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2023(42001) / 2019(22301)"
+    clause_reference: "Authority §7/§10; queue durability; no automated legal decision"
+    product: SAFEBET_GUARDIAN
+    component: domain-website-intelligence
+    applicability: APPLICABLE
+    requirement_summary: "Domain/website intelligence over synthetic subjects: evidence-linked observations, registry comparison via governed contract, explainable review priority, human review of ambiguity, durable queue/DLQ, and NO automated illegality determination or enforcement"
+    technical_control: "guardian schema 10 C2 tables (RLS, append-only history, DB CHECK forbidding is_illegal_determination=true); products/guardian/src/domain deterministic normalise+signals+intelligence via resolveLegalReference (isIllegalDetermination:false); SQS+DLQ+worker Lambda (idempotency, ReportBatchItemFailures); no network crawl"
+    process_control: "ADR-0009; scenario tests 1-10; DB RLS negatives; live SQS/DLQ test; ci:privfn; MFA hard gate; PROPOSED-NO-LIVE-INTEGRATION"
+    evidence_required: "scenario tests; NO_MATCH!=ILLEGAL + illegality-CHECK; mismatch/stale/conflict->review; cross-jurisdiction+IQ+anon denials; idempotency+poison->DLQ live; estate unchanged (secdef 138/anon 1); guardian 0 functions"
+    control_owner: TBD
+    validation_method: "node --test (guardian domain) + DB RLS negatives + live SQS/DLQ + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C2 foundation; synthetic-only)"
+    exceptions: "Synthetic .test domains only; no real network crawl/DNS; no mobile/payment/geo intelligence; no enforcement; no AI legal decision. Worker/API credential-free; least-privilege DB-write credential path (dedicated guardian-scoped role + Secrets Manager) designed/deferred; separate Guardian DB deferred. Real privileged users blocked pending MFA. See docs/products/guardian/."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

@@ -54,6 +54,20 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - **No** domain/app/payment/geo intelligence, **no** enforcement, **no** real regulator
   integration, **no** real data.
 
+## C2 Domain Intelligence security
+- **10 domain tables**, all RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon
+  denied). **0 new functions** (guardian schema still 0 SECURITY DEFINER / 0 PUBLIC / 0 anon).
+- **Illegality invariant at the DB:** `domain_registry_comparison` has a CHECK forbidding
+  `is_illegal_determination=true`; no result path returns illegal (also enforced in code + tests).
+- **No real network access:** no HTTP/fetch/DNS client to arbitrary domains anywhere in C2
+  source (boundary test); worker rejects any non-fixture hostname (poison → DLQ), never fetches.
+- **Durable async infra:** SQS + DLQ + dedicated worker Lambda with its own least-privilege role
+  (`safebet-guardian-domain-worker-role`: CloudWatch Logs + SQS-consume only; no DB, no secrets,
+  no admin). Idempotency + poison→DLQ proven live.
+- **Runtime credential posture:** API + worker Lambdas are credential-free; the least-privilege
+  DB-write credential path (dedicated `guardian`-scoped role + Secrets Manager) is designed/deferred.
+- **No** payment/app/geo intelligence, **no** enforcement, **no** AI legal decision, **no** real data.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

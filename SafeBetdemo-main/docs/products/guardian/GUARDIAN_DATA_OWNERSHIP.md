@@ -51,12 +51,23 @@ only; non-Guardian (IQ) and anon are denied. Migration
   (separate database/project). No migration to a separate DB is performed in C1 (not
   authorised). Recorded so the debt persists.
 
-## Runtime data-access (least privilege)
-The Guardian Lambda runtime holds **no DB credentials** at C1; the registry API serves a
-build-time synthetic snapshot (store of record = the `guardian` schema, proven via SQL).
-The live DB-read path — a dedicated read-only role scoped to the `guardian` schema, with a
-credential in AWS Secrets Manager read by the Lambda at cold start (never in source/logs/
-responses; not an IQ credential) — is **designed and deferred to C2**.
+## C2 addition — Domain Intelligence (10 tables)
+The `guardian` schema now also holds the 10 C2 domain tables (domain_subject,
+domain_observation, website_snapshot, page_resource_reference, domain_technical_signal,
+domain_content_signal, domain_registry_comparison, domain_entity_link, domain_review_item,
+domain_change_history) — **31 guardian tables total**, all RLS-enabled, still **0 functions**,
+no anon/public grants. The comparison table has a DB CHECK forbidding an illegality flag.
+
+## Runtime data-access (least privilege) — current posture
+Both the Guardian API Lambda and the C2 domain **worker** Lambda run **credential-free** (no
+DB credentials): the API serves a build-time synthetic snapshot and the worker emits its
+non-legal result to CloudWatch. The `guardian` schema is the store of record (seeded + proven
+via SQL/RLS). This is the strongest least-privilege posture for a synthetic Demo. The
+**runtime DB-write credential path** — a dedicated Postgres role scoped ONLY to the `guardian`
+schema, its connection secret in AWS Secrets Manager, the worker Lambda granted
+`secretsmanager:GetSecretValue` on that single secret (never an IQ credential, never in
+source/logs/responses) — is **designed and remains the immediate hardening step** to persist
+worker output to the schema. Documented so the debt is not lost.
 
 ## POPIA / minimisation
 Evidence is stored as a **reference** (id + integrity hash) with `retention_until` and
