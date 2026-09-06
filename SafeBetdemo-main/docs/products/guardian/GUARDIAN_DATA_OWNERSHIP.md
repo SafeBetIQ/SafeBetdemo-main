@@ -77,6 +77,16 @@ Postgres role** `guardian_domain_worker`:
   transaction (no partial state). Proven live: persist, duplicate-suppression, non-destructive
   history, wrong-jurisdiction denial, poison→DLQ.
 
+## C3 addition — Mobile App Intelligence (10 tables) + dedicated worker principal
+The `guardian` schema now also holds the 10 C3 mobile_app_* tables (**41 guardian tables
+total**), all RLS-enabled, still **0 functions**, no anon/public grants. A comparison-table
+CHECK forbids an illegality flag. The C3 app worker persists via a **separate** dedicated
+least-privilege role `guardian_app_worker` (NOT reusing `guardian_domain_worker`): grants
+ONLY on the 10 mobile_app_* tables + `audit_context` + **read-only** `domain_subject` (for
+the governed app→domain link); **no grants on public/IQ** and no write on the C2 domain
+tables. Its secret is `safebet-guardian/app-worker-db`; the app worker IAM has
+`GetSecretValue` on that one ARN.
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed

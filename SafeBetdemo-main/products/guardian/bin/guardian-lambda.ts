@@ -19,6 +19,7 @@ import {
   guardianChainScope, type GuardianVersion,
   SYNTHETIC_REGISTRY, matchOperator, resolveLegalReference,
   SYNTHETIC_DOMAIN_FIXTURES, analyseDomain,
+  SYNTHETIC_APP_FIXTURES, analyseApp,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -171,6 +172,31 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'domain not found', hostname: host });
     const result = analyseDomain(SYNTHETIC_REGISTRY, fx, { observationId: `OBS-${host}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', domain: { canonicalHostname: fx.hostname, jurisdiction: fx.jurisdiction }, latestResult: result, isIllegalDetermination: false });
+  }
+
+  // ── Mobile App Intelligence (C3) — provider-neutral, synthetic; NON-LEGAL results.
+  if (path === '/apps' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const apps = Object.values(SYNTHETIC_APP_FIXTURES).filter((f) => f.jurisdiction === jur)
+      .map((f) => ({ canonicalAppIdentifier: f.appIdentifier, displayName: f.displayName, platformType: f.platformType, jurisdiction: f.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: apps.length, apps });
+  }
+  if (path === '/apps/observe' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? ''); const id = String(b.fixtureAppIdentifier ?? '');
+    if (!jur || !id) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureAppIdentifier required' });
+    const fx = SYNTHETIC_APP_FIXTURES[id];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic app fixture (no real apps are accessed)', fixtureAppIdentifier: id });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = analyseApp(SYNTHETIC_REGISTRY, fx, { observationId: `AOBS-${Date.now()}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, note: 'non-legal intelligence; no app removal/enforcement' }, result });
+  }
+  if (path.startsWith('/apps/') && method === 'GET') {
+    const id = decodeURIComponent(path.slice('/apps/'.length));
+    const fx = SYNTHETIC_APP_FIXTURES[id];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'app not found', appIdentifier: id });
+    const result = analyseApp(SYNTHETIC_REGISTRY, fx, { observationId: `AOBS-${id}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', app: { canonicalAppIdentifier: fx.appIdentifier, jurisdiction: fx.jurisdiction, platformType: fx.platformType }, latestResult: result, isIllegalDetermination: false });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });
