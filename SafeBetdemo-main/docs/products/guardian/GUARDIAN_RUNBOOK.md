@@ -36,6 +36,19 @@ the 14 C1 tables (`drop table ... cascade` — see the migration's table list) +
 ledger row `20260905170000`; the 7 C0 tables and all SafeBet IQ objects are untouched. This
 is separate from the runtime rollback below.
 
+### C3 Mobile App Intelligence (data + async infra + app worker principal)
+- Migrations `20260905200000` (10 mobile_app_* tables, RLS, illegality-CHECK, seed; 0 functions)
+  + `20260905210000` (role `guardian_app_worker`, no password, grants + RLS). Data rollback:
+  drop the 10 C3 tables + remove both ledger rows; `revoke`+`drop role guardian_app_worker`.
+- **Async infra:** SQS `guardian-app-observation` + DLQ `guardian-app-observation-dlq` + worker
+  Lambda `safebet-guardian-app-worker` (role `safebet-guardian-app-worker-role`: logs + SQS +
+  `GetSecretValue` on `safebet-guardian/app-worker-db`) + event source mapping (batch 5,
+  `ReportBatchItemFailures`, maxReceiveCount 2) + CloudWatch alarm `guardian-app-observation-dlq-not-empty`.
+  Build: `node scripts/guardian/build-guardian-app-worker.mjs`; deploy via `update-function-code`.
+- **Secret rotate:** `alter role guardian_app_worker password '<new>'` + `put-secret-value` +
+  bounce the worker. **Infra rollback:** delete mapping, worker Lambda, both queues, worker role,
+  secret. Independent of the domain worker; SafeBet IQ + C0/C1/C2 unaffected.
+
 ### C2.1 Domain worker persistence (least-privilege DB role)
 - **DB principal:** dedicated role `guardian_domain_worker` (LOGIN, no BYPASSRLS, not owner).
   Grants: USAGE on `guardian` + SELECT/INSERT on the 10 C2 domain tables + `audit_context` only;

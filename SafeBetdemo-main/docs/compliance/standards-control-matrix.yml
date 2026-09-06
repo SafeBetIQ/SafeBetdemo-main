@@ -209,6 +209,24 @@ controls:
     exceptions: "Interim: guardian_domain_worker connects to the same Supabase cluster as SafeBet IQ (schema + least-privilege principal isolation, NOT a separate cluster). Separate independently-governed Guardian database = P1 exit target. Synthetic only; no real network/crawl; no enforcement; no AI legal decision. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0010."
     review_date: TBD
 
+  - control_id: SEC-MOBILE-013
+    standard: ISO/IEC 27001 + 42001 + 22301 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2023(42001) / 2019(22301)"
+    clause_reference: "Authority §7/§10; provider neutrality; no automated legal decision"
+    product: SAFEBET_GUARDIAN
+    component: mobile-app-intelligence
+    applicability: APPLICABLE
+    requirement_summary: "Provider-neutral mobile app intelligence over synthetic subjects: evidence-linked observations, registry+domain comparison via governed contracts, explainable review priority, human review, durable queue/DLQ, least-privilege persistence, and NO automated illegality determination or enforcement/removal"
+    technical_control: "guardian schema 10 C3 mobile_app_* tables (RLS, append-only history, DB CHECK forbidding illegality); products/guardian/src/app deterministic normalise+signals+intelligence via resolveLegalReference + governed app->domain link; SQS+DLQ+app worker Lambda (idempotency, ReportBatchItemFailures); dedicated guardian_app_worker role (no public/IQ; RLS); no platform/network access"
+    process_control: "ADR-0011; scenario tests 1-12; DB RLS negatives; live SQS/DLQ + persistence tests; ci:privfn; MFA hard gate; PROVIDER-NEUTRAL + PROPOSED-NO-LIVE-INTEGRATION"
+    evidence_required: "scenario tests; NO_MATCH!=ILLEGAL + illegality-CHECK; mismatch/stale/conflict->review; governed app->domain link to real C2 domain; cross-jurisdiction+IQ+anon denials; idempotency+poison->DLQ live; app_worker 0 public grants; estate unchanged (secdef 138/anon 1); guardian 0 functions"
+    control_owner: TBD
+    validation_method: "node --test (guardian app) + DB RLS negatives + live SQS/DLQ + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C3 foundation; provider-neutral; synthetic-only)"
+    exceptions: "Synthetic app subjects only; no real platform/marketplace/binary/device access; no APP_PLATFORM_REFERRAL; no payment/geo intelligence; no enforcement; no AI legal decision; no provider partnership. Least-privilege persistence on shared Supabase cluster (guardian_app_worker); separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0011."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

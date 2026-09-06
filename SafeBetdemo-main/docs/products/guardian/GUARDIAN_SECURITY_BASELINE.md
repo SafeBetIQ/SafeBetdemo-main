@@ -82,6 +82,19 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - **No new** SECURITY DEFINER / PUBLIC / anon; guardian schema still **0 functions**. No illegality
   determination persisted (DB CHECK + code). No real network/crawl.
 
+## C3 Mobile App Intelligence security
+- **10 app tables**, all RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon
+  denied). **0 new functions.** Comparison-table CHECK forbids `is_illegal_determination=true`.
+- **Separate dedicated principal** `guardian_app_worker` (NOT the domain worker): grants only
+  on mobile_app_* + audit_context + read-only domain_subject; **0 public/IQ grants** (verified
+  players SELECT denied); no BYPASSRLS → RLS enforced via jurisdiction GUC.
+- **Provider-neutral:** no named platform; no real app/marketplace/binary/device access
+  (boundary-tested); unknown identifier → poison, never accessed.
+- **Own secret** (`safebet-guardian/app-worker-db`); app worker IAM `GetSecretValue` on one
+  ARN; CloudWatch Logs + SQS-consume only. Bounded repository (no generic SQL); idempotent
+  single-transaction persist. Governed app→domain link resolves the real C2 `domain_id` or NULL.
+- No `APP_PLATFORM_REFERRAL`, no payment/geo intelligence, no enforcement, no AI legal decision.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
