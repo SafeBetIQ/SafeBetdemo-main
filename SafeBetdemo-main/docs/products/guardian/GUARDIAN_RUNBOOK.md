@@ -82,6 +82,18 @@ is separate from the runtime rollback below.
   **Infra rollback:** delete the event source mapping, the worker Lambda, the two queues, and the
   worker role. SafeBet IQ + the C0/C1 Guardian runtime are unaffected.
 
+### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
+- **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
+  (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·
+  custom domain `guardian-demo.safebetiq.com` (regional, TLS 1.2) + API mapping · Route 53 A-alias
+  (additive) in the authoritative safebetiq.com zone.
+- **No runtime change** — the branded edge fronts the existing Lambda; provenance stays the deployed
+  Guardian SHA (do NOT redeploy for DNS).
+- **Rollback (edge only):** delete the Route 53 `guardian-demo` alias + ACM-validation CNAME; delete
+  the API Gateway custom domain, mapping, and HTTP API. The raw Lambda **Function URL** remains the
+  prior known-good endpoint. No DB rollback; SafeBet IQ (demo/app.safebetiq.com) unaffected.
+- **Do NOT** create `guardian.safebetiq.com` (Production) — future milestone only.
+
 ### Runtime rollback (≠ data rollback)
 - Roll back code: `aws lambda update-function-code … --zip-file fileb://<prior-artifact>` (or a
   published version alias once versions exist).

@@ -108,6 +108,20 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   unchanged (NO_MATCH ≠ illegal; `isIllegalDetermination:false`). App Intelligence now survives a
   future separate-Guardian-database move without rewrite.
 
+## C3.2 branded edge security
+- **Auth NOT weakened:** privileged Guardian APIs (`/apps`,`/domains`,`/registry`,`/foundation`)
+  require AWS_IAM (SigV4) through the branded domain → **403** unauthenticated (proven). Only
+  `/health`+`/version` are public (liveness/version; no secrets), matching SafeBet IQ's public health.
+- **TLS-only** (ACM cert; TLS 1.2 regional custom domain). No self-signed, no HTTP-only.
+- **DNS:** a single additive Route 53 alias in the authoritative safebetiq.com zone; **no existing
+  record altered**; SafeBet IQ (`demo`/`app.safebetiq.com`) untouched. Production (`guardian.safebetiq.com`)
+  not created.
+- **No DB/RLS change**, **no new SECURITY DEFINER/PUBLIC/anon** (C3.2 is edge-only); guardian schema
+  still 0 functions. CORS: none permissive. Raw Function URL retained as internal endpoint.
+- **View security re-verified (C3):** `guardian.domain_reference` owner postgres, has its own
+  jurisdiction predicate (not owner-RLS-bypass reliant), granted only to `guardian_app_worker`
+  (anon/authenticated denied); base-table `domain_subject` access removed.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS

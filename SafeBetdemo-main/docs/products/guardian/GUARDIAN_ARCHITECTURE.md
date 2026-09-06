@@ -44,6 +44,13 @@ no anon/public grants). It never uses `public` or the SafeBet IQ business tables
 reuses the legacy `public.guardian_*` / `guardianlayer_*` objects. A fully separate
 database/project is the final target (documented in `GUARDIAN_DATA_OWNERSHIP.md`).
 
+## Branded Demo edge (C3.2)
+Guardian is reached at **`https://guardian-demo.safebetiq.com`** (API Gateway HTTP API + custom
+domain in front of the Guardian API Lambda; ACM TLS). Auth preserved: `/health`+`/version` public,
+privileged APIs AWS_IAM. The raw Function URL is retained as an internal infrastructure endpoint.
+Future Production hostname `guardian.safebetiq.com` is planned only (not created). SafeBet IQ
+domains (`demo`/`app.safebetiq.com`) are untouched. See ADR-0013.
+
 ## Standalone-ness checklist (C0)
 runtime boundary ✓ · app namespace (`products/guardian`) ✓ · API namespace (`/api/guardian`) ✓ ·
 identity/authorisation boundary ✓ · data boundary (`guardian` schema) ✓ · queue/worker namespace
