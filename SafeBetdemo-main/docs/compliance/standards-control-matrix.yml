@@ -245,6 +245,24 @@ controls:
     exceptions: "Synthetic payment/merchant only; no real bank/PSP/provider integration; no PAN/CVV/raw customer data; no PAYMENT_REFERRAL/enforcement/provider-response; no geo; no AI legal/payment decision. Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0014."
     review_date: TBD
 
+  - control_id: SEC-GEO-015
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023"
+    clause_reference: "Authority §7/§10; POPIA minimisation & purpose limitation; no person-level tracking; no automated legal decision"
+    product: SAFEBET_GUARDIAN
+    component: geo-jurisdiction-intelligence
+    applicability: APPLICABLE
+    requirement_summary: "Privacy-preserving property/service/jurisdiction-level geo intelligence over synthetic aggregate-region subjects: registry+domain+app+payment comparison via governed contracts, explainable review, durable queue/DLQ, least-privilege persistence, and NO individual/consumer surveillance, NO ISP/subscriber or bank/cardholder geography, NO automated illegality determination, NO enforcement, NO geo-blocking"
+    technical_control: "guardian schema 10 C5 geo tables (RLS, append-only observation+history via trigger guard, DB CHECKs forbidding illegality AND enforcement; NO person entity/column; no ILLEGAL_IN_REGION state); products/guardian/src/geo deterministic engine via resolveLegalReference + domain_reference + app_reference + payment_reference contracts; SQS+DLQ+geo worker Lambda; dedicated guardian_geo_worker role (geo tables + audit + 3 contract views only; no public/IQ, no C2/C3/C4 base); new Payment Reference Contract view; PROHIBITED_PERSON_FIELDS ingest reject-list"
+    process_control: "ADR-0015; GUARDIAN_PRIVACY_BOUNDARIES.md; scenario tests 1-14 (incl. person-payload rejection); DB RLS negatives; live SQS/DLQ + persistence + governed-link tests; ci:privfn; MFA hard gate; PROPOSED-NO-LIVE-PROVIDER-INTEGRATION"
+    evidence_required: "scenario tests 1-14; NO_MATCH!=ILLEGAL + illegality/enforcement CHECK; governed domain/app/payment links via views (DOM-SYNTH-0003/APP-SYNTH-0003/MER-SYNTH-0001); cross-jurisdiction (ZA-GP vs ZA-WC) + IQ casino_admin + anon denials; idempotency + wrong-jur + poison + person-payload->DLQ live; geo_worker 0 public/IQ/base-table grants; estate unchanged (secdef 138/anon 1); guardian functions = 1 (trigger-only guard, PUBLIC EXECUTE revoked)"
+    control_owner: TBD
+    validation_method: "node --test (guardian geo) + DB RLS negatives (real role connection) + live SQS/DLQ + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C5 foundation; privacy-preserving; synthetic-only)"
+    exceptions: "Synthetic property/service/aggregate-region only; no individual tracking; no ISP/subscriber browsing history; no bank/cardholder geography; no device/precise-personal-location; no geo/provider enforcement; no AI legal decision. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0015."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

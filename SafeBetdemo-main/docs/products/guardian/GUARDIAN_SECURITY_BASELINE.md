@@ -133,7 +133,27 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - Own secret; payment worker IAM `GetSecretValue` on one ARN; logs + SQS only. Bounded repository
   (no generic SQL); idempotent single-transaction persist. No enforcement/PAYMENT_REFERRAL; no AI decision.
 
+## C5 Geo & Jurisdiction Intelligence security
+- **10 geo tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  comparison-table CHECKs forbid `is_illegal_determination`=true AND `is_enforcement_authorised`=true;
+  **no `ILLEGAL_IN_REGION` state**. Append-only `geo_observation`/`geo_change_history` (trigger-guarded).
+- **Privacy = INDIVIDUAL SURVEILLANCE prohibited:** no person entity, no person-level column; the worker
+  rejects any message carrying a `PROHIBITED_PERSON_FIELDS` field (→ DLQ, 0 writes); a privacy test
+  enforces absence from the business model. Aggregate region/service signals only; no ISP/subscriber/
+  bank/device/precise-location ingestion; no packet capture / IP-to-person resolution.
+- **One trigger-only guard function** `guardian.geo_block_mutation()` (SECURITY INVOKER, not DEFINER);
+  default PUBLIC EXECUTE **revoked** → still 0 new anon/PUBLIC-executable privileged functions.
+- **Separate dedicated principal** `guardian_geo_worker`: grants only on geo tables + audit + SELECT on
+  the `domain_reference`/`app_reference`/`payment_reference` contract views; **0 public/IQ grants, 0
+  C2/C3/C4 base tables** (verified live: base-table read DENIED; contract views resolve real ids incl.
+  `PAYMENT:MER-SYNTH-0001`). No BYPASSRLS → RLS via jurisdiction GUC (proven: ZA-GP sees only ZA-GP,
+  ZA-WC only ZA-WC; anon/casino_admin grants = 0).
+- New governed **Payment Reference Contract** view `guardian.payment_reference` (owner postgres; own
+  jurisdiction predicate; plain view, not SECURITY DEFINER). Own secret; geo worker IAM `GetSecretValue`
+  on one ARN; logs + SQS only. No enforcement, no geo-block, no provider referral, no AI legal decision.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
-weakening; identityFederation OFF; A1–A5 intact; Production untouched.
+weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
+**1** (the C5 trigger-only append-only guard; SECURITY INVOKER; PUBLIC EXECUTE revoked).

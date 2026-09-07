@@ -21,6 +21,7 @@ import {
   SYNTHETIC_DOMAIN_FIXTURES, analyseDomain,
   SYNTHETIC_APP_FIXTURES, analyseApp,
   SYNTHETIC_PAYMENT_FIXTURES, analysePayment,
+  SYNTHETIC_GEO_FIXTURES, analyseGeo,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -66,6 +67,15 @@ export const handler = async (event: FnUrlEvent) => {
         dlq: 'guardian-domain-observation-dlq',
         persistence: 'HEALTHY',
         persistencePrincipal: 'guardian_domain_worker (least-privilege; guardian schema only)',
+      },
+      // C5 component posture (configuration state; no secrets, no live probe from the API).
+      geoIntelligence: {
+        geoWorker: 'HEALTHY',
+        queue: 'guardian-geo-observation',
+        dlq: 'guardian-geo-observation-dlq',
+        persistence: 'HEALTHY',
+        persistencePrincipal: 'guardian_geo_worker (least-privilege; guardian schema only)',
+        privacyBoundary: 'property/service/aggregate-region — no individual tracking',
       },
     });
   }
@@ -223,6 +233,49 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'payment/merchant not found', reference: ref });
     const result = analysePayment(SYNTHETIC_REGISTRY, fx, { observationId: `POBS-${ref}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', subject: { merchantReference: fx.merchantReference, jurisdiction: fx.jurisdiction, channel: fx.channel }, latestResult: result, isIllegalDetermination: false, isEnforcementAuthorised: false });
+  }
+
+  // ── Geo & Jurisdiction Intelligence (C5) — property/service/aggregate-region;
+  //    NON-LEGAL + NON-ENFORCEMENT. NO individual tracking, NO ISP/subscriber data.
+  if (path === '/geo' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const items = Object.values(SYNTHETIC_GEO_FIXTURES).filter((f) => f.jurisdiction === jur)
+      .map((f) => ({ geoReference: f.geoReference, subjectType: f.subjectType, regionCode: f.region.regionCode, availabilityState: f.availabilityState, jurisdiction: f.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', privacyBoundary: 'property/service/aggregate-region — no individual tracking', count: items.length, geo: items });
+  }
+  if (path === '/geo/observe' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureGeoReference ?? '');
+    if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureGeoReference required' });
+    const fx = SYNTHETIC_GEO_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic geo fixture (no real location data accessed)', fixtureGeoReference: ref });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = analyseGeo(SYNTHETIC_REGISTRY, fx, { observationId: `GOBS-${Date.now()}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, isEnforcementAuthorised: false, note: 'non-legal, non-enforcement intelligence; no geo-block, no individual tracking' }, result });
+  }
+  if (path.match(/^\/geo\/[^/]+\/observations$/) && method === 'GET') {
+    const ref = decodeURIComponent(path.split('/')[2] ?? '');
+    const fx = SYNTHETIC_GEO_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
+    const result = analyseGeo(SYNTHETIC_REGISTRY, fx, { observationId: `GOBS-${ref}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', geoReference: fx.geoReference, observations: [{ region: fx.region, availabilityState: fx.availabilityState, observedAt: result.freshness.geoObservedAt }], isIllegalDetermination: false });
+  }
+  if (path.match(/^\/geo\/[^/]+\/review$/) && method === 'POST') {
+    const ref = decodeURIComponent(path.split('/')[2] ?? '');
+    const fx = SYNTHETIC_GEO_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
+    const b = parseBody();
+    const decision = String(b.decision ?? 'REQUIRES_FURTHER_INVESTIGATION');
+    const allowed = ['REFERENCE_MATCH_CONFIRMED', 'REGION_REFERENCE_CONFIRMED', 'SOURCE_DATA_INSUFFICIENT', 'INCONSISTENCY_CONFIRMED', 'REQUIRES_FURTHER_INVESTIGATION', 'FALSE_POSITIVE', 'DUPLICATE_SUBJECT'];
+    if (!allowed.includes(decision)) return json(400, { product: 'GUARDIAN', error: 'unsupported review decision (no geo-block/enforcement decisions exist)', decision });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', geoReference: fx.geoReference, review: { state: 'TRIAGED', decision }, isIllegalDetermination: false, isEnforcementAuthorised: false });
+  }
+  if (path.startsWith('/geo/') && method === 'GET') {
+    const ref = decodeURIComponent(path.slice('/geo/'.length));
+    const fx = SYNTHETIC_GEO_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
+    const result = analyseGeo(SYNTHETIC_REGISTRY, fx, { observationId: `GOBS-${ref}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', subject: { geoReference: fx.geoReference, subjectType: fx.subjectType, region: fx.region, jurisdiction: fx.jurisdiction }, latestResult: result, isIllegalDetermination: false, isEnforcementAuthorised: false });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });
