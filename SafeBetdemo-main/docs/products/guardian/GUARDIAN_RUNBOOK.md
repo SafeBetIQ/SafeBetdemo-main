@@ -92,6 +92,20 @@ is separate from the runtime rollback below.
   Build: `node scripts/guardian/build-guardian-payment-worker.mjs`; deploy via `update-function-code`.
 - **Rotate/rollback:** as per the app/domain workers; independent; SafeBet IQ + C2/C3 unaffected.
 
+### C5 Geo & Jurisdiction Intelligence (data + async infra + geo worker principal + Payment Reference Contract)
+- Migrations `20260906010000` (10 geo tables, RLS, append-only triggers, illegality+enforcement CHECK,
+  trigger-guard PUBLIC-EXECUTE revoke, seed) + `20260906020000` (Payment Reference Contract view
+  `guardian.payment_reference` + role `guardian_geo_worker`, no password, grants + RLS). Data rollback:
+  drop the 10 C5 tables + `geo_block_mutation()` + `payment_reference` view + both ledger rows + drop role.
+- **Async infra:** SQS `guardian-geo-observation` + DLQ `guardian-geo-observation-dlq` + worker Lambda
+  `safebet-guardian-geo-worker` (role `safebet-guardian-geo-worker-role`: logs + SQS + `GetSecretValue`
+  on `safebet-guardian/geo-worker-db`) + event source mapping (batch 5, ReportBatchItemFailures,
+  maxReceiveCount 2) + CloudWatch DLQ alarm `guardian-geo-observation-dlq-not-empty`.
+  Build: `node scripts/guardian/build-guardian-geo-worker.mjs`; deploy via `update-function-code`.
+- **Privacy gate:** the worker rejects any message carrying a person-level field (`PROHIBITED_PERSON_FIELDS`)
+  → DLQ, 0 writes. No real location/ISP/bank/device access.
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C4 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·

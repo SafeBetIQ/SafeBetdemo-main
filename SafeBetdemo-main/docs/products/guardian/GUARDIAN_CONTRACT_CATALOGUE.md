@@ -33,6 +33,15 @@ tables or arbitrary query capability. This catalogue records the owned contracts
   DB view `guardian.app_reference` (owner postgres; own jurisdiction predicate; plain view, not
   SECURITY DEFINER). Consumers get SELECT on the view only — never `guardian.mobile_app_subject`.
 
+## Payment Reference Contract (ARCH-V4-C5)
+- **Owner:** Payment Intelligence (C4). **Consumers:** Geo & Jurisdiction Intelligence (C5); future modules.
+- **Purpose/interface:** bounded, jurisdiction-scoped payment/merchant-channel reference — input
+  `{ merchantReference, jurisdiction }`; output `{ matchState (REFERENCED | PAYMENT_REFERENCE_NOT_FOUND),
+  paymentReferenceId, merchantReferenceState, jurisdiction, channelType, freshness, referenceStatus }`.
+  Implementations: TS `resolvePaymentReference(...)` + DB view `guardian.payment_reference` (owner
+  postgres; own jurisdiction predicate; plain view, not SECURITY DEFINER). Consumers get SELECT on the
+  view only — never `guardian.merchant_subject` / `guardian.payment_subject`.
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

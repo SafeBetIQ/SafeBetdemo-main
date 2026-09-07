@@ -46,3 +46,4 @@ products/guardian/dist/
 products/guardian/dist-worker/
 products/guardian/dist-app-worker/
 products/guardian/dist-payment-worker/
+products/guardian/dist-geo-worker/

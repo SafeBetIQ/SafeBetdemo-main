@@ -39,3 +39,15 @@ test('app-contract: known app → REFERENCED; unknown → APP_REFERENCE_NOT_FOUN
   assert.equal(resolveAppReference({ appIdentifier: 'com.unknown.app', jurisdiction: 'ZA-GP' }).matchState, 'APP_REFERENCE_NOT_FOUND');
   assert.equal(resolveAppReference({ appIdentifier: 'za.synthetic.western100', jurisdiction: 'ZA-GP' }).matchState, 'APP_REFERENCE_NOT_FOUND');
 });
+
+// C5: Payment Reference Contract (owner Payment Intelligence; consumer Geo Intelligence).
+import { resolvePaymentReference } from '../../products/guardian/src/index.ts';
+test('payment-contract: known merchant → REFERENCED bounded; unknown → NOT_FOUND; wrong-jur denied', () => {
+  const k = resolvePaymentReference({ merchantReference: 'MER-REF-0001', jurisdiction: 'ZA-GP' });
+  assert.equal(k.matchState, 'REFERENCED');
+  assert.equal(k.channelType, 'CARD');
+  assert.deepEqual(Object.keys(k).sort(), ['channelType', 'freshness', 'jurisdiction', 'matchState', 'merchantReferenceState', 'paymentReferenceId', 'referenceStatus']);
+  assert.equal(resolvePaymentReference({ merchantReference: 'MER-REF-9999', jurisdiction: 'ZA-GP' }).matchState, 'PAYMENT_REFERENCE_NOT_FOUND');
+  // MER-REF-0100 exists only in ZA-WC; a ZA-GP request must not see it.
+  assert.equal(resolvePaymentReference({ merchantReference: 'MER-REF-0100', jurisdiction: 'ZA-GP' }).matchState, 'PAYMENT_REFERENCE_NOT_FOUND');
+});
