@@ -19,7 +19,7 @@
     "synth":           "cdk synth"
   },
   "devDependencies": {
-    "@types/node":          "^20",
+    "@types/node":          "^26",
     "typescript":           "~5.4",
     "aws-cdk":              "^2.178.0",
     "ts-node":              "^10.9.2",
