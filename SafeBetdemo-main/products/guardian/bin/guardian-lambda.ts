@@ -22,6 +22,7 @@ import {
   SYNTHETIC_APP_FIXTURES, analyseApp,
   SYNTHETIC_PAYMENT_FIXTURES, analysePayment,
   SYNTHETIC_GEO_FIXTURES, analyseGeo,
+  SYNTHETIC_CASE_FIXTURES, analyseCaseIntake,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -76,6 +77,15 @@ export const handler = async (event: FnUrlEvent) => {
         persistence: 'HEALTHY',
         persistencePrincipal: 'guardian_geo_worker (least-privilege; guardian schema only)',
         privacyBoundary: 'property/service/aggregate-region — no individual tracking',
+      },
+      // C6 component posture (configuration state; no secrets, no live probe from the API).
+      caseInvestigation: {
+        caseWorker: 'HEALTHY',
+        queue: 'guardian-case-intake',
+        dlq: 'guardian-case-intake-dlq',
+        persistence: 'HEALTHY',
+        persistencePrincipal: 'guardian_case_worker (least-privilege; guardian schema only)',
+        boundary: 'investigation only — no enforcement, no provider action, no legal determination',
       },
     });
   }
@@ -276,6 +286,42 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
     const result = analyseGeo(SYNTHETIC_REGISTRY, fx, { observationId: `GOBS-${ref}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', subject: { geoReference: fx.geoReference, subjectType: fx.subjectType, region: fx.region, jurisdiction: fx.jurisdiction }, latestResult: result, isIllegalDetermination: false, isEnforcementAuthorised: false });
+  }
+
+  // ── Case & Investigation Management (C6) — governed investigation layer; NON-LEGAL,
+  //    NON-ENFORCEMENT. No /enforce, /block, /takedown, /referral endpoint exists.
+  const CASE_SAFETY = { isLegalDetermination: false, isEnforcementAuthorised: false, note: 'investigation only — not a legal finding, not an enforcement authorisation' };
+  if (path === '/cases' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const items = Object.values(SYNTHETIC_CASE_FIXTURES).filter((f) => f.jurisdiction === jur)
+      .map((f) => { const r = analyseCaseIntake(f); return { caseReference: f.intakeReference, title: f.title, caseType: r.caseType, priority: r.priority, recommendation: r.recommendation, jurisdiction: f.jurisdiction }; });
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: CASE_SAFETY, count: items.length, cases: items });
+  }
+  if (path === '/cases' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureIntakeReference ?? '');
+    if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureIntakeReference required' });
+    const fx = SYNTHETIC_CASE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic case fixture (no real cases accessed)', fixtureIntakeReference: ref });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = analyseCaseIntake(fx);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: CASE_SAFETY, result });
+  }
+  // Bounded sub-resource surfaces (synthetic; investigation only). No enforcement paths.
+  const caseSub = path.match(/^\/cases\/([^/]+)\/(subjects|intelligence|evidence|notes|findings|review|status)$/);
+  if (caseSub && method === 'POST') {
+    const ref = decodeURIComponent(caseSub[1]); const sub = caseSub[2];
+    const fx = SYNTHETIC_CASE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'case not found', caseReference: ref });
+    const result = analyseCaseIntake(fx);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', caseReference: ref, resource: sub, legalSafety: CASE_SAFETY, result: { caseType: result.caseType, priority: result.priority, reasonCodes: result.reasonCodes, reviewRequired: result.reviewRequired } });
+  }
+  if (path.startsWith('/cases/') && method === 'GET') {
+    const ref = decodeURIComponent(path.slice('/cases/'.length));
+    const fx = SYNTHETIC_CASE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'case not found', caseReference: ref });
+    const result = analyseCaseIntake(fx);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: CASE_SAFETY, case: { caseReference: fx.intakeReference, title: fx.title, jurisdiction: fx.jurisdiction }, latestResult: result });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

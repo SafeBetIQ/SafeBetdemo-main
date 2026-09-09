@@ -106,6 +106,19 @@ is separate from the runtime rollback below.
   → DLQ, 0 writes. No real location/ISP/bank/device access.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C4 unaffected.
 
+### C6 Case & Investigation Management (data + async infra + case worker principal + Geo Reference Contract)
+- Migrations `20260907010000` (12 case tables, RLS, append-only triggers, legal+enforcement CHECK,
+  trigger-guard PUBLIC-EXECUTE revoke, seed) + `20260907020000` (Geo Reference Contract view
+  `guardian.geo_reference` + role `guardian_case_worker`, no password, grants + RLS). Data rollback: drop
+  the 12 C6 tables + `case_block_mutation()` + `geo_reference` view + both ledger rows + drop role.
+- **Async infra:** SQS `guardian-case-intake` + DLQ `guardian-case-intake-dlq` + worker Lambda
+  `safebet-guardian-case-worker` (role `safebet-guardian-case-worker-role`: logs + SQS + `GetSecretValue`
+  on `safebet-guardian/case-worker-db`) + event source mapping (batch 5, ReportBatchItemFailures,
+  maxReceiveCount 2) + CloudWatch DLQ alarm `guardian-case-intake-dlq-not-empty`.
+- **Boundary:** investigation only — no `/enforce`/`/block`/`/takedown`/`/referral`; no provider response
+  lifecycle. Subject references resolved via the four governed reference views only (no base tables).
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C5 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·

@@ -42,6 +42,15 @@ tables or arbitrary query capability. This catalogue records the owned contracts
   postgres; own jurisdiction predicate; plain view, not SECURITY DEFINER). Consumers get SELECT on the
   view only — never `guardian.merchant_subject` / `guardian.payment_subject`.
 
+## Geo Reference Contract (ARCH-V4-C6)
+- **Owner:** Geo & Jurisdiction Intelligence (C5). **Consumers:** Case & Investigation Management (C6); future modules.
+- **Purpose/interface:** bounded, jurisdiction-scoped geo/service reference — input
+  `{ geoReference, jurisdiction }`; output `{ matchState (REFERENCED | GEO_REFERENCE_NOT_FOUND),
+  geoReferenceId, subjectType, jurisdiction, regionReference, availabilityState, freshness, referenceStatus }`.
+  Implementations: TS `resolveGeoReference(...)` + DB view `guardian.geo_reference` (owner postgres; own
+  jurisdiction predicate; plain view, not SECURITY DEFINER). Consumers get SELECT on the view only — never
+  the C5 base tables.
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

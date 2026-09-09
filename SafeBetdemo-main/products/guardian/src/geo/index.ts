@@ -6,3 +6,4 @@ export * from './intelligence.ts';
 export * from './fixtures.ts';
 export * from './worker.ts';
 export * from './repository.ts';
+export * from './contract.ts';
