@@ -48,3 +48,4 @@ products/guardian/dist-app-worker/
 products/guardian/dist-payment-worker/
 products/guardian/dist-geo-worker/
 products/guardian/dist-case-worker/
+products/guardian/dist-evidence-worker/

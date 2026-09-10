@@ -41,3 +41,12 @@ IP-to-person resolution. Synthetic public/network-location fixtures only.
 Minimisation (property/service/aggregate-region only), purpose limitation (RegTech
 jurisdiction intelligence), jurisdiction scoping (RLS), and retention/history semantics
 are built in. No certification is claimed.
+
+## C7 Evidence Vault privacy (ARCH-V4-C7)
+The Digital Evidence Vault stores **synthetic** evidence only — no real illegal-gambling
+evidence, customer/player data, bank records, or regulator documents. Minimisation: the Vault
+holds a **hash + storage reference**, never duplicated bodies into case/audit/queue rows;
+purpose limitation (every access carries a purpose or is denied); classification-driven access
+(role ceiling); jurisdiction-scoped RLS; retention `POLICY_DEFINED` (no hard-coded statutory
+period). The private S3 vault blocks all public access (SSE-AES256, versioned, TLS-only). No
+person-level tracking is introduced. No legal determination, no enforcement, no provider action.

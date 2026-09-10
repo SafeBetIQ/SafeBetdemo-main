@@ -23,6 +23,8 @@ import {
   SYNTHETIC_PAYMENT_FIXTURES, analysePayment,
   SYNTHETIC_GEO_FIXTURES, analyseGeo,
   SYNTHETIC_CASE_FIXTURES, analyseCaseIntake,
+  SYNTHETIC_EVIDENCE_FIXTURES, registerEvidence, verifyEvidenceContent, verifyCustodyChain,
+  evaluateEvidenceAccess, buildExportManifest,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -86,6 +88,16 @@ export const handler = async (event: FnUrlEvent) => {
         persistence: 'HEALTHY',
         persistencePrincipal: 'guardian_case_worker (least-privilege; guardian schema only)',
         boundary: 'investigation only — no enforcement, no provider action, no legal determination',
+      },
+      // C7 component posture (configuration state; no secrets, no live probe from the API).
+      evidenceVault: {
+        evidenceWorker: 'HEALTHY',
+        queue: 'guardian-evidence-processing',
+        dlq: 'guardian-evidence-processing-dlq',
+        storage: 'private S3 vault (block-public-access; SSE; versioned)',
+        persistencePrincipal: 'guardian_evidence_worker (least-privilege; guardian schema only)',
+        integrity: 'SHA-256 content hash + append-only per-evidence custody hash chain',
+        boundary: 'provenance/integrity only — no enforcement, no provider action, no legal determination',
       },
     });
   }
@@ -322,6 +334,62 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'case not found', caseReference: ref });
     const result = analyseCaseIntake(fx);
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: CASE_SAFETY, case: { caseReference: fx.intakeReference, title: fx.title, jurisdiction: fx.jurisdiction }, latestResult: result });
+  }
+
+  // ── Digital Evidence Vault (C7) — provenance/integrity lifecycle; NON-LEGAL,
+  //    NON-ENFORCEMENT. No permanent public URL; no provider action. IAM protected.
+  const EV_SAFETY = { isLegalDetermination: false, isEnforcementAuthorised: false, note: 'evidence provenance/integrity only — not a legal finding, not an enforcement authorisation' };
+  if (path === '/evidence' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const items = Object.values(SYNTHETIC_EVIDENCE_FIXTURES).filter((f) => f.jurisdiction === jur)
+      .map((f) => ({ evidenceReference: f.evidenceReference, evidenceType: f.evidenceType, classification: f.classification, sourceDomain: f.sourceDomain, jurisdiction: f.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: EV_SAFETY, count: items.length, evidence: items });
+  }
+  if (path === '/evidence/register' && method === 'POST') {
+    const b = parseBody();
+    const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureEvidenceReference ?? '');
+    if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureEvidenceReference required' });
+    const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'unknown synthetic evidence fixture (no real evidence accessed)', fixtureEvidenceReference: ref });
+    if (fx.jurisdiction !== jur) return json(403, { product: 'GUARDIAN', error: 'cross-jurisdiction denied', fixtureJurisdiction: fx.jurisdiction });
+    const result = registerEvidence(fx, { evidenceId: `GEV-${Date.now()}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, result });
+  }
+  const evVerify = path.match(/^\/evidence\/([^/]+)\/verify$/);
+  if (evVerify && method === 'POST') {
+    const ref = decodeURIComponent(evVerify[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
+    const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
+    const b = parseBody();
+    const body = typeof b.syntheticBody === 'string' ? b.syntheticBody : fx.syntheticBody; // tamper if a different body is supplied
+    const integrityStatus = verifyEvidenceContent(r.contentHash, body);
+    const custody = verifyCustodyChain(r.custodyChain);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, integrityStatus, custodyChainOk: custody.ok });
+  }
+  const evCustody = path.match(/^\/evidence\/([^/]+)\/custody$/);
+  if (evCustody && method === 'GET') {
+    const ref = decodeURIComponent(evCustody[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
+    const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, custody: r.custodyChain.map((c) => ({ seq: c.sequenceNumber, eventType: c.eventType, eventHash: c.eventHash })), custodyChainOk: verifyCustodyChain(r.custodyChain).ok });
+  }
+  const evSub = path.match(/^\/evidence\/([^/]+)\/(link-case|hold|export)$/);
+  if (evSub && method === 'POST') {
+    const ref = decodeURIComponent(evSub[1]); const sub = evSub[2]; const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
+    const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
+    if (sub === 'export') {
+      const manifest = buildExportManifest({ jurisdiction: fx.jurisdiction, caseReference: String((parseBody().caseReference) ?? ''), exportActor: 'syn-service', exportedAt: new Date().toISOString(), items: [{ evidenceId: r.evidenceId, evidenceReference: r.evidenceReference, contentHash: r.contentHash, classification: r.classification, integrityStatus: r.integrityStatus, capturedAt: null, sourceReference: r.sourceReference, custodyHead: r.custodyChain[r.custodyChain.length - 1].eventHash }] });
+      return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, resource: sub, manifest });
+    }
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, resource: sub });
+  }
+  if (path.startsWith('/evidence/') && method === 'GET') {
+    const ref = decodeURIComponent(path.slice('/evidence/'.length));
+    const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
+    const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidence: { evidenceReference: fx.evidenceReference, evidenceType: fx.evidenceType, classification: fx.classification, jurisdiction: fx.jurisdiction, contentHash: r.contentHash, integrityStatus: r.integrityStatus, storageReference: r.storageReference } });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

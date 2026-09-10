@@ -119,6 +119,23 @@ is separate from the runtime rollback below.
   lifecycle. Subject references resolved via the four governed reference views only (no base tables).
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C5 unaffected.
 
+### C7 Digital Evidence Vault (data + private S3 + async infra + evidence worker principal + Case Reference Contract)
+- Migrations `20260908010000` (9 evidence tables, RLS, append-only custody/access/integrity triggers,
+  legal+enforcement CHECK, trigger-guard PUBLIC-EXECUTE revoke, seed) + `20260908020000` (Case Reference
+  Contract view `guardian.case_reference` + role `guardian_evidence_worker`, no password, grants + RLS).
+  Data rollback: drop the 9 C7 tables + `evidence_block_mutation()` + `case_reference` view + both ledger
+  rows + drop role. **Never delete S3 objects on a code rollback.**
+- **Private S3 vault:** `safebet-guardian-evidence-demo` (eu-west-1) — block-public-access ALL, SSE-AES256,
+  versioning, TLS-only deny bucket policy. Storage rollback is SEPARATE from runtime/schema rollback; objects
+  are retained (evidence must not be destroyed because code is rolled back).
+- **Async infra:** SQS `guardian-evidence-processing` + DLQ `guardian-evidence-processing-dlq` + worker Lambda
+  `safebet-guardian-evidence-worker` (role `safebet-guardian-evidence-worker-role`: logs + SQS + `GetSecretValue`
+  on `safebet-guardian/evidence-worker-db` + `s3:PutObject` on `evidence/*` only) + event source mapping
+  (batch 5, ReportBatchItemFailures, maxReceiveCount 2) + CloudWatch DLQ alarm
+  `guardian-evidence-processing-dlq-not-empty`. Two-phase: store (deterministic key -> idempotent/orphan-safe)
+  then metadata+custody commit. Build: `node scripts/guardian/build-guardian-evidence-worker.mjs`.
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C6 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·

@@ -172,8 +172,30 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   `guardian.geo_reference` (owner postgres; own jurisdiction predicate; plain view, not SECURITY DEFINER).
   Own secret; case worker IAM `GetSecretValue` on one ARN; logs + SQS only.
 
+## C7 Digital Evidence Vault security
+- **9 evidence tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  `guardian_evidence`/`guardian_evidence_export` CHECKs forbid `is_legal_determination`=true AND
+  `is_enforcement_authorised`=true. Append-only custody/access/integrity/version/derivation (trigger-guarded;
+  live UPDATE rejected).
+- **Integrity:** SHA-256 content hash + independent **per-evidence custody hash chain** (`sequence_number` +
+  `previous_event_hash` -> `event_hash`) anchored to Shared Audit (ADR-0017). Tamper detectable: content ->
+  `INTEGRITY_FAILED`; custody chain verification breaks on any altered event. Proven live: chain
+  `00000000 -> a59a0e60 -> 7027385f -> c8e45979`.
+- **Private S3 vault** `safebet-guardian-evidence-demo`: **all public access blocked**, SSE-AES256, versioning,
+  TLS-only deny policy. Proven: anon GET/LIST -> 403; stored object AES256 + versioned. Worker `s3:PutObject`
+  on `evidence/*` only; no public URL; deterministic key -> orphan-reconcilable.
+- **Separate dedicated principal** `guardian_evidence_worker`: grants only on evidence tables + audit + SELECT
+  on `case_reference`; **0 public/IQ grants, 0 C1-C6 base tables** (verified live: C6 base read DENIED; case_
+  reference view resolves). No BYPASSRLS -> RLS via jurisdiction GUC (proven: ZA-GP sees only ZA-GP, ZA-WC only
+  ZA-WC; anon/casino_admin grants = 0). Access model = role x jurisdiction x classification x purpose (no
+  universal service-role human access; Investigator denied HIGHLY_RESTRICTED).
+- **Trigger-only guard** `guardian.evidence_block_mutation()` (SECURITY INVOKER, not DEFINER); default PUBLIC
+  EXECUTE **revoked** -> still 0 new anon/PUBLIC-executable privileged functions. New governed **Case Reference
+  Contract** view `guardian.case_reference` (owner postgres; own jurisdiction predicate; plain view). Own
+  secret; worker IAM least-privilege. No enforcement, no provider action, no AI legal decision.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**2** (the C5 geo + C6 case trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**3** (the C5 geo + C6 case + C7 evidence trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
