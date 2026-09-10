@@ -49,3 +49,4 @@ products/guardian/dist-payment-worker/
 products/guardian/dist-geo-worker/
 products/guardian/dist-case-worker/
 products/guardian/dist-evidence-worker/
+products/guardian/dist-evidence-reader/

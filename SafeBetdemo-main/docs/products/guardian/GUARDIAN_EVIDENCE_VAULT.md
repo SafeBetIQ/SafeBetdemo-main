@@ -28,7 +28,13 @@ Vault adds the Guardian-specific governed lifecycle (registration, hashing, cust
 export) and stores **references + hashes**, never duplicated bodies.
 
 ## Integrity (ADR-0017 "layered")
-- **Content:** SHA-256 `content_hash`; verified after ingestion / retrieval / export.
+- **Content:** SHA-256 `content_hash`. **C7** registration verification operated over the
+  synthetic registration input (in-memory body) at register time. **C7.2** adds verification
+  against the **actual stored S3 bytes** via the dedicated least-privilege reader
+  (`guardian-evidence-reader`, `s3:GetObject` on `evidence/*` only) after access-policy
+  evaluation — see [GUARDIAN_EVIDENCE_ACCESS_POLICY.md](./GUARDIAN_EVIDENCE_ACCESS_POLICY.md).
+  (Historical note: C7 did not have a GetObject/retrieval path; earlier wording that implied
+  "verified after retrieval" is corrected here — retrieval-from-storage arrived in C7.2.)
 - **Custody:** an independent **per-evidence tamper-evident hash chain**
   (`sequence_number` + `previous_event_hash` -> `event_hash`), **anchored** to Shared Audit
   (each material custody event also writes `audit_context`). Shared Audit is

@@ -373,6 +373,17 @@ export const handler = async (event: FnUrlEvent) => {
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, custody: r.custodyChain.map((c) => ({ seq: c.sequenceNumber, eventType: c.eventType, eventHash: c.eventHash })), custodyChainOk: verifyCustodyChain(r.custodyChain).ok });
   }
+  const evRetrieve = path.match(/^\/evidence\/([^/]+)\/(retrieve|content)$/);
+  if (evRetrieve && method === 'POST') {
+    const ref = decodeURIComponent(evRetrieve[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
+    if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
+    // Controlled retrieval is performed by the dedicated least-privilege reader identity
+    // (guardian-evidence-reader): access policy (jurisdiction x classification x purpose) is
+    // evaluated in the DB-backed reader BEFORE any s3:GetObject, then SHA-256 over the ACTUAL
+    // stored bytes; every attempt is audited. This API route delegates there (no S3/DB in the
+    // credential-free API Lambda; no public object URL is ever issued).
+    return json(202, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, resource: evRetrieve[2], delegatedTo: 'guardian-evidence-reader (least-privilege s3:GetObject on evidence/* only)', note: 'byte-level verification against actual stored S3 bytes is performed by the reader service after access-policy evaluation; no public URL.' });
+  }
   const evSub = path.match(/^\/evidence\/([^/]+)\/(link-case|hold|export)$/);
   if (evSub && method === 'POST') {
     const ref = decodeURIComponent(evSub[1]); const sub = evSub[2]; const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];

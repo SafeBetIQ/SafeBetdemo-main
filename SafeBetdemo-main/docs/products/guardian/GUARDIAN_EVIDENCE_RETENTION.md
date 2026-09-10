@@ -20,6 +20,7 @@ unless a controlled test explicitly needs it). A future lifecycle (RETENTION_REV
 DISPOSITION_APPROVED -> DISPOSED) would be audited and policy-referenced. **Disposition is
 blocked while a preservation hold is ACTIVE** (`dispositionBlockedByHold`).
 
-## Closed case
-A closed case does not silently delete its evidence — evidence remains retrievable per
-policy; there is no automatic deletion.
+## Closed case (scenario 18)
+A closed case does not silently delete its evidence — evidence remains retrievable per policy
+via the controlled C7.2 reader path (access-policy + byte verification + audit); there is no
+automatic deletion (no DeleteObject grant exists).
