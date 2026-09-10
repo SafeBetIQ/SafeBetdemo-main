@@ -6,3 +6,4 @@ export * from './registration.ts';
 export * from './fixtures.ts';
 export * from './worker.ts';
 export * from './repository.ts';
+export * from './retrieval.ts';

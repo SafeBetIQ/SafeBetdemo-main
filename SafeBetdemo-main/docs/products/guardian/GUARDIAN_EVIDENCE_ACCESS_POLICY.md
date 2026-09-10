@@ -24,10 +24,16 @@ LEGAL_REVIEW_PREPARATION, AUDIT, EXPORT_PREPARATION, SYSTEM_MAINTENANCE. No purp
 DENIED (no arbitrary browsing). Every decision is recorded
 (`guardian_evidence_access_event`, ALLOW/DENY with reason).
 
-## Storage access
-No permanent public object URL. Retrieval is application-mediated; the private vault blocks
-all public access (proven anon GET/LIST 403). Pre-signed URLs, if introduced later, are
-short-lived, purpose-bound, and audited (not implemented in C7).
+## Storage access (retrieval — C7.2)
+No permanent public object URL. Retrieval is performed by the **dedicated least-privilege
+reader** `guardian-evidence-reader` (IAM `s3:GetObject` on `arn:…:safebet-guardian-evidence-demo/
+evidence/*` only — **no** ListBucket, **no** DeleteObject, **no** PutObject; separate from the
+writer). The reader evaluates the access policy (role x jurisdiction x classification x purpose)
+**before** any GetObject, verifies SHA-256 over the **actual retrieved bytes** vs the canonical
+hash, and records an audited access event + an `ACCESSED` custody event. Denials never read
+bytes. The branded API `POST /evidence/:id/retrieve` delegates to the reader (the credential-free
+API Lambda holds no S3/DB). Pre-signed URLs are not used; if introduced later they must be
+short-lived, purpose-bound, single-object, and audited. Proven anon GET/LIST 403.
 
 ## MFA
 MFA hard gate remains: no real Investigator / Legal Reviewer / Authorising Officer
