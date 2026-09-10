@@ -51,3 +51,15 @@ test('payment-contract: known merchant → REFERENCED bounded; unknown → NOT_F
   // MER-REF-0100 exists only in ZA-WC; a ZA-GP request must not see it.
   assert.equal(resolvePaymentReference({ merchantReference: 'MER-REF-0100', jurisdiction: 'ZA-GP' }).matchState, 'PAYMENT_REFERENCE_NOT_FOUND');
 });
+
+// C6: Geo Reference Contract (owner Geo Intelligence; consumer Case Management).
+import { resolveGeoReference } from '../../products/guardian/src/index.ts';
+test('geo-contract: known geo → REFERENCED bounded; unknown → NOT_FOUND; wrong-jur denied', () => {
+  const k = resolveGeoReference({ geoReference: 'licensed-example-003.test', jurisdiction: 'ZA-GP' });
+  assert.equal(k.matchState, 'REFERENCED');
+  assert.equal(k.availabilityState, 'AVAILABLE');
+  assert.deepEqual(Object.keys(k).sort(), ['availabilityState', 'freshness', 'geoReferenceId', 'jurisdiction', 'matchState', 'referenceStatus', 'regionReference', 'subjectType']);
+  assert.equal(resolveGeoReference({ geoReference: 'never-seen-999.test', jurisdiction: 'ZA-GP' }).matchState, 'GEO_REFERENCE_NOT_FOUND');
+  // western-region-100.test exists only in ZA-WC; a ZA-GP request must not see it.
+  assert.equal(resolveGeoReference({ geoReference: 'western-region-100.test', jurisdiction: 'ZA-GP' }).matchState, 'GEO_REFERENCE_NOT_FOUND');
+});

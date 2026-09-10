@@ -152,8 +152,28 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   jurisdiction predicate; plain view, not SECURITY DEFINER). Own secret; geo worker IAM `GetSecretValue`
   on one ARN; logs + SQS only. No enforcement, no geo-block, no provider referral, no AI legal decision.
 
+## C6 Case & Investigation Management security
+- **12 case tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  case/finding/review CHECKs forbid `is_legal_determination`=true AND `is_enforcement_authorised`=true;
+  no enforcement status; no `ILLEGAL_OPERATOR_CONFIRMED`. Append-only chronology + status/priority history
+  (trigger-guarded; live UPDATE rejected).
+- **Fundamental boundary:** intelligence ≠ legal finding; case opened ≠ illegal; high priority ≠
+  enforcement; finding ≠ final legal determination; case closed ≠ provider action. No `/enforce`,`/block`,
+  `/takedown`,`/referral` API; no provider-response lifecycle; no AI legal decision.
+- **Separate dedicated principal** `guardian_case_worker`: grants only on case tables + audit + SELECT on
+  the `domain_reference`/`app_reference`/`payment_reference`/`geo_reference` contract views; **0 public/IQ
+  grants, 0 C2–C5 base tables** (verified live: base-table read DENIED; all four views resolve; subjects
+  resolved to `DOM-SYNTH-0003`/`APP-SYNTH-0003`/`MER-SYNTH-0001`/`GEO-SYNTH-0001`). No BYPASSRLS → RLS via
+  jurisdiction GUC (proven: ZA-GP sees only ZA-GP; cross-jurisdiction denied; anon/casino_admin grants = 0).
+- **Trigger-only guard function** `guardian.case_block_mutation()` (SECURITY INVOKER, not DEFINER); default
+  PUBLIC EXECUTE **revoked** → still 0 new anon/PUBLIC-executable privileged functions.
+- **SoD** (reused `evaluateSod`): same principal as Investigator+Reviewer → denied; distinct reviewer →
+  pass. **MFA hard gate** intact (synthetic identities only). New governed **Geo Reference Contract** view
+  `guardian.geo_reference` (owner postgres; own jurisdiction predicate; plain view, not SECURITY DEFINER).
+  Own secret; case worker IAM `GetSecretValue` on one ARN; logs + SQS only.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**1** (the C5 trigger-only append-only guard; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**2** (the C5 geo + C6 case trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).

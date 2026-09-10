@@ -105,6 +105,16 @@ governed `domain_reference`/`app_reference`/`payment_reference` contract views; 
 C2/C3/C4 base tables**) with its own secret `safebet-guardian/geo-worker-db`. New governed **Payment
 Reference Contract** view `guardian.payment_reference` (owner Payment Intelligence).
 
+## C6 addition — Case & Investigation Management (12 tables) + dedicated worker principal + Geo Reference Contract
+12 C6 case tables (**72 guardian tables total**), RLS on all, no anon/public; case/finding/review CHECKs
+forbid legal-determination AND enforcement flags; no enforcement status; cases hold REFERENCES (not
+duplicated bodies). Append-only chronology + status/priority history (trigger-guarded). Trigger guard
+`guardian.case_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked) → **2 guardian functions total**
+(geo + case guards). A separate least-privilege role `guardian_case_worker` (case tables + audit_context +
+SELECT on the governed `domain_reference`/`app_reference`/`payment_reference`/`geo_reference` contract views;
+**no public/IQ, no C2–C5 base tables**) with its own secret `safebet-guardian/case-worker-db`. New governed
+**Geo Reference Contract** view `guardian.geo_reference` (owner Geo & Jurisdiction Intelligence).
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed
