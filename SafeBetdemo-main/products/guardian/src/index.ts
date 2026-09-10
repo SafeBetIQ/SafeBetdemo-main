@@ -22,6 +22,7 @@ export * from './app/index.ts';
 export * from './payment/index.ts';
 export * from './geo/index.ts';
 export * from './investigation/index.ts';
+export * from './evidence-vault/index.ts';
 
 import { guardianHealth, guardianVersion } from './observability.ts';
 import { GUARDIAN_PRODUCT, GUARDIAN_SCHEMA_VERSION, GUARDIAN_INVARIANTS } from './product.ts';

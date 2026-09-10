@@ -115,6 +115,19 @@ SELECT on the governed `domain_reference`/`app_reference`/`payment_reference`/`g
 **no public/IQ, no C2–C5 base tables**) with its own secret `safebet-guardian/case-worker-db`. New governed
 **Geo Reference Contract** view `guardian.geo_reference` (owner Geo & Jurisdiction Intelligence).
 
+## C7 addition — Digital Evidence Vault (9 tables) + dedicated worker principal + private S3 vault + Case Reference Contract
+9 C7 evidence tables (**81 guardian tables total**), RLS on all, no anon/public; `guardian_evidence` +
+`guardian_evidence_export` CHECKs forbid legal-determination AND enforcement flags. Append-only custody/
+access/integrity/version/derivation (trigger-guarded). Trigger guard `guardian.evidence_block_mutation()`
+(SECURITY INVOKER; PUBLIC EXECUTE revoked) -> **3 guardian functions total** (geo + case + evidence guards).
+Content is a hash (SHA-256) + storage reference, never a body. A separate least-privilege role
+`guardian_evidence_worker` (evidence tables + audit_context + SELECT on the governed `case_reference`
+contract view; **no public/IQ, no C1-C6 base tables**) with its own secret `safebet-guardian/evidence-worker-db`.
+New governed **Case Reference Contract** view `guardian.case_reference` (owner Case Management). Private S3
+vault `safebet-guardian-evidence-demo` (block-public-access, SSE-AES256, versioning, TLS-only) — the worker
+holds `s3:PutObject` on `evidence/*` only; storage is NOT relational data (the Vault owns the object
+lifecycle; the DB owns the metadata/custody).
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed

@@ -63,3 +63,14 @@ test('geo-contract: known geo → REFERENCED bounded; unknown → NOT_FOUND; wro
   // western-region-100.test exists only in ZA-WC; a ZA-GP request must not see it.
   assert.equal(resolveGeoReference({ geoReference: 'western-region-100.test', jurisdiction: 'ZA-GP' }).matchState, 'GEO_REFERENCE_NOT_FOUND');
 });
+
+// C7: Case Reference Contract (owner Case Management; consumer Evidence Vault).
+import { resolveCaseReference } from '../../products/guardian/src/index.ts';
+test('case-contract: known case → REFERENCED bounded; unknown → NOT_FOUND; wrong-jur denied', () => {
+  const k = resolveCaseReference({ caseReference: 'GC-INTAKE-0001', jurisdiction: 'ZA-GP' });
+  assert.equal(k.matchState, 'REFERENCED');
+  assert.deepEqual(Object.keys(k).sort(), ['caseReferenceId', 'caseStatus', 'classification', 'jurisdiction', 'matchState', 'referenceStatus']);
+  assert.equal(resolveCaseReference({ caseReference: 'GC-UNKNOWN', jurisdiction: 'ZA-GP' }).matchState, 'CASE_REFERENCE_NOT_FOUND');
+  // GC-INTAKE-0100 exists only in ZA-WC; a ZA-GP request must not see it.
+  assert.equal(resolveCaseReference({ caseReference: 'GC-INTAKE-0100', jurisdiction: 'ZA-GP' }).matchState, 'CASE_REFERENCE_NOT_FOUND');
+});

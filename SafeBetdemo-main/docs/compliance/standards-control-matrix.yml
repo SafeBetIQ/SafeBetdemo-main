@@ -281,6 +281,24 @@ controls:
     exceptions: "Synthetic cases/subjects/evidence only; no real regulator users; no real illegal-gambling evidence; no enforcement/provider-referral/provider-response lifecycle; no AI legal decision. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Retention = POLICY_DEFINED (no hard-coded statutory period). Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit. MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0016."
     review_date: TBD
 
+  - control_id: SEC-EVIDENCE-017
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 20000-1 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023"
+    clause_reference: "Authority §7/§10; evidence integrity + chain of custody; least privilege; storage security; no automated legal decision"
+    product: SAFEBET_GUARDIAN
+    component: digital-evidence-vault
+    applicability: APPLICABLE
+    requirement_summary: "Regulator-grade evidence lifecycle over synthetic evidence above the Shared Evidence primitive: register/hash/classify/store/custody/verify/link/preserve/derive/retain-hold/export/audit, with SHA-256 content + per-evidence tamper-evident custody hash chain, private encrypted storage, least-privilege persistence, jurisdiction/classification/purpose access control, and NO legal determination, NO enforcement, NO provider action"
+    technical_control: "guardian schema 9 C7 evidence tables (RLS, append-only custody/access/integrity/version/derivation via trigger guard, DB CHECKs forbidding legal-determination AND enforcement); SHA-256 content_hash + per-evidence custody hash chain (sequence_number + previous_event_hash -> event_hash) anchored to Shared Audit (ADR-0017); products/guardian/src/evidence-vault; private S3 vault safebet-guardian-evidence-demo (block-public-access, SSE-AES256, versioning, TLS-only); SQS+DLQ+evidence worker Lambda; dedicated guardian_evidence_worker role (evidence tables + audit + case_reference view only; no public/IQ, no C1-C6 base); new Case Reference Contract view; access = role x jurisdiction x classification x purpose"
+    process_control: "ADR-0017; GUARDIAN_EVIDENCE_VAULT/CHAIN_OF_CUSTODY/DATA_MODEL/ACCESS_POLICY/RETENTION/EXPORT.md; scenario tests 1-18; DB RLS negatives (real role); live SQS/DLQ + S3 store + custody chain; object-storage-policy tests; ci:privfn; MFA hard gate; NO-ENFORCEMENT / NO-PROVIDER-ACTION"
+    evidence_required: "scenario tests 1-18; EVIDENCE!=LEGAL + legal/enforcement CHECK; SHA-256 verify + tamper -> INTEGRITY_FAILED; custody hash chain verifiable + tamper breaks it (00000000->a59a0e60->7027385f->c8e45979); private S3 anon GET/LIST 403 + SSE-AES256 + versioned; cross-jurisdiction + IQ casino_admin + anon denials; classification ceiling deny; hold SoD (Investigator cannot RELEASE); export manifest SHA-256; idempotency + wrong-jur + poison->DLQ live; evidence_worker 0 public/IQ/base-table grants; estate unchanged (secdef 138/anon 1); guardian functions = 3 (trigger-only guards, PUBLIC EXECUTE revoked)"
+    control_owner: TBD
+    validation_method: "node --test (guardian evidence) + DB RLS negatives (real role) + live SQS/DLQ + S3 policy + append-only trigger + privfn-guard"
+    validation_frequency: per-change
+    status: "CONFORMANT (C7 foundation; provenance/integrity only; synthetic-only)"
+    exceptions: "Synthetic evidence only; no real illegal-gambling/customer/bank/regulator data; no enforcement/provider-referral/provider-response; no AI legal decision; manifest SHA-256 is integrity hashing, NOT a legally recognised digital signature. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Retention = POLICY_DEFINED. Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit (importance increased). MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0017."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"
