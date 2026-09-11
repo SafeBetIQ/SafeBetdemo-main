@@ -16,6 +16,6 @@
   "dependencies": {
     "@aws-cdk/aws-amplify-alpha": "^2.250.0-alpha.0",
     "aws-cdk-lib": "^2.250.0",
-    "constructs": "^10.6.0"
+    "constructs": "^10.8.1"
   }
 }
