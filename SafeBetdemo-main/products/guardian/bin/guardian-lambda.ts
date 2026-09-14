@@ -25,6 +25,7 @@ import {
   SYNTHETIC_CASE_FIXTURES, analyseCaseIntake,
   SYNTHETIC_EVIDENCE_FIXTURES, registerEvidence, verifyEvidenceContent, verifyCustodyChain,
   evaluateEvidenceAccess, buildExportManifest,
+  SYNTHETIC_POLICY_VERSIONS, syntheticProposedAction, evaluatePolicyApplicability, evaluateAuthorisation, toAuthorisedActionContract,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -98,6 +99,14 @@ export const handler = async (event: FnUrlEvent) => {
         persistencePrincipal: 'guardian_evidence_worker (least-privilege; guardian schema only)',
         integrity: 'SHA-256 content hash + append-only per-evidence custody hash chain',
         boundary: 'provenance/integrity only — no enforcement, no provider action, no legal determination',
+      },
+      // C8 component posture (configuration state; no secrets, no live probe from the API).
+      enforcementAuthorisation: {
+        policyWorker: 'HEALTHY',
+        queue: 'guardian-authorisation-evaluation',
+        dlq: 'guardian-authorisation-evaluation-dlq',
+        persistencePrincipal: 'guardian_policy_worker (least-privilege; cannot insert final authorisation)',
+        boundary: 'human authority layer — authorises action records; NEVER executes, NEVER notifies a provider (no external action)',
       },
     });
   }
@@ -401,6 +410,40 @@ export const handler = async (event: FnUrlEvent) => {
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidence: { evidenceReference: fx.evidenceReference, evidenceType: fx.evidenceType, classification: fx.classification, jurisdiction: fx.jurisdiction, contentHash: r.contentHash, integrityStatus: r.integrityStatus, storageReference: r.storageReference } });
+  }
+
+  // ── Enforcement Policy Registry + Authorisation Workflow (C8) — human authority
+  //    layer; C8 AUTHORISES but NEVER executes/notifies a provider. No /execute,/send,
+  //    /block,/referral,/publish endpoint exists.
+  const AUTH_SAFETY = { isLegalDetermination: false, isEnforcementExecuted: false, isProviderNotified: false, note: 'human authority layer — authorises an action record only; no external action, no provider notification' };
+  if (path === '/policies' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const items = Object.values(SYNTHETIC_POLICY_VERSIONS).filter((p) => p.jurisdiction === jur)
+      .map((p) => ({ policyId: p.policyId, versionId: p.versionId, status: p.status, effectiveFrom: p.effectiveFrom, effectiveUntil: p.effectiveUntil, jurisdiction: p.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: AUTH_SAFETY, count: items.length, policies: items });
+  }
+  if (path.startsWith('/policies/') && method === 'GET') {
+    const id = decodeURIComponent(path.slice('/policies/'.length));
+    const p = SYNTHETIC_POLICY_VERSIONS[id]; if (!p) return json(404, { product: 'GUARDIAN', error: 'policy version not found', versionId: id });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, policy: p });
+  }
+  const paSub = path.match(/^\/proposed-actions\/([^/]+)\/(legal-review|request-authorisation|authorise|decline)$/);
+  if (paSub && method === 'POST') {
+    const ref = decodeURIComponent(paSub[1]); const sub = paSub[2]; const b = parseBody();
+    const pa = syntheticProposedAction();
+    // Authorisation requires an explicit human Authorising Officer + distinct SoD principals.
+    const who = { investigatorId: 'syn-inv', legalReviewerId: 'syn-leg', legalReviewOutcome: (b.legalReviewOutcome as any) ?? 'SUFFICIENT_FOR_AUTHORISATION_REVIEW', authorisingOfficerId: String(b.authorisingOfficerId ?? 'syn-auth'), authorisingOfficerRole: String(b.authorisingOfficerRole ?? 'AUTHORISING_OFFICER') as any };
+    const decision = evaluateAuthorisation({ ...pa, proposedActionId: ref }, who);
+    if (sub === 'authorise') {
+      const contract = decision.outcome === 'AUTHORISED' ? toAuthorisedActionContract(decision, { authorisationReference: `AUTH-${ref}`, authorityReference: pa.policyVersion?.authorityReference ?? null, authorisedAt: new Date().toISOString() }) : null;
+      return json(decision.outcome === 'AUTHORISED' ? 200 : 409, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, resource: sub, decision, authorisedActionContract: contract });
+    }
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, resource: sub, proposedActionId: ref, applicability: evaluatePolicyApplicability(pa.policyVersion, { jurisdiction: pa.jurisdiction, actionType: pa.actionType }) });
+  }
+  if (path.startsWith('/proposed-actions/') && method === 'GET') {
+    const ref = decodeURIComponent(path.slice('/proposed-actions/'.length));
+    const pa = syntheticProposedAction();
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, proposedAction: { proposedActionId: ref, actionType: pa.actionType, targetReference: pa.targetReference, jurisdiction: pa.jurisdiction }, applicability: evaluatePolicyApplicability(pa.policyVersion, { jurisdiction: pa.jurisdiction, actionType: pa.actionType }) });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

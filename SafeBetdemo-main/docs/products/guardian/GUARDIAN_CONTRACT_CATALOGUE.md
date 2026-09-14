@@ -59,6 +59,15 @@ tables or arbitrary query capability. This catalogue records the owned contracts
   `guardian.case_reference` (owner postgres; own jurisdiction predicate; plain view, not SECURITY DEFINER).
   Consumers get SELECT on the view only — never the C6 case base tables.
 
+## Evidence Reference Contract (ARCH-V4-C8)
+- **Owner:** Digital Evidence Vault (C7). **Consumers:** Enforcement Policy & Authorisation (C8); future modules.
+- **Purpose/interface:** bounded, jurisdiction-scoped evidence reference (incl. `integrityStatus` +
+  `holdState` for the authorisation evidence gate) — input `{ evidenceReference, jurisdiction }`; output
+  `{ matchState (REFERENCED | EVIDENCE_REFERENCE_NOT_FOUND), evidenceReferenceId, jurisdiction, classification,
+  integrityStatus, holdState, sourceDomain, referenceStatus }`. Implementations: TS `resolveEvidenceReference(...)`
+  + DB view `guardian.evidence_reference` (owner postgres; own jurisdiction predicate; plain view, not SECURITY
+  DEFINER). Consumers get SELECT on the view only — never the C7 evidence base tables.
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

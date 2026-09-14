@@ -194,8 +194,29 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
   Contract** view `guardian.case_reference` (owner postgres; own jurisdiction predicate; plain view). Own
   secret; worker IAM least-privilege. No enforcement, no provider action, no AI legal decision.
 
+## C8 Enforcement Policy Registry & Authorisation security
+- **12 C8 tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  `action_authorisation` CHECKs force `is_external_action_executed=false` AND `is_provider_notified=false`;
+  `legal_review` CHECK `is_enforcement_execution=false`. No EXECUTED/ACTIONED/PROVIDER_ACKNOWLEDGED state.
+  Append-only history/review (trigger-guarded).
+- **Authority ≠ execution:** C8 records a human AUTHORISED ACTION RECORD and STOPS. No `/execute`,`/send`,
+  `/block`,`/referral`,`/publish` API; no outbound/provider client anywhere in the module (boundary-tested);
+  a successful AUTHORISED produces 0 external calls/messages/emails.
+- **Machine authorisation impossible (two layers):** the deterministic gate returns `AUTHORISER_NOT_PERMITTED`
+  for `SYSTEM_SERVICE` (only a human `AUTHORISING_OFFICER` authorises); and `guardian_policy_worker` has **NO
+  INSERT on `action_authorisation`/`legal_review`** — proven live (insert DENIED). SoD (Investigator ≠ Legal
+  Reviewer ≠ Authorising Officer) enforced; evidence integrity is a HARD gate (`INTEGRITY_FAILED`/missing →
+  BLOCKED).
+- **Separate dedicated principal** `guardian_policy_worker`: SELECT the 12 C8 tables + audit + SELECT on the
+  `case_reference`/`evidence_reference` contract views; INSERT ONLY `proposed_action`/history/audit; **0
+  public/IQ grants, 0 C6/C7 base tables** (verified live); no BYPASSRLS → RLS via jurisdiction GUC (ZA-GP sees
+  only ZA-GP; anon/casino_admin grants = 0). Own secret; worker IAM = logs + SQS + one secret (no
+  external/provider permission).
+- **Trigger-only guard** `guardian.policy_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked). New
+  governed **Evidence Reference Contract** view `guardian.evidence_reference`. No AI legal decision.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**3** (the C5 geo + C6 case + C7 evidence trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**4** (the C5 geo + C6 case + C7 evidence + C8 policy trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).

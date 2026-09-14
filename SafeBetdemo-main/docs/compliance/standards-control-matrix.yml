@@ -299,6 +299,24 @@ controls:
     exceptions: "Synthetic evidence only; no real illegal-gambling/customer/bank/regulator data; no enforcement/provider-referral/provider-response; no AI legal decision; manifest SHA-256 is integrity hashing, NOT a legally recognised digital signature. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Retention = POLICY_DEFINED. Least-privilege persistence on shared Supabase cluster; separate Guardian DB = P1 exit (importance increased). MFA gate blocks real privileged users. See docs/products/guardian/ + ADR-0017."
     review_date: TBD
 
+  - control_id: SEC-AUTH-018
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 20000-1 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023"
+    clause_reference: "Authority §7/§10; SoD; human authority; evidence integrity gate; no automated legal decision; no external action"
+    product: SAFEBET_GUARDIAN
+    component: enforcement-policy-authorisation
+    applicability: APPLICABLE
+    requirement_summary: "Versioned synthetic National Enforcement Policy Registry + human legal/regulatory authorisation workflow that produces a bounded AUTHORISED ACTION RECORD and STOPS: deterministic policy applicability, human-controlled legal review, hard evidence-integrity gate, SoD, human-only final authorisation, immutable scope, effective-dating/supersession, expiry/withdrawal, C9 handoff contract — and NO external provider action, NO enforcement execution, NO automated legal determination"
+    technical_control: "guardian schema 12 C8 tables (RLS, append-only history/review via trigger guard, DB CHECKs forcing is_external_action_executed=false + is_provider_notified=false + is_enforcement_execution=false; no EXECUTED/ACTIONED/PROVIDER_ACKNOWLEDGED state); products/guardian/src/authorisation deterministic gate (policy/authority/jurisdiction/legal-review/evidence/SoD/human-authoriser/scope/exception); reuse Case Reference Contract + new Evidence Reference Contract view (incl. integrity_status); SQS+DLQ+authorisation worker Lambda; dedicated guardian_policy_worker role (SELECT C8 tables + 2 contract views; INSERT ONLY proposed_action/history/audit — cannot insert action_authorisation/legal_review); AuthorisedActionContract + isEligibleForOrchestration (defined, not consumed)"
+    process_control: "ADR-0018; GUARDIAN_ENFORCEMENT_POLICY_REGISTRY/AUTHORISATION_MODEL/AUTHORISATION_SOD/LEGAL_REVIEW_WORKFLOW/ACTION_TYPES/AUTHORISED_ACTION_CONTRACT/POLICY_VERSIONING/POLICY_DATA_MODEL.md; scenario tests 1-20 incl. no-external-side-effect boundary; DB RLS negatives + authorisation-insert-DENIED (real role); live SQS/DLQ; ci:privfn; MFA hard gate"
+    evidence_required: "scenario tests 1-20; AUTHORISE!=EXECUTE (execute/notify CHECK) + no external client (boundary test); machine authorisation impossible (SYSTEM_SERVICE->AUTHORISER_NOT_PERMITTED code + guardian_policy_worker cannot INSERT action_authorisation, proven live); SoD deny/pass; evidence INTEGRITY_FAILED/missing -> BLOCKED; expired/superseded policy denied; action-outside-policy denied; expiry/withdrawal -> C9 ineligible; cross-jurisdiction + IQ casino_admin + anon denials; worker 0 public/IQ/base grants; estate unchanged (secdef 138/anon 1); guardian functions = 4 (trigger-only guards, PUBLIC EXECUTE revoked)"
+    control_owner: TBD
+    validation_method: "node --test (guardian authorisation) + DB RLS/privilege negatives (real role) + live SQS/DLQ + privfn-guard + independent review"
+    validation_frequency: per-change
+    status: "CONFORMANT (C8 foundation; human authority; no external action; synthetic-only)"
+    exceptions: "Synthetic policies/authorities/reviewers/officers/actions only; no real regulator/authority/provider/enforcement; no external integration or provider notification; no AI legal determination; MFA blocks real Authorising Officer. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. DB TLS ssl.rejectUnauthorized:false = P1 (CA-validate before real/Production). Separate Guardian DB = P1. See docs/products/guardian/ + ADR-0018."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"
