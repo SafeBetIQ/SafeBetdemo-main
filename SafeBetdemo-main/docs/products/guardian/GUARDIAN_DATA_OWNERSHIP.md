@@ -128,6 +128,18 @@ vault `safebet-guardian-evidence-demo` (block-public-access, SSE-AES256, version
 holds `s3:PutObject` on `evidence/*` only; storage is NOT relational data (the Vault owns the object
 lifecycle; the DB owns the metadata/custody).
 
+## C8 addition — Enforcement Policy Registry & Authorisation (12 tables) + dedicated worker principal + Evidence Reference Contract
+12 C8 tables (**93 guardian tables total**), RLS on all, no anon/public; `action_authorisation` CHECKs force
+`is_external_action_executed=false` AND `is_provider_notified=false` (authorise ≠ execute/notify); `legal_review`
+CHECK `is_enforcement_execution=false`; no EXECUTED/ACTIONED/PROVIDER_ACKNOWLEDGED state. Append-only history/review
+(trigger `policy_block_mutation`, PUBLIC EXECUTE revoked) → **4 guardian functions total** (geo/case/evidence/policy
+guards). A separate least-privilege role `guardian_policy_worker` (SELECT the 12 C8 tables + audit + SELECT on the
+governed `case_reference`/`evidence_reference` contract views; **INSERT ONLY on proposed_action/history/audit — NO
+insert on action_authorisation or legal_review, so it cannot grant a final authorisation**; no public/IQ, no C6/C7
+base tables; no BYPASSRLS) with its own secret `safebet-guardian/policy-worker-db`. New governed **Evidence Reference
+Contract** view `guardian.evidence_reference` (owner Digital Evidence Vault). Final AUTHORISED requires a synthetic
+human Authorising Officer (code + privilege enforced). No external provider action / no outbound integration.
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed

@@ -74,3 +74,15 @@ test('case-contract: known case → REFERENCED bounded; unknown → NOT_FOUND; w
   // GC-INTAKE-0100 exists only in ZA-WC; a ZA-GP request must not see it.
   assert.equal(resolveCaseReference({ caseReference: 'GC-INTAKE-0100', jurisdiction: 'ZA-GP' }).matchState, 'CASE_REFERENCE_NOT_FOUND');
 });
+
+// C8: Evidence Reference Contract (owner Evidence Vault; consumer Authorisation workflow).
+import { resolveEvidenceReference } from '../../products/guardian/src/index.ts';
+test('evidence-contract: known evidence → REFERENCED bounded incl. integrityStatus; unknown → NOT_FOUND; wrong-jur denied', () => {
+  const k = resolveEvidenceReference({ evidenceReference: 'EV-REF-0001', jurisdiction: 'ZA-GP' });
+  assert.equal(k.matchState, 'REFERENCED');
+  assert.equal(k.integrityStatus, 'VERIFIED');
+  assert.deepEqual(Object.keys(k).sort(), ['classification', 'evidenceReferenceId', 'holdState', 'integrityStatus', 'jurisdiction', 'matchState', 'referenceStatus', 'sourceDomain']);
+  assert.equal(resolveEvidenceReference({ evidenceReference: 'EV-REF-9999', jurisdiction: 'ZA-GP' }).matchState, 'EVIDENCE_REFERENCE_NOT_FOUND');
+  // EV-REF-0100 exists only in ZA-WC; a ZA-GP request must not see it.
+  assert.equal(resolveEvidenceReference({ evidenceReference: 'EV-REF-0100', jurisdiction: 'ZA-GP' }).matchState, 'EVIDENCE_REFERENCE_NOT_FOUND');
+});

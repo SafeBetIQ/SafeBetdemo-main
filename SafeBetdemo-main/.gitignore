@@ -50,3 +50,4 @@ products/guardian/dist-geo-worker/
 products/guardian/dist-case-worker/
 products/guardian/dist-evidence-worker/
 products/guardian/dist-evidence-reader/
+products/guardian/dist-authorisation-worker/

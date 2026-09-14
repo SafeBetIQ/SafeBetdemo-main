@@ -136,6 +136,20 @@ is separate from the runtime rollback below.
   then metadata+custody commit. Build: `node scripts/guardian/build-guardian-evidence-worker.mjs`.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C6 unaffected.
 
+### C8 Enforcement Policy Registry & Authorisation (data + async infra + policy worker principal + Evidence Reference Contract)
+- Migrations `20260911010000` (12 C8 tables, RLS, append-only history/review triggers, execute/notify CHECKs,
+  trigger-guard PUBLIC-EXECUTE revoke, seed) + `20260911020000` (Evidence Reference Contract view
+  `guardian.evidence_reference` + role `guardian_policy_worker`, no password, grants + RLS). Data rollback: drop
+  the 12 C8 tables + `policy_block_mutation()` + `evidence_reference` view + both ledger rows + drop role.
+- **Async infra:** SQS `guardian-authorisation-evaluation` + DLQ + worker Lambda
+  `safebet-guardian-authorisation-worker` (role `safebet-guardian-authorisation-worker-role`: logs + SQS +
+  `GetSecretValue` on `safebet-guardian/policy-worker-db` — NO external/provider permission) + event source
+  mapping (batch 5, ReportBatchItemFailures, maxReceiveCount 2) + CloudWatch DLQ alarm
+  `guardian-authorisation-evaluation-dlq-not-empty`.
+- **Boundary:** the worker PREPARES a proposed_action only; it CANNOT insert legal_review or
+  action_authorisation (machine authorisation impossible). No `/execute`/`/block`/`/referral`; no external call.
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C7 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·
