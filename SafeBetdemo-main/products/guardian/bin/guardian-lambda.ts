@@ -26,6 +26,8 @@ import {
   SYNTHETIC_EVIDENCE_FIXTURES, registerEvidence, verifyEvidenceContent, verifyCustodyChain,
   evaluateEvidenceAccess, buildExportManifest,
   SYNTHETIC_POLICY_VERSIONS, syntheticProposedAction, evaluatePolicyApplicability, evaluateAuthorisation, toAuthorisedActionContract,
+  resolveGuardianPrincipal, isBoundAuthorisingOfficer,
+  SYNTHETIC_PROVIDER_CHANNELS, syntheticAuthorisedAction, orchestrate, SyntheticProviderAdapter, verifyProviderOutcome, guardianDispatchState,
 } from '../src/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
@@ -107,6 +109,15 @@ export const handler = async (event: FnUrlEvent) => {
         dlq: 'guardian-authorisation-evaluation-dlq',
         persistencePrincipal: 'guardian_policy_worker (least-privilege; cannot insert final authorisation)',
         boundary: 'human authority layer — authorises action records; NEVER executes, NEVER notifies a provider (no external action)',
+      },
+      // C9 component posture (configuration state; no secrets, no live probe from the API).
+      enforcementOrchestration: {
+        enforcementWorker: 'HEALTHY',
+        queue: 'guardian-enforcement-orchestration',
+        dlq: 'guardian-enforcement-orchestration-dlq',
+        providers: 'SYNTHETIC only (no real ISP/registrar/host/bank/PSP/mobile/geo)',
+        persistencePrincipal: 'guardian_enforcement_worker (least-privilege; consumes C8 authorised_action contract only)',
+        boundary: 'Guardian orchestrates/refers authorised requests; external synthetic provider performs the action; ACK!=ACTIONED, ACTIONED!=VERIFIED; no real provider, no external network call',
       },
     });
   }
@@ -431,8 +442,14 @@ export const handler = async (event: FnUrlEvent) => {
   if (paSub && method === 'POST') {
     const ref = decodeURIComponent(paSub[1]); const sub = paSub[2]; const b = parseBody();
     const pa = syntheticProposedAction();
-    // Authorisation requires an explicit human Authorising Officer + distinct SoD principals.
-    const who = { investigatorId: 'syn-inv', legalReviewerId: 'syn-leg', legalReviewOutcome: (b.legalReviewOutcome as any) ?? 'SUFFICIENT_FOR_AUTHORISATION_REVIEW', authorisingOfficerId: String(b.authorisingOfficerId ?? 'syn-auth'), authorisingOfficerRole: String(b.authorisingOfficerRole ?? 'AUTHORISING_OFFICER') as any };
+    // C9 §2/§49 edge binding: the authoriser's ROLE is bound to the authenticated Guardian
+    // principal (registry) — it is NEVER taken from the request body. A caller can only present
+    // a principal id from authenticated context (Demo header `x-guardian-principal` /
+    // guardianPrincipalId); a self-asserted `authorisingOfficerRole` in the body is ignored.
+    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
+    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
+    if (!principal) return json(403, { product: 'GUARDIAN', error: 'unresolved/unauthenticated Guardian principal — role cannot be self-asserted', legalSafety: AUTH_SAFETY });
+    const who = { investigatorId: 'syn-inv', legalReviewerId: 'syn-leg', legalReviewOutcome: (b.legalReviewOutcome as any) ?? 'SUFFICIENT_FOR_AUTHORISATION_REVIEW', authorisingOfficerId: principal.principalId, authorisingOfficerRole: principal.role };
     const decision = evaluateAuthorisation({ ...pa, proposedActionId: ref }, who);
     if (sub === 'authorise') {
       const contract = decision.outcome === 'AUTHORISED' ? toAuthorisedActionContract(decision, { authorisationReference: `AUTH-${ref}`, authorityReference: pa.policyVersion?.authorityReference ?? null, authorisedAt: new Date().toISOString() }) : null;
@@ -444,6 +461,43 @@ export const handler = async (event: FnUrlEvent) => {
     const ref = decodeURIComponent(path.slice('/proposed-actions/'.length));
     const pa = syntheticProposedAction();
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, proposedAction: { proposedActionId: ref, actionType: pa.actionType, targetReference: pa.targetReference, jurisdiction: pa.jurisdiction }, applicability: evaluatePolicyApplicability(pa.policyVersion, { jurisdiction: pa.jurisdiction, actionType: pa.actionType }) });
+  }
+
+  // ── Multi-Channel Enforcement Orchestration (C9) — SYNTHETIC providers only.
+  //    Guardian orchestrates/refers authorised requests; the external synthetic provider
+  //    performs the provider-side action. No /block-now,/freeze-account,/remove-app,/seize-domain.
+  const ORCH_SAFETY = { isRealProvider: false, isExternalNetworkCall: false, note: 'synthetic provider orchestration — Guardian refers an authorised request; no real provider, no enforcement execution' };
+  if (path === '/enforcement' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const channels = SYNTHETIC_PROVIDER_CHANNELS.filter((c) => c.jurisdiction === jur).map((c) => ({ providerChannelId: c.providerChannelId, providerType: c.providerType, supportedActionTypes: c.supportedActionTypes, jurisdiction: c.jurisdiction }));
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', safety: ORCH_SAFETY, providerChannels: channels });
+  }
+  const orchestrateRoute = path.match(/^\/authorisations\/([^/]+)\/orchestrate$/);
+  if (orchestrateRoute && method === 'POST') {
+    const authRef = decodeURIComponent(orchestrateRoute[1]); const b = parseBody();
+    // §2/§49: only an authenticated bound principal may orchestrate; role is NEVER caller-supplied.
+    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
+    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
+    if (!principal || (principal.role !== 'AUTHORISING_OFFICER' && principal.role !== 'SYSTEM_SERVICE')) {
+      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — role cannot be self-asserted', safety: ORCH_SAFETY });
+    }
+    const authorised = { ...syntheticAuthorisedAction(), authorisationReference: authRef };
+    const adapter = new SyntheticProviderAdapter();
+    const decision = orchestrate({ orchestrationId: `ORCH-${authRef}`, authorised, requested: { actionType: authorised.actionType, targetType: authorised.targetType, targetReference: authorised.targetReference, jurisdiction: authorised.jurisdiction }, channels: SYNTHETIC_PROVIDER_CHANNELS, attemptNo: 1, dispatch: (h, n) => adapter.publishAuthorisedRequest({ requestPayloadHash: h, scenario: String(b.providerScenario ?? 'ACK_ACTIONED'), attemptNo: n }), principalAuthenticated: true });
+    return json(decision.status === 'ORCHESTRATION_BLOCKED' ? 409 : 200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, guardianDispatchState: guardianDispatchState(authorised.actionType), decision });
+  }
+  const evVerifyRoute = path.match(/^\/enforcement\/([^/]+)\/verify$/);
+  if (evVerifyRoute && method === 'POST') {
+    const b = parseBody();
+    const v = verifyProviderOutcome(String(b.actionType ?? 'DOMAIN_BLOCK') as any, b.providerActioned !== false, { observedState: String(b.observedState ?? 'UNAVAILABLE'), expectedState: String(b.expectedState ?? 'UNAVAILABLE') });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evVerifyRoute[1]), verification: v, note: 'ACTIONED != VERIFIED — verification is independent of dispatch' });
+  }
+  const evRespRoute = path.match(/^\/enforcement\/([^/]+)\/(responses|withdraw)$/);
+  if (evRespRoute && (method === 'GET' || method === 'POST')) {
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evRespRoute[1]), resource: evRespRoute[2], note: 'provider-originated states come only from the synthetic adapter; withdrawal after dispatch records a cancellation request, not a fabricated provider acceptance' });
+  }
+  if (path.startsWith('/enforcement/') && method === 'GET') {
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(path.slice('/enforcement/'.length)) });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

@@ -215,8 +215,30 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - **Trigger-only guard** `guardian.policy_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked). New
   governed **Evidence Reference Contract** view `guardian.evidence_reference`. No AI legal decision.
 
+## C9 Multi-Channel Enforcement Orchestration security
+- **8 C9 tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied);
+  `enforcement_orchestration` CHECKs force `is_real_provider=false` AND `is_external_network_call=false`.
+  Append-only response/verification/history/attempt/withdrawal/request (trigger-guarded).
+- **Guardian orchestrates, providers perform:** SYNTHETIC providers only; no real ISP/registrar/host/bank/PSP/
+  mobile/geo; no outbound/provider client anywhere in the module or worker (boundary-tested; no fetch/http/net/
+  provider credential); no `/block-now`/`/freeze-account`/`/remove-app`/`/seize-domain` API. Provider-originated
+  states come only from a `provider_response` row; ACK != ACTIONED; ACTIONED != VERIFIED (verifications=0 at
+  ACTIONED, proven live).
+- **Authenticated authorising identity (closes the C8 finding):** the `/authorise` and `/orchestrate` edges bind
+  role/jurisdiction to an authenticated Guardian principal (`resolveGuardianPrincipal`); a caller cannot
+  self-assert `AUTHORISING_OFFICER` from the request body (proven).
+- **Consume only revalidated C8 authorisations:** the bounded `guardian.authorised_action` view is a data-layer
+  revalidation gate (expired/withdrawn/superseded rows invisible); revalidated again before dispatch. No detection
+  → enforcement path (no AUTHORISED contract → BLOCKED).
+- **Separate dedicated principal** `guardian_enforcement_worker`: SELECT/INSERT the 8 C9 tables + audit; SELECT on
+  `authorised_action` view only; **0 public/IQ grants, 0 C1–C8 base tables** (verified live); no BYPASSRLS → RLS
+  via jurisdiction GUC (ZA-GP sees only ZA-GP; anon/casino_admin grants = 0). Own secret; worker IAM = logs + SQS
+  + one secret (no external/provider/network permission).
+- **Trigger-only guard** `guardian.orchestration_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked). New
+  governed **Authorised-Action Contract** view. No AI enforcement; C8 human authorisation is the prerequisite.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**4** (the C5 geo + C6 case + C7 evidence + C8 policy trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**5** (the C5 geo + C6 case + C7 evidence + C8 policy + C9 orchestration trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).

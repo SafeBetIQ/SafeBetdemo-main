@@ -1,5 +1,6 @@
 // ─── SafeBet Guardian — Enforcement Policy & Authorisation module surface (C8) ─
 export * from './types.ts';
+export * from './principal.ts';
 export * from './policy.ts';
 export * from './gate.ts';
 export * from './contract.ts';
