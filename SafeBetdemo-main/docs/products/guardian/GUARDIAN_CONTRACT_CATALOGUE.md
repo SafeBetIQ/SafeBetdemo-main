@@ -68,6 +68,16 @@ tables or arbitrary query capability. This catalogue records the owned contracts
   + DB view `guardian.evidence_reference` (owner postgres; own jurisdiction predicate; plain view, not SECURITY
   DEFINER). Consumers get SELECT on the view only — never the C7 evidence base tables.
 
+## Authorised-Action Contract (ARCH-V4-C9)
+- **Owner:** Enforcement Policy & Authorisation (C8). **Consumers:** Multi-Channel Enforcement Orchestration (C9).
+- **Purpose/interface:** bounded, jurisdiction-scoped snapshot of an AUTHORISED, non-expired action — TS
+  `AuthorisedActionContract` (`authorisationReference, actionType, targetType, targetReference, jurisdiction,
+  policyReference, authorityReference, caseReference, evidenceManifestReference, evidenceManifestHash,
+  authorisedAt, expiresAt, conditions, status`) + DB view `guardian.authorised_action` whose WHERE clause is a
+  **data-layer revalidation gate** (only `authorisation_status='AUTHORISED'` and not-expired rows are visible;
+  plain view, not SECURITY DEFINER). Consumers get SELECT on the view only — never `guardian.action_authorisation`.
+  `isEligibleForOrchestration(...)` restates the eligibility (AUTHORISED, not expired, not withdrawn).
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

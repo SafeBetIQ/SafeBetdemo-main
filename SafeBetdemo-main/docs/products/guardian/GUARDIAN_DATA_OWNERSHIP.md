@@ -140,6 +140,19 @@ base tables; no BYPASSRLS) with its own secret `safebet-guardian/policy-worker-d
 Contract** view `guardian.evidence_reference` (owner Digital Evidence Vault). Final AUTHORISED requires a synthetic
 human Authorising Officer (code + privilege enforced). No external provider action / no outbound integration.
 
+## C9 addition — Multi-Channel Enforcement Orchestration (8 tables) + dedicated worker principal + Authorised-Action Contract
+8 C9 tables (**101 guardian tables total**), RLS on all, no anon/public; `enforcement_orchestration` CHECKs force
+`is_real_provider=false` AND `is_external_network_call=false`; append-only response/verification/history/attempt/
+withdrawal/request (trigger `orchestration_block_mutation`, PUBLIC EXECUTE revoked) → **5 guardian functions total**
+(geo/case/evidence/policy/orchestration guards). SYNTHETIC providers only. A separate least-privilege role
+`guardian_enforcement_worker` (SELECT/INSERT the 8 C9 tables + audit; SELECT on the governed `authorised_action`
+contract view ONLY; **no public/IQ, no C1–C8 base tables**; no BYPASSRLS) with its own secret
+`safebet-guardian/enforcement-worker-db`; worker IAM = logs + SQS + one secret (NO external/provider/network
+permission). New governed **Authorised-Action Contract** view `guardian.authorised_action` (owner C8; data-layer
+revalidation gate — only AUTHORISED, non-expired rows visible). C9 orchestrates/refers authorised requests to
+synthetic providers; it never performs a provider-side action, never notifies a real provider, cannot widen scope,
+and cannot self-assert authorising identity (role bound to authenticated principal — closes the C8 finding).
+
 ## Interim exception + P1 exit target
 The `guardian_domain_worker` role connects to the **same Supabase Postgres instance** as SafeBet
 IQ (shared cluster, separate schema + separate least-privilege principal). This is a **governed

@@ -317,6 +317,24 @@ controls:
     exceptions: "Synthetic policies/authorities/reviewers/officers/actions only; no real regulator/authority/provider/enforcement; no external integration or provider notification; no AI legal determination; MFA blocks real Authorising Officer. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. DB TLS ssl.rejectUnauthorized:false = P1 (CA-validate before real/Production). Separate Guardian DB = P1. See docs/products/guardian/ + ADR-0018."
     review_date: TBD
 
+  - control_id: SEC-ENFORCE-019
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 20000-1 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023"
+    clause_reference: "Authority §7/§10; external-interface controls; human-authorisation prerequisite; no automatic enforcement; provider-neutrality; verification independence"
+    product: SAFEBET_GUARDIAN
+    component: enforcement-orchestration
+    applicability: APPLICABLE
+    requirement_summary: "Provider-neutral orchestration of C8-authorised actions to SYNTHETIC providers: authenticated authorising identity (no self-assert), revalidated authorisation, immutable scope, synthetic-only adapters, no real provider endpoint/credential, provider state machine (ACK!=ACTIONED, ACTIONED!=VERIFIED), payload hashing/versioning, technical-retry vs decline, independent verification, idempotency, withdrawal/expiry — and NO real external provider action, NO detection->enforcement bypass, NO scope widening"
+    technical_control: "guardian schema 8 C9 tables (RLS, append-only response/verification/history/attempt/withdrawal/request via trigger guard, DB CHECKs forcing is_real_provider=false + is_external_network_call=false); products/guardian/src/enforcement (revalidation gate + orchestration engine + SyntheticProviderAdapter + independent verification + payload SHA-256 + retry semantics); resolveGuardianPrincipal binds authoriser role to authenticated principal (closes C8 finding); guardian.authorised_action contract view = data-layer revalidation gate (AUTHORISED+non-expired only); SQS+DLQ+enforcement worker Lambda; dedicated guardian_enforcement_worker role (C9 tables + authorised_action view only; no C1-C8 base; no BYPASSRLS); worker IAM logs+SQS+one-secret (no external/provider/network)"
+    process_control: "ADR-0019; GUARDIAN_ENFORCEMENT_ORCHESTRATION/PROVIDER_STATE_MACHINE/PROVIDER_ADAPTER_CONTRACT/ENFORCEMENT_VERIFICATION/PROVIDER_PAYLOAD/ENFORCEMENT_RETRY_POLICY/ACTION_WITHDRAWAL.md; scenario tests 1-24 incl. no-external-provider boundary + self-assert denial; DB RLS negatives (real role); live synthetic flow (authorised->ACTIONED, not auto-VERIFIED); ci:privfn; MFA hard gate"
+    evidence_required: "scenario tests 1-24; is_real_provider/is_external_network_call CHECK + no outbound client (boundary test) + no provider credential; caller cannot self-assert AUTHORISING_OFFICER; expired/withdrawn/scope-mutated -> BLOCKED (no provider request); ACK!=ACTIONED, ACTIONED!=VERIFIED (verifications=0 at ACTIONED, live); technical retry vs decline; idempotency (duplicate->one request); payload hash stable on retry; enforcement_worker 0 public/IQ/C1-C8-base grants; estate unchanged (secdef 138/anon 1); guardian functions = 5 (trigger-only guards, PUBLIC EXECUTE revoked)"
+    control_owner: TBD
+    validation_method: "node --test (guardian enforcement) + DB RLS negatives (real role) + live SQS/DLQ synthetic flow + privfn-guard + independent review"
+    validation_frequency: per-change
+    status: "CONFORMANT (C9 foundation; synthetic providers; no real external action; synthetic-only)"
+    exceptions: "SYNTHETIC providers/adapters only; no real ISP/registrar/registry/host/bank/PSP/mobile/geo integration, endpoint or credential; no real enforcement/provider action; no detection->enforcement; human C8 authorisation is the prerequisite; MFA blocks real users. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. DB TLS ssl.rejectUnauthorized:false = P1 (CA-validate before real/Production). Separate Guardian DB = P1. See docs/products/guardian/ + ADR-0019."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

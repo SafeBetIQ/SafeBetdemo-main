@@ -150,6 +150,21 @@ is separate from the runtime rollback below.
   action_authorisation (machine authorisation impossible). No `/execute`/`/block`/`/referral`; no external call.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C7 unaffected.
 
+### C9 Multi-Channel Enforcement Orchestration (data + async infra + enforcement worker principal + Authorised-Action Contract)
+- Migrations `20260912010000` (8 C9 tables, RLS, append-only triggers, real-provider/external-call CHECKs,
+  trigger-guard PUBLIC-EXECUTE revoke, synthetic provider-channel seed) + `20260912020000` (Authorised-Action
+  Contract view `guardian.authorised_action` + role `guardian_enforcement_worker`, no password, grants + RLS).
+  Data rollback: drop the 8 C9 tables + `orchestration_block_mutation()` + `authorised_action` view + both ledger
+  rows + drop role. **Runtime rollback must not delete orchestration history.**
+- **Async infra:** SQS `guardian-enforcement-orchestration` + DLQ + worker Lambda
+  `safebet-guardian-enforcement-worker` (role `safebet-guardian-enforcement-worker-role`: logs + SQS +
+  `GetSecretValue` on `safebet-guardian/enforcement-worker-db` — NO external/provider/network permission) + event
+  source mapping (batch 5, ReportBatchItemFailures, maxReceiveCount 2) + CloudWatch DLQ alarm
+  `guardian-enforcement-orchestration-dlq-not-empty`.
+- **Boundary:** SYNTHETIC providers only; Guardian orchestrates/refers, never performs the provider action;
+  verification is a separate step (ACTIONED != VERIFIED). Consumes only the `authorised_action` contract view.
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C8 unaffected.
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·
