@@ -165,6 +165,26 @@ is separate from the runtime rollback below.
   verification is a separate step (ACTIONED != VERIFIED). Consumes only the `authorised_action` contract view.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C8 unaffected.
 
+#### C9.1 immutable-runtime & DB-identity close-out (infra/provenance only; no C9 behaviour change)
+- **Durable invocation is immutable:** the SQS event-source mapping (`563d2102-1088-4934-88b8-ba75f6ff5971`)
+  targets the **qualified alias ARN** `…:function:safebet-guardian-enforcement-worker:demo` (NOT the mutable
+  unqualified `$LATEST`). `demo` alias → immutable published **v2**; v2 `CodeSha256 czfK/cluCfgiG5HshpsIGkRNta7CUxuq3AXaITwujiU=`
+  == `$LATEST` at publish time. v2 artifact bakes `__GUARDIAN_GIT_COMMIT__ = 08e99c72…` and live queue logs
+  emit `sourceSha 08e99c72…` while resolving `Version: 2` — canonical source proven three ways.
+- **DB authentication identity:** the worker connects **directly** (no `SET ROLE`, no broader login) using the
+  dedicated secret `safebet-guardian/enforcement-worker-db`. Because the datastore is the Supabase transaction
+  **pooler**, the secret's *username field* is formatted `guardian_enforcement_worker.<project-ref>`; the
+  resolved Postgres session identity is `current_user = session_user = guardian_enforcement_worker`
+  (`rolsuper=false, rolbypassrls=false, rolcreaterole=false, rolcreatedb=false, login=true`). The C9 migration
+  created the role `LOGIN` **without a password**; a login password was subsequently assigned out-of-band and
+  stored only in Secrets Manager (never in source/migrations) — the original "no password" wording described
+  the migration state, not the runtime, which does authenticate with a Secrets-Manager-held password.
+- **Least privilege (runtime identity):** 19 grants = SELECT+INSERT on the 8 C9 tables + `audit_context`, plus
+  SELECT on the `authorised_action` contract view; **0 UPDATE, 0 DELETE, 0 C1–C8 base-table grants, 0
+  public/SafeBet-IQ grants, no BYPASSRLS**. RLS proven with the runtime identity: correct jurisdiction ALLOWED,
+  wrong jurisdiction DENIED. Exec-role `secretsmanager:GetSecretValue` is scoped to
+  `safebet-guardian/enforcement-worker-db-f4R8b3` **only** (no other Guardian DB secret, no SafeBet IQ secret).
+
 ### C3.2 branded Demo edge (guardian-demo.safebetiq.com)
 - **Resources:** ACM cert (eu-west-1, DNS-validated) · API Gateway HTTP API `safebet-guardian-demo-edge`
   (Lambda proxy → `safebet-guardian-demo`; `$default`=AWS_IAM; `GET /health`+`/version`=public) ·
