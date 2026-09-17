@@ -52,3 +52,4 @@ products/guardian/dist-evidence-worker/
 products/guardian/dist-evidence-reader/
 products/guardian/dist-authorisation-worker/
 products/guardian/dist-enforcement-worker/
+products/guardian/dist-reentry-worker/
