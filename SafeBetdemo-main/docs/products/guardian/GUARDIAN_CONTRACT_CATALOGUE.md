@@ -78,6 +78,17 @@ tables or arbitrary query capability. This catalogue records the owned contracts
   plain view, not SECURITY DEFINER). Consumers get SELECT on the view only — never `guardian.action_authorisation`.
   `isEligibleForOrchestration(...)` restates the eligibility (AUTHORISED, not expired, not withdrawn).
 
+## C9 Orchestration Reference Contract (ARCH-V4-C10)
+- **Owner:** Multi-Channel Enforcement Orchestration (C9). **Consumers:** Re-entry Intelligence (C10); future modules.
+- **Purpose/interface:** bounded, jurisdiction-scoped snapshot of an orchestration incl. its latest
+  provider + verification state — output `{ orchestrationReference, authorisationReference, actionType,
+  targetType, targetReference, jurisdiction, providerChannel, orchestrationStatus, latestProviderState,
+  latestVerificationState, createdAt, closedAt, referenceStatus }`. Implementations: TS
+  `resolveOrchestrationReference(...)` + DB view `guardian.orchestration_reference` (owner postgres; own
+  jurisdiction predicate; plain view, not SECURITY DEFINER). Consumers get SELECT on the view only —
+  never `guardian.enforcement_orchestration` / `provider_response` / `enforcement_verification`.
+  `historicVerificationIsImmutable(...)` restates that a prior VERIFIED state stays historically true.
+
 ## Legal Operator Registry Contract (ARCH-V4-C1)
 - **Owner:** Legal Operator Registry (C1). **Consumers:** Domain (C2), App (C3).
 - `resolveLegalReference(...)` → bounded legal standing + provenance; `isIllegalDetermination`

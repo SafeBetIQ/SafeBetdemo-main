@@ -29,6 +29,12 @@ import {
   resolveGuardianPrincipal, isBoundAuthorisingOfficer,
   SYNTHETIC_PROVIDER_CHANNELS, syntheticAuthorisedAction, orchestrate, SyntheticProviderAdapter, verifyProviderOutcome, guardianDispatchState,
 } from '../src/index.ts';
+// C10 re-entry intelligence — imported from the subpath (its VerificationType would collide with
+// the C9 enforcement export in the shared top-level index). Intelligence + routing only.
+import {
+  detectReentry, applyReview, routeCandidate, buildVerificationObservation, actionedButNotVerified,
+  syntheticVerifiedOrchestration, SIGNAL_SAME_TARGET_AVAILABLE, coverageExplicit,
+} from '../src/reentry/index.ts';
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
 declare const __GUARDIAN_GIT_COMMIT__: string;
@@ -118,6 +124,15 @@ export const handler = async (event: FnUrlEvent) => {
         providers: 'SYNTHETIC only (no real ISP/registrar/host/bank/PSP/mobile/geo)',
         persistencePrincipal: 'guardian_enforcement_worker (least-privilege; consumes C8 authorised_action contract only)',
         boundary: 'Guardian orchestrates/refers authorised requests; external synthetic provider performs the action; ACK!=ACTIONED, ACTIONED!=VERIFIED; no real provider, no external network call',
+      },
+      // C10 component posture (configuration state; no secrets, no live probe from the API).
+      reentryIntelligence: {
+        reentryWorker: 'HEALTHY',
+        queue: 'guardian-reentry-intelligence',
+        dlq: 'guardian-reentry-intelligence-dlq',
+        sources: 'SYNTHETIC only (no real crawling/DNS/provider/app-store/payment/traffic surveillance)',
+        persistencePrincipal: 'guardian_reentry_worker (least-privilege; consumes C9 orchestration_reference contract only; no C9 enforcement queue send)',
+        boundary: 'intelligence + continuous verification + routing only; RE-ENTRY != ILLEGALITY, SIMILAR != SAME ENTITY; human review required; routes to C6/C8 only; C10 cannot dispatch C9 or apply authority; historic VERIFIED immutable',
       },
     });
   }
@@ -496,8 +511,62 @@ export const handler = async (event: FnUrlEvent) => {
   if (evRespRoute && (method === 'GET' || method === 'POST')) {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evRespRoute[1]), resource: evRespRoute[2], note: 'provider-originated states come only from the synthetic adapter; withdrawal after dispatch records a cancellation request, not a fabricated provider acceptance' });
   }
+  const evHistoryRoute = path.match(/^\/enforcement\/([^/]+)\/verification-history$/);
+  if (evHistoryRoute && method === 'GET') {
+    // Continuous / follow-up verification history for an orchestration (synthetic, append-only).
+    const ref = decodeURIComponent(evHistoryRoute[1]);
+    const orchestration = syntheticVerifiedOrchestration({ orchestrationReference: ref });
+    const followup = buildVerificationObservation(orchestration, SIGNAL_SAME_TARGET_AVAILABLE, 'FOLLOWUP');
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', orchestrationReference: ref,
+      note: 'historic VERIFIED state is immutable; follow-up observations are appended, never rewritten',
+      history: [{ observationKind: 'INITIAL', verificationType: followup.verificationType, result: 'EXPECTED_STATE_OBSERVED', immutable: true }, { observationKind: 'FOLLOWUP', verificationType: followup.verificationType, result: followup.result }],
+      actionedButNotVerified: actionedButNotVerified(orchestration) });
+  }
   if (path.startsWith('/enforcement/') && method === 'GET') {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(path.slice('/enforcement/'.length)) });
+  }
+
+  // ── Re-entry Intelligence & Continuous Verification (C10) — INTELLIGENCE + ROUTING ONLY.
+  //    Never enforces, never applies authority, never dispatches C9. No /reblock,/re-enforce,
+  //    /auto-referral. Human review is required before any routing; routing goes to C6/C8 only.
+  const REENTRY_SAFETY = { isIllegalityDetermined: false, isAuthorityApplied: false, isEnforcementDispatched: false, isRealObservationSource: false, isExternalNetworkCall: false, note: 're-entry candidate is correlation + verification intelligence for human review; C10 cannot re-block/re-refer/dispatch and cannot self-assert authority' };
+  if (path === '/reentry' && method === 'GET') {
+    const jur = query.get('jurisdiction') ?? 'ZA-GP';
+    const decision = detectReentry({ jurisdiction: jur, orchestration: syntheticVerifiedOrchestration({ jurisdiction: jur }), signal: SIGNAL_SAME_TARGET_AVAILABLE, coverage: coverageExplicit({ jurisdiction: jur }) });
+    return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', safety: REENTRY_SAFETY, candidate: decision });
+  }
+  const reentryReviewRoute = path.match(/^\/reentry\/([^/]+)\/review$/);
+  if (reentryReviewRoute && method === 'POST') {
+    const b = parseBody();
+    // §42: reviewer role is bound from an authenticated Guardian principal — NEVER self-asserted,
+    // and jurisdiction is never taken from the request body.
+    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
+    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
+    if (!principal || (principal.role !== 'INVESTIGATOR' && principal.role !== 'LEGAL_REVIEWER')) {
+      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — reviewer role cannot be self-asserted', safety: REENTRY_SAFETY });
+    }
+    const allowed = ['SAME_TARGET_CONFIRMED', 'RELATED_TARGET_CONFIRMED', 'RELATIONSHIP_UNRESOLVED', 'FALSE_POSITIVE', 'EXISTING_AUTHORITY_REVIEW_REQUIRED', 'NEW_INVESTIGATION_REQUIRED', 'INSUFFICIENT_EVIDENCE'];
+    const outcome = String(b.outcome ?? '');
+    if (!allowed.includes(outcome)) return json(400, { product: 'GUARDIAN', error: 'unsupported review outcome (no AUTO_BLOCK_APPROVED exists)', outcome, safety: REENTRY_SAFETY });
+    const review = applyReview(outcome as any);
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryReviewRoute[1]), reviewerRole: principal.role, jurisdiction: principal.jurisdiction, review });
+  }
+  const reentryRouteRoute = path.match(/^\/reentry\/([^/]+)\/route$/);
+  if (reentryRouteRoute && method === 'POST') {
+    const b = parseBody();
+    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
+    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
+    if (!principal || (principal.role !== 'INVESTIGATOR' && principal.role !== 'LEGAL_REVIEWER')) {
+      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — role cannot be self-asserted', safety: REENTRY_SAFETY });
+    }
+    const routing = routeCandidate({ reviewOutcome: String(b.reviewOutcome ?? 'RELATIONSHIP_UNRESOLVED') as any, coverageState: String(b.coverageState ?? 'COVERAGE_UNCLEAR') as any });
+    // C10 records a routing outcome to C6/C8 only — it never authorises (C8) or dispatches (C9).
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryRouteRoute[1]), routing, note: 'routing target is C6 investigation or C8 authority review only — final authorisation remains C8; dispatch remains C9' });
+  }
+  if (path.startsWith('/reentry/') && method === 'GET') {
+    const ref = decodeURIComponent(path.slice('/reentry/'.length));
+    const decision = detectReentry({ jurisdiction: query.get('jurisdiction') ?? 'ZA-GP', orchestration: syntheticVerifiedOrchestration(), signal: SIGNAL_SAME_TARGET_AVAILABLE, coverage: coverageExplicit() });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: ref, candidate: decision });
   }
 
   return json(404, { product: 'GUARDIAN', error: 'not found', path });

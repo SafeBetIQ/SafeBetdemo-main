@@ -237,8 +237,29 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - **Trigger-only guard** `guardian.orchestration_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked). New
   governed **Authorised-Action Contract** view. No AI enforcement; C8 human authorisation is the prerequisite.
 
+## C10 Re-entry Intelligence & Continuous Verification security
+- **7 C10 tables** RLS-enabled (jurisdiction-local; Guardian principals only; IQ/anon denied). Safety
+  DB CHECKs: `is_illegality_determined=false`, `is_authority_applied=false`, `is_final_legal_determination=false`,
+  `is_authorisation_granted=false`, `is_enforcement_dispatched=false`, `is_real_observation_source=false`,
+  `is_external_network_call=false`.
+- **Six append-only tables** (observation/relationship/coverage/review/routing/history) guarded by
+  `guardian.reentry_block_mutation()` (SECURITY INVOKER; PUBLIC EXECUTE revoked). `reentry_candidate` is a
+  state machine (service_role UPDATE) whose transitions are recorded in the append-only history; historic
+  VERIFIED verification records are never rewritten.
+- **No detection→enforcement**: C10 produces intelligence + routing only; C9 still runs only on a valid
+  bounded C8 `AuthorisedActionContract`. `RE-ENTRY != ILLEGALITY`, `SIMILAR != SAME ENTITY`; standing
+  authority is never inferred (explicit C8 coverage only).
+- **Separate dedicated principal** `guardian_reentry_worker`: SELECT/INSERT the 7 C10 tables + audit; SELECT
+  on the C9 **Orchestration Reference Contract** view only; **no C1–C9 base tables, no UPDATE/DELETE, no
+  BYPASSRLS**. Worker IAM: logs + SQS Receive/Delete/GetQueueAttributes on the reentry queue+DLQ + one secret
+  — **no `sqs:SendMessage`** (cannot enqueue C9 enforcement), no external/provider/network permission.
+- **Immutable runtime** (C9.1 lesson from inception): the reentry ESM targets the qualified `:demo` alias,
+  never `$LATEST`. Reviewer role/jurisdiction bound from the authenticated principal (no self-assert).
+- **Synthetic sources only**: no real crawling/DNS/provider/app-store/payment/traffic surveillance; no
+  person-level surveillance (operator/brand/service/domain/app/payment-channel/infra reference level; C5 boundary preserved).
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**5** (the C5 geo + C6 case + C7 evidence + C8 policy + C9 orchestration trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**6** (the C5 geo + C6 case + C7 evidence + C8 policy + C9 orchestration + C10 re-entry trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).

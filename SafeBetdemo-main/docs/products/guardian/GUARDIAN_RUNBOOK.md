@@ -165,6 +165,23 @@ is separate from the runtime rollback below.
   verification is a separate step (ACTIONED != VERIFIED). Consumes only the `authorised_action` contract view.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C8 unaffected.
 
+### C10 Re-entry Intelligence & Continuous Verification (data + async infra + re-entry worker principal + C9 Orchestration Reference Contract)
+- Migrations `20260915010000` (7 C10 tables, RLS, append-only triggers, illegality/authority/legal-determination/
+  dispatch CHECKs, trigger-guard PUBLIC-EXECUTE revoke) + `20260915020000` (C9 Orchestration Reference Contract
+  view `guardian.orchestration_reference` + role `guardian_reentry_worker`, no password, grants + RLS).
+  Data rollback: drop the 7 C10 tables + `reentry_block_mutation()` + `orchestration_reference` view + drop role.
+  **Runtime rollback must not delete re-entry history/data** (runtime target stays C9 `08e99c7`).
+- **Async infra:** SQS `guardian-reentry-intelligence` + DLQ + worker Lambda `safebet-guardian-reentry-worker`
+  (role `safebet-guardian-reentry-worker-role`: logs + SQS Receive/Delete/GetQueueAttributes on the reentry
+  queue+DLQ + `GetSecretValue` on `safebet-guardian/reentry-worker-db` — **NO `sqs:SendMessage`**, so it
+  cannot enqueue C9 enforcement; NO external/provider/network permission) + immutable-alias ESM (targets
+  `…:safebet-guardian-reentry-worker:demo`, never `$LATEST`) + CloudWatch DLQ alarm
+  `guardian-reentry-intelligence-dlq-not-empty`.
+- **Boundary:** intelligence + continuous verification + routing only; SYNTHETIC sources; RE-ENTRY != ILLEGALITY,
+  SIMILAR != SAME ENTITY; human review required; routes to C6/C8 only; C10 never dispatches C9 or applies
+  authority; historic VERIFIED immutable. Consumes only the `orchestration_reference` contract view.
+- **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C9 unaffected.
+
 #### C9.1 immutable-runtime & DB-identity close-out (infra/provenance only; no C9 behaviour change)
 - **Durable invocation is immutable:** the SQS event-source mapping (`563d2102-1088-4934-88b8-ba75f6ff5971`)
   targets the **qualified alias ARN** `…:function:safebet-guardian-enforcement-worker:demo` (NOT the mutable
