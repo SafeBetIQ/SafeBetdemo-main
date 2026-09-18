@@ -35,6 +35,48 @@ import {
   detectReentry, applyReview, routeCandidate, buildVerificationObservation, actionedButNotVerified,
   syntheticVerifiedOrchestration, SIGNAL_SAME_TARGET_AVAILABLE, coverageExplicit,
 } from '../src/reentry/index.ts';
+// PR1 — production-ready human identity (cryptographic JWT + governed entitlement + MFA).
+import {
+  authenticateGuardianRequest, GuardianAuthError, RemoteJwksProvider, cognitoJwksUri,
+  hasCapability, mayReachC8AuthorisationGate, principalMayAccessJurisdiction,
+  type AuthenticatedGuardianPrincipal, type GuardianCapability, type EntitlementRecord,
+} from '../src/identity-auth/index.ts';
+import { Client as PgClient } from 'pg';
+import { SecretsManagerClient as SM, GetSecretValueCommand as GetSecret } from '@aws-sdk/client-secrets-manager';
+
+// ── PR1 production-ready auth infrastructure (module-level singletons; cached across invocations) ──
+// GUARDIAN_AUTH_MODE = 'jwt' (production-ready; Cognito) | 'synthetic' (test harness / demo only).
+// The two paths are SEPARATE: jwt mode NEVER consults the synthetic principal registry (no fallback).
+const AUTH_MODE = process.env.GUARDIAN_AUTH_MODE ?? 'synthetic';
+const JWT_REGION = process.env.AWS_REGION ?? 'eu-west-1';
+const JWT_POOL_ID = process.env.GUARDIAN_JWT_USER_POOL_ID ?? '';
+const JWT_ISSUER = process.env.GUARDIAN_JWT_ISSUER ?? (JWT_POOL_ID ? `https://cognito-idp.${JWT_REGION}.amazonaws.com/${JWT_POOL_ID}` : '');
+const JWT_AUDIENCE = process.env.GUARDIAN_JWT_AUDIENCE ?? '';
+const JWT_TOKEN_USE = (process.env.GUARDIAN_JWT_TOKEN_USE ?? 'access') as 'access' | 'id';
+const IDENTITY_SECRET_ID = process.env.GUARDIAN_IDENTITY_DB_SECRET_ID ?? 'safebet-guardian/identity-resolver-db';
+let _jwks: RemoteJwksProvider | null = null;
+function jwksProvider(): RemoteJwksProvider {
+  if (!_jwks) _jwks = new RemoteJwksProvider(process.env.GUARDIAN_JWT_JWKS_URI ?? cognitoJwksUri(JWT_REGION, JWT_POOL_ID));
+  return _jwks;
+}
+let _idConn: { host: string; port: number; user: string; password: string; database: string } | null = null;
+async function identityConn() {
+  if (_idConn) return _idConn;
+  const res = await new SM({ region: JWT_REGION }).send(new GetSecret({ SecretId: IDENTITY_SECRET_ID }));
+  _idConn = JSON.parse(res.SecretString ?? '{}'); return _idConn!;
+}
+/** Governed entitlement lookup by trusted subject (least-privilege resolver role). */
+async function lookupEntitlement(subject: string): Promise<EntitlementRecord | null> {
+  const c = await identityConn();
+  const client = new PgClient({ host: c.host, port: c.port, user: c.user, password: c.password, database: c.database, ssl: { rejectUnauthorized: false }, statement_timeout: 8000, connectionTimeoutMillis: 6000 });
+  await client.connect();
+  try {
+    const r = await client.query('select subject, guardian_role, jurisdiction, account_state, effective_from, effective_until, is_human from guardian.identity_entitlement where subject=$1', [subject]);
+    if ((r.rowCount ?? 0) === 0) return null;
+    const row = r.rows[0];
+    return { subject: row.subject, role: row.guardian_role, jurisdiction: row.jurisdiction, accountState: row.account_state, effectiveFrom: row.effective_from, effectiveUntil: row.effective_until, isHuman: row.is_human };
+  } finally { await client.end().catch(() => {}); }
+}
 
 // Injected at build time (esbuild --define). Fallbacks keep local runs honest.
 declare const __GUARDIAN_GIT_COMMIT__: string;
@@ -63,6 +105,48 @@ export const handler = async (event: FnUrlEvent) => {
     } catch { return {}; }
   };
   const json = (status: number, body: unknown) => ({ statusCode: status, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const headers = ((event as any)?.headers ?? {}) as Record<string, string>;
+
+  // ── PR1 production-ready privileged gate ────────────────────────────────────
+  // In 'jwt' mode: validate a Cognito bearer token → governed entitlement → MFA gate →
+  // authenticated HUMAN principal; role/jurisdiction NEVER from the request; NO synthetic
+  // fallback. Returns { principal } or { deny } (a ready json response). In 'synthetic' mode:
+  // the isolated test-harness path (x-guardian-principal → SYNTHETIC_PRINCIPALS).
+  type Gate = { principal?: AuthenticatedGuardianPrincipal; synthetic?: { role: string; jurisdiction: string; principalId: string }; deny?: ReturnType<typeof json> };
+  const denyAudit = (status: number, reason: string, auditEvent: string) => json(status, { product: 'GUARDIAN', error: 'privileged access denied', reasonCode: reason, auditEvent, authMode: AUTH_MODE });
+  async function gate(capability: GuardianCapability, resourceJurisdiction?: string): Promise<Gate> {
+    if (AUTH_MODE === 'jwt') {
+      try {
+        const { principal } = await authenticateGuardianRequest({
+          authorizationHeader: headers['authorization'] ?? headers['Authorization'],
+          jwks: jwksProvider(), validation: { issuer: JWT_ISSUER, audience: JWT_AUDIENCE, tokenUse: JWT_TOKEN_USE },
+          lookupEntitlement,
+          // Verified pool property (MfaConfiguration=ON): a valid token evidences completed MFA.
+          issuerEnforcesMfa: (process.env.GUARDIAN_JWT_ISSUER_ENFORCES_MFA ?? 'false') === 'true',
+        });
+        if (!hasCapability(principal, capability)) return { deny: denyAudit(403, 'CAPABILITY_DENIED', 'PRIVILEGED_ACCESS_DENIED') };
+        if (resourceJurisdiction && !principalMayAccessJurisdiction(principal, resourceJurisdiction)) return { deny: denyAudit(403, 'JURISDICTION_DENIED', 'PRIVILEGED_ACCESS_DENIED') };
+        return { principal };
+      } catch (e) {
+        const err = e as GuardianAuthError;
+        return { deny: denyAudit(err.status ?? 401, err.reasonCode ?? 'AUTH_FAILED', err.auditEvent ?? 'AUTHENTICATION_FAILED') };
+      }
+    }
+    // synthetic test-harness path (clearly separated; never used in jwt mode)
+    const principalId = headers['x-guardian-principal'] ?? String(parseBody().guardianPrincipalId ?? '');
+    const p = resolveGuardianPrincipal(principalId);
+    if (!p) return { deny: json(403, { product: 'GUARDIAN', error: 'unauthenticated Guardian principal (synthetic harness)', authMode: AUTH_MODE }) };
+    return { synthetic: { role: p.role, jurisdiction: p.jurisdiction, principalId: p.principalId } };
+  }
+
+  // PR1 identity introspection (proves the authenticated principal; no token echoed).
+  if (path === '/auth/whoami' && method === 'GET') {
+    if (AUTH_MODE !== 'jwt') return json(200, { product: 'GUARDIAN', authMode: AUTH_MODE, note: 'synthetic test-harness mode; production-ready identity is jwt mode' });
+    const g = await gate('CASE_VIEW');
+    if (g.deny) return g.deny;
+    const p = g.principal!;
+    return json(200, { product: 'GUARDIAN', authMode: 'jwt', principal: { principalKind: p.principalKind, subject: p.subject, role: p.role, jurisdiction: p.jurisdiction, mfaSatisfied: p.mfaSatisfied, assuranceLevel: p.assuranceLevel, accountState: p.accountState, isSynthetic: p.isSynthetic }, mayReachC8AuthorisationGate: mayReachC8AuthorisationGate(p) });
+  }
 
   if (path === '/health' || path === '/') {
     return json(200, {
@@ -133,6 +217,18 @@ export const handler = async (event: FnUrlEvent) => {
         sources: 'SYNTHETIC only (no real crawling/DNS/provider/app-store/payment/traffic surveillance)',
         persistencePrincipal: 'guardian_reentry_worker (least-privilege; consumes C9 orchestration_reference contract only; no C9 enforcement queue send)',
         boundary: 'intelligence + continuous verification + routing only; RE-ENTRY != ILLEGALITY, SIMILAR != SAME ENTITY; human review required; routes to C6/C8 only; C10 cannot dispatch C9 or apply authority; historic VERIFIED immutable',
+      },
+      // PR1 privileged-identity posture (production-ready human authentication; test identities only).
+      privilegedIdentity: {
+        authMode: AUTH_MODE,
+        identityProvider: AUTH_MODE === 'jwt' ? 'AWS Cognito User Pool (OIDC, TOTP MFA required)' : 'synthetic test harness only',
+        tokenValidation: 'RS256 signature (JWKS/kid) + issuer + audience + expiry + token_use (crypto-verified; no HS downgrade; no pinned key)',
+        roleSource: 'governed guardian.identity_entitlement (subject→role→jurisdiction→account_state) — never request-supplied',
+        mfaEnforcement: 'privileged roles require trusted MFA assurance (amr) at the identity layer; C8 authorise gate = HUMAN AUTHORISING_OFFICER + MFA',
+        resolverPrincipal: 'guardian_identity_resolver (least-privilege; SELECT identity_entitlement + INSERT audit only)',
+        syntheticFallback: 'NONE (jwt mode never consults the synthetic registry)',
+        humanVsService: 'distinct; service principals can never hold a human role or reach the C8 human authorisation gate',
+        realPrivilegedUsersActivated: false,
       },
     });
   }
@@ -457,14 +553,18 @@ export const handler = async (event: FnUrlEvent) => {
   if (paSub && method === 'POST') {
     const ref = decodeURIComponent(paSub[1]); const sub = paSub[2]; const b = parseBody();
     const pa = syntheticProposedAction();
-    // C9 §2/§49 edge binding: the authoriser's ROLE is bound to the authenticated Guardian
-    // principal (registry) — it is NEVER taken from the request body. A caller can only present
-    // a principal id from authenticated context (Demo header `x-guardian-principal` /
-    // guardianPrincipalId); a self-asserted `authorisingOfficerRole` in the body is ignored.
-    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
-    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
-    if (!principal) return json(403, { product: 'GUARDIAN', error: 'unresolved/unauthenticated Guardian principal — role cannot be self-asserted', legalSafety: AUTH_SAFETY });
-    const who = { investigatorId: 'syn-inv', legalReviewerId: 'syn-leg', legalReviewOutcome: (b.legalReviewOutcome as any) ?? 'SUFFICIENT_FOR_AUTHORISATION_REVIEW', authorisingOfficerId: principal.principalId, authorisingOfficerRole: principal.role };
+    // PR1 §14: role/jurisdiction come from the authenticated principal (jwt mode: cryptographic
+    // token + governed entitlement + MFA gate) — NEVER from the request body. The `authorise`
+    // sub is the strongest gate: HUMAN AUTHORISING_OFFICER with MFA only; service/self-assert denied.
+    const CAP: Record<string, GuardianCapability> = { 'authorise': 'AUTHORISE_ACTION', 'legal-review': 'LEGAL_REVIEW', 'request-authorisation': 'PROPOSE_ACTION', 'decline': 'LEGAL_REVIEW' };
+    const g = await gate(CAP[sub] ?? 'CASE_VIEW', pa.jurisdiction);
+    if (g.deny) return g.deny;
+    if (sub === 'authorise' && AUTH_MODE === 'jwt' && !(g.principal && mayReachC8AuthorisationGate(g.principal))) {
+      return json(403, { product: 'GUARDIAN', error: 'C8 authorisation gate requires a HUMAN AUTHORISING_OFFICER with MFA', legalSafety: AUTH_SAFETY });
+    }
+    const actorRole = (g.principal?.role ?? g.synthetic?.role ?? 'INVESTIGATOR') as 'INVESTIGATOR' | 'LEGAL_REVIEWER' | 'AUTHORISING_OFFICER' | 'SYSTEM_SERVICE';
+    const actorId = g.principal?.subject ?? g.synthetic?.principalId ?? 'unknown';
+    const who = { investigatorId: 'syn-inv', legalReviewerId: 'syn-leg', legalReviewOutcome: (b.legalReviewOutcome as any) ?? 'SUFFICIENT_FOR_AUTHORISATION_REVIEW', authorisingOfficerId: actorId, authorisingOfficerRole: actorRole };
     const decision = evaluateAuthorisation({ ...pa, proposedActionId: ref }, who);
     if (sub === 'authorise') {
       const contract = decision.outcome === 'AUTHORISED' ? toAuthorisedActionContract(decision, { authorisationReference: `AUTH-${ref}`, authorityReference: pa.policyVersion?.authorityReference ?? null, authorisedAt: new Date().toISOString() }) : null;
@@ -490,12 +590,10 @@ export const handler = async (event: FnUrlEvent) => {
   const orchestrateRoute = path.match(/^\/authorisations\/([^/]+)\/orchestrate$/);
   if (orchestrateRoute && method === 'POST') {
     const authRef = decodeURIComponent(orchestrateRoute[1]); const b = parseBody();
-    // §2/§49: only an authenticated bound principal may orchestrate; role is NEVER caller-supplied.
-    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
-    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
-    if (!principal || (principal.role !== 'AUTHORISING_OFFICER' && principal.role !== 'SYSTEM_SERVICE')) {
-      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — role cannot be self-asserted', safety: ORCH_SAFETY });
-    }
+    // PR1: only an AUTHENTICATED principal with AUTHORISE_ACTION may trigger orchestration; role is
+    // NEVER caller-supplied. jwt mode = cryptographic token + governed entitlement (+MFA gate).
+    const gO = await gate('AUTHORISE_ACTION');
+    if (gO.deny) return gO.deny;
     const authorised = { ...syntheticAuthorisedAction(), authorisationReference: authRef };
     const adapter = new SyntheticProviderAdapter();
     const decision = orchestrate({ orchestrationId: `ORCH-${authRef}`, authorised, requested: { actionType: authorised.actionType, targetType: authorised.targetType, targetReference: authorised.targetReference, jurisdiction: authorised.jurisdiction }, channels: SYNTHETIC_PROVIDER_CHANNELS, attemptNo: 1, dispatch: (h, n) => adapter.publishAuthorisedRequest({ requestPayloadHash: h, scenario: String(b.providerScenario ?? 'ACK_ACTIONED'), attemptNo: n }), principalAuthenticated: true });
@@ -538,27 +636,22 @@ export const handler = async (event: FnUrlEvent) => {
   const reentryReviewRoute = path.match(/^\/reentry\/([^/]+)\/review$/);
   if (reentryReviewRoute && method === 'POST') {
     const b = parseBody();
-    // §42: reviewer role is bound from an authenticated Guardian principal — NEVER self-asserted,
-    // and jurisdiction is never taken from the request body.
-    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
-    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
-    if (!principal || (principal.role !== 'INVESTIGATOR' && principal.role !== 'LEGAL_REVIEWER')) {
-      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — reviewer role cannot be self-asserted', safety: REENTRY_SAFETY });
-    }
+    // PR1 §42: reviewer role/jurisdiction from the authenticated principal (jwt mode) — never self-asserted.
+    const gR = await gate('REENTRY_REVIEW');
+    if (gR.deny) return gR.deny;
+    const reviewerRole = gR.principal?.role ?? gR.synthetic?.role ?? 'INVESTIGATOR';
+    const reviewerJur = gR.principal?.jurisdiction ?? gR.synthetic?.jurisdiction ?? 'ZA-GP';
     const allowed = ['SAME_TARGET_CONFIRMED', 'RELATED_TARGET_CONFIRMED', 'RELATIONSHIP_UNRESOLVED', 'FALSE_POSITIVE', 'EXISTING_AUTHORITY_REVIEW_REQUIRED', 'NEW_INVESTIGATION_REQUIRED', 'INSUFFICIENT_EVIDENCE'];
     const outcome = String(b.outcome ?? '');
     if (!allowed.includes(outcome)) return json(400, { product: 'GUARDIAN', error: 'unsupported review outcome (no AUTO_BLOCK_APPROVED exists)', outcome, safety: REENTRY_SAFETY });
     const review = applyReview(outcome as any);
-    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryReviewRoute[1]), reviewerRole: principal.role, jurisdiction: principal.jurisdiction, review });
+    return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryReviewRoute[1]), reviewerRole, jurisdiction: reviewerJur, review });
   }
   const reentryRouteRoute = path.match(/^\/reentry\/([^/]+)\/route$/);
   if (reentryRouteRoute && method === 'POST') {
     const b = parseBody();
-    const principalId = (event as any)?.headers?.['x-guardian-principal'] ?? b.guardianPrincipalId;
-    const principal = resolveGuardianPrincipal(String(principalId ?? ''));
-    if (!principal || (principal.role !== 'INVESTIGATOR' && principal.role !== 'LEGAL_REVIEWER')) {
-      return json(403, { product: 'GUARDIAN', error: 'unauthenticated/unpermitted Guardian principal — role cannot be self-asserted', safety: REENTRY_SAFETY });
-    }
+    const gRt = await gate('REENTRY_REVIEW');
+    if (gRt.deny) return gRt.deny;
     const routing = routeCandidate({ reviewOutcome: String(b.reviewOutcome ?? 'RELATIONSHIP_UNRESOLVED') as any, coverageState: String(b.coverageState ?? 'COVERAGE_UNCLEAR') as any });
     // C10 records a routing outcome to C6/C8 only — it never authorises (C8) or dispatches (C9).
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryRouteRoute[1]), routing, note: 'routing target is C6 investigation or C8 authority review only — final authorisation remains C8; dispatch remains C9' });

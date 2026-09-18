@@ -258,8 +258,27 @@ self-executes enforcement; automated signal ≠ legal finding; no automatic bloc
 - **Synthetic sources only**: no real crawling/DNS/provider/app-store/payment/traffic surveillance; no
   person-level surveillance (operator/brand/service/domain/app/payment-channel/infra reference level; C5 boundary preserved).
 
+## PR1 Privileged Identity, MFA & Authentication Assurance security
+- **Production-ready human identity**: AWS Cognito User Pool (MFA-required TOTP) + cryptographic RS256 JWT
+  validation (signature via rotating JWKS/kid, issuer, audience/client_id, expiry, not-before, token_use,
+  subject; `alg:none`/HS downgrade rejected; no pinned key, no committed secret).
+- **Role + jurisdiction from a governed DB entitlement only** (`guardian.identity_entitlement`), never a
+  request body/token custom claim/email domain/org name. Account state + effective window gate access.
+- **MFA gate**: privileged roles require trusted MFA assurance (`amr` or verified pool-enforcement); the C8
+  `AUTHORISATION_GRANTED` gate = HUMAN AUTHORISING_OFFICER + MFA. Caller self-assertion impossible; a
+  request-body role/jurisdiction/mfa flag is ignored.
+- **No synthetic fallback** in jwt mode — a missing/invalid token or a body carrying a known synthetic id
+  can never become a privileged principal. Human vs service principals distinct; service can never hold a
+  human role (`is_human` CHECK) or reach the C8 gate.
+- **Least-privilege resolver** `guardian_identity_resolver`: SELECT `identity_entitlement` + INSERT
+  `audit_context` only; no UPDATE/DELETE, no other table, no BYPASSRLS; `current_user=session_user`; own secret;
+  API exec role `GetSecretValue` scoped to that one secret. Append-only `identity_entitlement_history` guarded
+  by `identity_block_mutation` (SECURITY INVOKER; PUBLIC revoked).
+- **No new SECURITY DEFINER / PUBLIC / anon execute.** Test identities only (NON-PRODUCTION); MFA hard gate for
+  real privileged users remains — no real regulator user activated.
+
 ## Estate impact (verified)
 Platform-wide privileged exposure unchanged: `public` SECURITY DEFINER **138**, anon **1**,
 PUBLIC **1** (the A5 RLS-predicate exception). No new platform-wide privileged exposure; no RLS
 weakening; identityFederation OFF; A1–A5 intact; Production untouched. Guardian schema functions:
-**6** (the C5 geo + C6 case + C7 evidence + C8 policy + C9 orchestration + C10 re-entry trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).
+**7** (the C5 geo + C6 case + C7 evidence + C8 policy + C9 orchestration + C10 re-entry + PR1 identity trigger-only append-only guards; SECURITY INVOKER; PUBLIC EXECUTE revoked).

@@ -182,6 +182,27 @@ is separate from the runtime rollback below.
   authority; historic VERIFIED immutable. Consumes only the `orchestration_reference` contract view.
 - **Rotate/rollback:** as per the other workers; independent; SafeBet IQ + C1–C9 unaffected.
 
+### PR1 Privileged Identity, MFA & Authentication Assurance (production-readiness; DEMO/test identities only)
+- **Migration** `20260918010000` (`guardian.identity_entitlement` + append-only `identity_entitlement_history`
+  via `identity_block_mutation` SECURITY INVOKER + PUBLIC revoked; RLS; least-privilege resolver role
+  `guardian_identity_resolver` = SELECT `identity_entitlement` + INSERT `audit_context` only). No new SECURITY DEFINER.
+- **Identity provider:** AWS Cognito User Pool `eu-west-1_2Hfe3vYk5` — **MfaConfiguration=ON, software-token TOTP
+  required**, admin-create-only, RS256 tokens, rotating JWKS. App client `3rbeba55nie1ugn3olvudnnhsn` (no secret).
+  **Verified pool property** (recorded here so `GUARDIAN_JWT_ISSUER_ENFORCES_MFA=true` is honest): the pool
+  enforces MFA, so any valid token evidences a completed MFA challenge (Cognito omits `amr`).
+- **API env (jwt mode):** `GUARDIAN_AUTH_MODE=jwt`, `GUARDIAN_JWT_USER_POOL_ID`, `GUARDIAN_JWT_ISSUER`,
+  `GUARDIAN_JWT_AUDIENCE`(=client id), `GUARDIAN_JWT_TOKEN_USE=access`, `GUARDIAN_JWT_ISSUER_ENFORCES_MFA=true`,
+  `GUARDIAN_IDENTITY_DB_SECRET_ID=safebet-guardian/identity-resolver-db`. IAM: API exec role gains
+  `GetSecretValue` on the identity-resolver secret only.
+- **Boundary:** role + jurisdiction from the governed entitlement only (never request body/token custom claim);
+  no synthetic fallback in jwt mode; human vs service distinct; C8 `AUTHORISATION_GRANTED` = HUMAN
+  AUTHORISING_OFFICER + MFA. Authentication must NEVER be disabled in a Production config.
+- **Test identities (NON-PRODUCTION):** TEST_INVESTIGATOR_ZAGP, TEST_LEGAL_REVIEWER_ZAGP,
+  TEST_AUTHORISING_OFFICER_ZAGP, TEST_POLICY_ADMIN_ZAGP, TEST_INVESTIGATOR_ZAWC (TOTP-enrolled; entitlements ACTIVE).
+- **Rollback:** runtime target stays C10 `94355f4`; `GUARDIAN_AUTH_MODE` flags the path but must not disable auth;
+  no identity/audit history deleted on rollback. Revocation: SUSPEND/DISABLE the entitlement (deny next request)
+  and/or `admin-user-global-sign-out` (access tokens expire ≤60 min).
+
 #### C9.1 immutable-runtime & DB-identity close-out (infra/provenance only; no C9 behaviour change)
 - **Durable invocation is immutable:** the SQS event-source mapping (`563d2102-1088-4934-88b8-ba75f6ff5971`)
   targets the **qualified alias ARN** `…:function:safebet-guardian-enforcement-worker:demo` (NOT the mutable

@@ -39,6 +39,10 @@ await build({
   target: 'node20',
   format: 'cjs',
   legalComments: 'none',
+  // pg is bundled (pure-JS path); its optional native binding is excluded. The AWS SDK v3 is
+  // provided by the Node 20 Lambda runtime → keep it external (PR1 adds a governed entitlement
+  // DB lookup + Secrets Manager read to the API for production-ready human identity).
+  external: ['pg-native', '@aws-sdk/*'],
   // Bake provenance into the artifact.
   define: {
     __GUARDIAN_GIT_COMMIT__: JSON.stringify(sha),
