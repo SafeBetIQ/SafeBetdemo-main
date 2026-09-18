@@ -353,6 +353,24 @@ controls:
     exceptions: "SYNTHETIC sources/adapters only; no real crawling/DNS/provider/app-store/payment/traffic surveillance; no person-level surveillance (operator/brand/service/domain/app/payment-channel/infra reference only); C10 never re-enforces/authorises/dispatches; human review + C8 authority remain prerequisites; MFA blocks real users. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. DB TLS ssl.rejectUnauthorized:false = P1 (CA-validate before real/Production). Separate Guardian DB = P1. See docs/products/guardian/ + ADR-0020."
     review_date: TBD
 
+  - control_id: SEC-IDENTITY-PR1-021
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 20000-1 + 9001/SANS90003 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023 / 2015"
+    clause_reference: "Authority §7/§10; identity & access management; MFA; privileged access; authenticated human oversight for legal/enforcement decisions; machine cannot impersonate human authoriser; access logging; account lifecycle"
+    product: SAFEBET_GUARDIAN
+    component: privileged-identity-mfa
+    applicability: APPLICABLE
+    requirement_summary: "Production-ready privileged Guardian human identity: cryptographic OIDC/JWT authentication (RS256 via rotating JWKS; issuer/audience/expiry/token_use verified; alg:none & HS downgrade rejected; no pinned key), MFA enforced for privileged roles at the IdP (Cognito TOTP pool MFA-required), governed DB entitlement as the ONLY role+jurisdiction source (never request-supplied), account states + effective window (suspend/disable/expire deny), human!=service, C8 AUTHORISATION_GRANTED = HUMAN AUTHORISING_OFFICER + MFA, no synthetic fallback in jwt mode, least-privilege resolver, login+business audit correlation without token logging — and NO real regulator activation, NO caller-asserted role/jurisdiction/MFA, NO service-principal human authorisation"
+    technical_control: "products/guardian/src/identity-auth (jwt RS256 validation + JWKS rotation + assurance + governed entitlement + authenticated principal + authorize/SoD gates; Node built-in crypto, no new dep, no committed key); guardian.identity_entitlement (subject->role->jurisdiction->account_state->window; is_human CHECK; append-only history via identity_block_mutation SECURITY INVOKER + PUBLIC revoked; RLS); dedicated guardian_identity_resolver role (SELECT identity_entitlement + INSERT audit only; no UPDATE/DELETE/other-table/BYPASSRLS); guardian-lambda jwt-mode gate on privileged routes (no request-body authority; no synthetic fallback; MFA gate; /auth/whoami); AWS Cognito user pool (MfaConfiguration=ON software-token TOTP, admin-create-only, RS256, rotating JWKS); GUARDIAN_AUTH_MODE feature flag (never disabled in Production)"
+    process_control: "ADR-0021; GUARDIAN_IDENTITY_ARCHITECTURE/MFA_POLICY/PRIVILEGED_ROLES/ENTITLEMENT_MODEL/AUTHENTICATION_ASSURANCE/SESSION_SECURITY/IDENTITY_AUDIT/ACCOUNT_LIFECYCLE/IDENTITY_RECOVERY.md; scenario tests 1-20 + positive MFA flow + human/service + cross-jurisdiction; live Cognito+MFA+entitlement proof (negative+positive); ci:privfn; MFA hard gate; independent review"
+    evidence_required: "31 identity-auth tests (no token/malformed/bad-sig/wrong-iss/wrong-aud/expired/disabled/no-entitlement/wrong-jur/body-role-ignored/body-jur-no-elevate/no-MFA/officer+MFA->C8/investigator!->authorise/legal!->authorise(SoD)/service!->human/synthetic-fallback-denied/no-token-in-principal/IQ-role-denied/anon-denied + alg:none/unknown-kid/wrong-token_use + issuerEnforcesMfa + positive + cross-jurisdiction + no-committed-key scan); live: real Cognito token->JWKS validate->entitlement->HUMAN principal (officer AAL2_MFA c8Gate true), negative denials live; resolver 0 UPDATE/DELETE/other-table grants; estate unchanged (no new secdef/anon/PUBLIC); guardian functions = 7 (append-only guards)"
+    control_owner: TBD
+    validation_method: "node --test (guardian identity-auth) + live Cognito MFA sign-in + JWKS validation + DB entitlement + RLS + privfn-guard + independent review"
+    validation_frequency: per-change
+    status: "CONFORMANT (PR1 production-readiness foundation; DEMO/synthetic test identities only; no real regulator activation)"
+    exceptions: "DEMO / test identities only (NON-PRODUCTION, is_synthetic_test); no real regulator/privileged user activated; MFA hard gate remains for real users. Cognito omits amr -> MFA assurance uses verified pool-enforcement assertion (MfaConfiguration=ON recorded in runbook). Step-up auth DEFERRED (explicit). Access-token revocation bounded by <=60min expiry (honest). ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Separate Guardian DB = P1 (PR2). CA-validated PostgreSQL TLS = P1 (PR2). Duplicate hosted zones = P1. See docs/products/guardian/ + ADR-0021."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"
