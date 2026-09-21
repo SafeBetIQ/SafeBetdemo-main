@@ -132,10 +132,13 @@ export const handler = async (event: FnUrlEvent) => {
         return { deny: denyAudit(err.status ?? 401, err.reasonCode ?? 'AUTH_FAILED', err.auditEvent ?? 'AUTHENTICATION_FAILED') };
       }
     }
-    // synthetic test-harness path (clearly separated; never used in jwt mode)
+    // synthetic test-harness path (clearly separated; never used in jwt mode). Capability +
+    // jurisdiction are enforced here too, so the harness mirrors the production-ready gate.
     const principalId = headers['x-guardian-principal'] ?? String(parseBody().guardianPrincipalId ?? '');
     const p = resolveGuardianPrincipal(principalId);
     if (!p) return { deny: json(403, { product: 'GUARDIAN', error: 'unauthenticated Guardian principal (synthetic harness)', authMode: AUTH_MODE }) };
+    if (!hasCapability({ role: p.role } as unknown as AuthenticatedGuardianPrincipal, capability)) return { deny: json(403, { product: 'GUARDIAN', error: 'capability denied (synthetic harness)', reasonCode: 'CAPABILITY_DENIED', authMode: AUTH_MODE }) };
+    if (resourceJurisdiction && p.jurisdiction !== resourceJurisdiction) return { deny: json(403, { product: 'GUARDIAN', error: 'jurisdiction denied (synthetic harness)', reasonCode: 'JURISDICTION_DENIED', authMode: AUTH_MODE }) };
     return { synthetic: { role: p.role, jurisdiction: p.jurisdiction, principalId: p.principalId } };
   }
 
@@ -274,11 +277,13 @@ export const handler = async (event: FnUrlEvent) => {
   //    No endpoint returns illegal=true; responses carry fact + source + verification +
   //    match + human-review state.
   if (path === '/registry/operators' && method === 'GET') {
+    const gg1 = await gate('CASE_VIEW'); if (gg1.deny) return gg1.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const operators = SYNTHETIC_REGISTRY.operators.filter((o) => o.jurisdiction === jur);
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: operators.length, operators });
   }
   if (path.startsWith('/registry/operators/') && method === 'GET') {
+    const gg2 = await gate('CASE_VIEW'); if (gg2.deny) return gg2.deny;
     const id = path.slice('/registry/operators/'.length);
     const op = SYNTHETIC_REGISTRY.operators.find((o) => o.operatorId === id) ?? null;
     if (!op) return json(404, { product: 'GUARDIAN', error: 'operator not found', operatorId: id });
@@ -287,6 +292,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', operator: op, licences, brandRelationships: brands });
   }
   if (path.startsWith('/registry/licences/') && method === 'GET') {
+    const gg3 = await gate('CASE_VIEW'); if (gg3.deny) return gg3.deny;
     const id = path.slice('/registry/licences/'.length);
     const lic = SYNTHETIC_REGISTRY.licences.find((l) => l.licenceId === id) ?? null;
     if (!lic) return json(404, { product: 'GUARDIAN', error: 'licence not found', licenceId: id });
@@ -294,12 +300,14 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', licence: lic, sourceRecords: sources });
   }
   if (path.startsWith('/registry/sources/') && method === 'GET') {
+    const gg4 = await gate('CASE_VIEW'); if (gg4.deny) return gg4.deny;
     const id = path.slice('/registry/sources/'.length);
     const rec = SYNTHETIC_REGISTRY.sourceRecords.find((r) => r.recordId === id) ?? null;
     if (!rec) return json(404, { product: 'GUARDIAN', error: 'source record not found', recordId: id });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', sourceRecord: rec });
   }
   if (path === '/registry/match' && method === 'POST') {
+    const gg5 = await gate('CASE_VIEW'); if (gg5.deny) return gg5.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? '');
     if (!jur) return json(400, { product: 'GUARDIAN', error: 'jurisdiction required' });
@@ -313,6 +321,7 @@ export const handler = async (event: FnUrlEvent) => {
   // ── Domain & Website Intelligence (C2) — synthetic; every result is NON-LEGAL.
   //    No endpoint returns illegal=true; each carries isIllegalDetermination:false.
   if (path === '/domains' && method === 'GET') {
+    const gg6 = await gate('CASE_VIEW'); if (gg6.deny) return gg6.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const domains = Object.values(SYNTHETIC_DOMAIN_FIXTURES)
       .filter((f) => f.jurisdiction === jur)
@@ -320,6 +329,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: domains.length, domains });
   }
   if (path === '/domains/observe' && method === 'POST') {
+    const gg7 = await gate('CASE_REVIEW'); if (gg7.deny) return gg7.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? '');
     const host = String(b.fixtureHostname ?? '');
@@ -331,6 +341,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, note: 'non-legal intelligence' }, result });
   }
   if (path.startsWith('/domains/') && method === 'GET') {
+    const gg8 = await gate('CASE_VIEW'); if (gg8.deny) return gg8.deny;
     const host = decodeURIComponent(path.slice('/domains/'.length));
     const fx = SYNTHETIC_DOMAIN_FIXTURES[host];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'domain not found', hostname: host });
@@ -340,12 +351,14 @@ export const handler = async (event: FnUrlEvent) => {
 
   // ── Mobile App Intelligence (C3) — provider-neutral, synthetic; NON-LEGAL results.
   if (path === '/apps' && method === 'GET') {
+    const gg9 = await gate('CASE_VIEW'); if (gg9.deny) return gg9.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const apps = Object.values(SYNTHETIC_APP_FIXTURES).filter((f) => f.jurisdiction === jur)
       .map((f) => ({ canonicalAppIdentifier: f.appIdentifier, displayName: f.displayName, platformType: f.platformType, jurisdiction: f.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: apps.length, apps });
   }
   if (path === '/apps/observe' && method === 'POST') {
+    const gg10 = await gate('CASE_REVIEW'); if (gg10.deny) return gg10.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? ''); const id = String(b.fixtureAppIdentifier ?? '');
     if (!jur || !id) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureAppIdentifier required' });
@@ -356,6 +369,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, note: 'non-legal intelligence; no app removal/enforcement' }, result });
   }
   if (path.startsWith('/apps/') && method === 'GET') {
+    const gg11 = await gate('CASE_VIEW'); if (gg11.deny) return gg11.deny;
     const id = decodeURIComponent(path.slice('/apps/'.length));
     const fx = SYNTHETIC_APP_FIXTURES[id];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'app not found', appIdentifier: id });
@@ -365,12 +379,14 @@ export const handler = async (event: FnUrlEvent) => {
 
   // ── Payment Intelligence (C4) — provider-neutral, synthetic; NON-LEGAL + NON-ENFORCEMENT.
   if ((path === '/payments' || path === '/merchants') && method === 'GET') {
+    const gg12 = await gate('CASE_VIEW'); if (gg12.deny) return gg12.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const items = Object.values(SYNTHETIC_PAYMENT_FIXTURES).filter((f) => f.jurisdiction === jur)
       .map((f) => ({ merchantReference: f.merchantReference, merchantDescriptor: f.merchantDescriptor, channel: f.channel, providerType: f.providerType, jurisdiction: f.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', count: items.length, [path === '/merchants' ? 'merchants' : 'payments']: items });
   }
   if (path === '/payments/observe' && method === 'POST') {
+    const gg13 = await gate('CASE_REVIEW'); if (gg13.deny) return gg13.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureMerchantReference ?? '');
     if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureMerchantReference required' });
@@ -381,6 +397,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, isEnforcementAuthorised: false, note: 'non-legal, non-enforcement intelligence' }, result });
   }
   if ((path.startsWith('/payments/') || path.startsWith('/merchants/')) && method === 'GET') {
+    const gg14 = await gate('CASE_VIEW'); if (gg14.deny) return gg14.deny;
     const ref = decodeURIComponent(path.split('/')[2] ?? '');
     const fx = SYNTHETIC_PAYMENT_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'payment/merchant not found', reference: ref });
@@ -391,12 +408,14 @@ export const handler = async (event: FnUrlEvent) => {
   // ── Geo & Jurisdiction Intelligence (C5) — property/service/aggregate-region;
   //    NON-LEGAL + NON-ENFORCEMENT. NO individual tracking, NO ISP/subscriber data.
   if (path === '/geo' && method === 'GET') {
+    const gg15 = await gate('CASE_VIEW'); if (gg15.deny) return gg15.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const items = Object.values(SYNTHETIC_GEO_FIXTURES).filter((f) => f.jurisdiction === jur)
       .map((f) => ({ geoReference: f.geoReference, subjectType: f.subjectType, regionCode: f.region.regionCode, availabilityState: f.availabilityState, jurisdiction: f.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', privacyBoundary: 'property/service/aggregate-region — no individual tracking', count: items.length, geo: items });
   }
   if (path === '/geo/observe' && method === 'POST') {
+    const gg16 = await gate('CASE_REVIEW'); if (gg16.deny) return gg16.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureGeoReference ?? '');
     if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureGeoReference required' });
@@ -407,6 +426,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: { isIllegalDetermination: false, isEnforcementAuthorised: false, note: 'non-legal, non-enforcement intelligence; no geo-block, no individual tracking' }, result });
   }
   if (path.match(/^\/geo\/[^/]+\/observations$/) && method === 'GET') {
+    const gg17 = await gate('CASE_VIEW'); if (gg17.deny) return gg17.deny;
     const ref = decodeURIComponent(path.split('/')[2] ?? '');
     const fx = SYNTHETIC_GEO_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
@@ -414,6 +434,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', geoReference: fx.geoReference, observations: [{ region: fx.region, availabilityState: fx.availabilityState, observedAt: result.freshness.geoObservedAt }], isIllegalDetermination: false });
   }
   if (path.match(/^\/geo\/[^/]+\/review$/) && method === 'POST') {
+    const gg18 = await gate('CASE_REVIEW'); if (gg18.deny) return gg18.deny;
     const ref = decodeURIComponent(path.split('/')[2] ?? '');
     const fx = SYNTHETIC_GEO_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
@@ -424,6 +445,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', geoReference: fx.geoReference, review: { state: 'TRIAGED', decision }, isIllegalDetermination: false, isEnforcementAuthorised: false });
   }
   if (path.startsWith('/geo/') && method === 'GET') {
+    const gg19 = await gate('CASE_VIEW'); if (gg19.deny) return gg19.deny;
     const ref = decodeURIComponent(path.slice('/geo/'.length));
     const fx = SYNTHETIC_GEO_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'geo subject not found', geoReference: ref });
@@ -435,12 +457,14 @@ export const handler = async (event: FnUrlEvent) => {
   //    NON-ENFORCEMENT. No /enforce, /block, /takedown, /referral endpoint exists.
   const CASE_SAFETY = { isLegalDetermination: false, isEnforcementAuthorised: false, note: 'investigation only — not a legal finding, not an enforcement authorisation' };
   if (path === '/cases' && method === 'GET') {
+    const gg20 = await gate('CASE_VIEW'); if (gg20.deny) return gg20.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const items = Object.values(SYNTHETIC_CASE_FIXTURES).filter((f) => f.jurisdiction === jur)
       .map((f) => { const r = analyseCaseIntake(f); return { caseReference: f.intakeReference, title: f.title, caseType: r.caseType, priority: r.priority, recommendation: r.recommendation, jurisdiction: f.jurisdiction }; });
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: CASE_SAFETY, count: items.length, cases: items });
   }
   if (path === '/cases' && method === 'POST') {
+    const gg21 = await gate('CASE_REVIEW'); if (gg21.deny) return gg21.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureIntakeReference ?? '');
     if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureIntakeReference required' });
@@ -453,6 +477,7 @@ export const handler = async (event: FnUrlEvent) => {
   // Bounded sub-resource surfaces (synthetic; investigation only). No enforcement paths.
   const caseSub = path.match(/^\/cases\/([^/]+)\/(subjects|intelligence|evidence|notes|findings|review|status)$/);
   if (caseSub && method === 'POST') {
+    const gg22 = await gate('CASE_REVIEW'); if (gg22.deny) return gg22.deny;
     const ref = decodeURIComponent(caseSub[1]); const sub = caseSub[2];
     const fx = SYNTHETIC_CASE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'case not found', caseReference: ref });
@@ -460,6 +485,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', caseReference: ref, resource: sub, legalSafety: CASE_SAFETY, result: { caseType: result.caseType, priority: result.priority, reasonCodes: result.reasonCodes, reviewRequired: result.reviewRequired } });
   }
   if (path.startsWith('/cases/') && method === 'GET') {
+    const gg23 = await gate('CASE_VIEW'); if (gg23.deny) return gg23.deny;
     const ref = decodeURIComponent(path.slice('/cases/'.length));
     const fx = SYNTHETIC_CASE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'case not found', caseReference: ref });
@@ -471,12 +497,14 @@ export const handler = async (event: FnUrlEvent) => {
   //    NON-ENFORCEMENT. No permanent public URL; no provider action. IAM protected.
   const EV_SAFETY = { isLegalDetermination: false, isEnforcementAuthorised: false, note: 'evidence provenance/integrity only — not a legal finding, not an enforcement authorisation' };
   if (path === '/evidence' && method === 'GET') {
+    const gg24 = await gate('EVIDENCE_ACCESS'); if (gg24.deny) return gg24.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const items = Object.values(SYNTHETIC_EVIDENCE_FIXTURES).filter((f) => f.jurisdiction === jur)
       .map((f) => ({ evidenceReference: f.evidenceReference, evidenceType: f.evidenceType, classification: f.classification, sourceDomain: f.sourceDomain, jurisdiction: f.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: EV_SAFETY, count: items.length, evidence: items });
   }
   if (path === '/evidence/register' && method === 'POST') {
+    const gg25 = await gate('EVIDENCE_ACCESS'); if (gg25.deny) return gg25.deny;
     const b = parseBody();
     const jur = String(b.jurisdiction ?? ''); const ref = String(b.fixtureEvidenceReference ?? '');
     if (!jur || !ref) return json(400, { product: 'GUARDIAN', error: 'jurisdiction and fixtureEvidenceReference required' });
@@ -488,6 +516,7 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evVerify = path.match(/^\/evidence\/([^/]+)\/verify$/);
   if (evVerify && method === 'POST') {
+    const gg26 = await gate('EVIDENCE_ACCESS'); if (gg26.deny) return gg26.deny;
     const ref = decodeURIComponent(evVerify[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
@@ -499,6 +528,7 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evCustody = path.match(/^\/evidence\/([^/]+)\/custody$/);
   if (evCustody && method === 'GET') {
+    const gg27 = await gate('EVIDENCE_ACCESS'); if (gg27.deny) return gg27.deny;
     const ref = decodeURIComponent(evCustody[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
@@ -506,6 +536,7 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evRetrieve = path.match(/^\/evidence\/([^/]+)\/(retrieve|content)$/);
   if (evRetrieve && method === 'POST') {
+    const gg28 = await gate('EVIDENCE_ACCESS'); if (gg28.deny) return gg28.deny;
     const ref = decodeURIComponent(evRetrieve[1]); const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     // Controlled retrieval is performed by the dedicated least-privilege reader identity
@@ -517,6 +548,7 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evSub = path.match(/^\/evidence\/([^/]+)\/(link-case|hold|export)$/);
   if (evSub && method === 'POST') {
+    const gg29 = await gate('EVIDENCE_ACCESS'); if (gg29.deny) return gg29.deny;
     const ref = decodeURIComponent(evSub[1]); const sub = evSub[2]; const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
@@ -527,6 +559,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: EV_SAFETY, evidenceReference: ref, resource: sub });
   }
   if (path.startsWith('/evidence/') && method === 'GET') {
+    const gg30 = await gate('EVIDENCE_ACCESS'); if (gg30.deny) return gg30.deny;
     const ref = decodeURIComponent(path.slice('/evidence/'.length));
     const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
@@ -539,12 +572,14 @@ export const handler = async (event: FnUrlEvent) => {
   //    /block,/referral,/publish endpoint exists.
   const AUTH_SAFETY = { isLegalDetermination: false, isEnforcementExecuted: false, isProviderNotified: false, note: 'human authority layer — authorises an action record only; no external action, no provider notification' };
   if (path === '/policies' && method === 'GET') {
+    const gg31 = await gate('CASE_VIEW'); if (gg31.deny) return gg31.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const items = Object.values(SYNTHETIC_POLICY_VERSIONS).filter((p) => p.jurisdiction === jur)
       .map((p) => ({ policyId: p.policyId, versionId: p.versionId, status: p.status, effectiveFrom: p.effectiveFrom, effectiveUntil: p.effectiveUntil, jurisdiction: p.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', legalSafety: AUTH_SAFETY, count: items.length, policies: items });
   }
   if (path.startsWith('/policies/') && method === 'GET') {
+    const gg32 = await gate('CASE_VIEW'); if (gg32.deny) return gg32.deny;
     const id = decodeURIComponent(path.slice('/policies/'.length));
     const p = SYNTHETIC_POLICY_VERSIONS[id]; if (!p) return json(404, { product: 'GUARDIAN', error: 'policy version not found', versionId: id });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, policy: p });
@@ -573,6 +608,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, resource: sub, proposedActionId: ref, applicability: evaluatePolicyApplicability(pa.policyVersion, { jurisdiction: pa.jurisdiction, actionType: pa.actionType }) });
   }
   if (path.startsWith('/proposed-actions/') && method === 'GET') {
+    const gg33 = await gate('CASE_VIEW'); if (gg33.deny) return gg33.deny;
     const ref = decodeURIComponent(path.slice('/proposed-actions/'.length));
     const pa = syntheticProposedAction();
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', legalSafety: AUTH_SAFETY, proposedAction: { proposedActionId: ref, actionType: pa.actionType, targetReference: pa.targetReference, jurisdiction: pa.jurisdiction }, applicability: evaluatePolicyApplicability(pa.policyVersion, { jurisdiction: pa.jurisdiction, actionType: pa.actionType }) });
@@ -583,6 +619,7 @@ export const handler = async (event: FnUrlEvent) => {
   //    performs the provider-side action. No /block-now,/freeze-account,/remove-app,/seize-domain.
   const ORCH_SAFETY = { isRealProvider: false, isExternalNetworkCall: false, note: 'synthetic provider orchestration — Guardian refers an authorised request; no real provider, no enforcement execution' };
   if (path === '/enforcement' && method === 'GET') {
+    const gg34 = await gate('ORCHESTRATION_VIEW'); if (gg34.deny) return gg34.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const channels = SYNTHETIC_PROVIDER_CHANNELS.filter((c) => c.jurisdiction === jur).map((c) => ({ providerChannelId: c.providerChannelId, providerType: c.providerType, supportedActionTypes: c.supportedActionTypes, jurisdiction: c.jurisdiction }));
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', safety: ORCH_SAFETY, providerChannels: channels });
@@ -601,16 +638,19 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evVerifyRoute = path.match(/^\/enforcement\/([^/]+)\/verify$/);
   if (evVerifyRoute && method === 'POST') {
+    const gg35 = await gate('ORCHESTRATION_VIEW'); if (gg35.deny) return gg35.deny;
     const b = parseBody();
     const v = verifyProviderOutcome(String(b.actionType ?? 'DOMAIN_BLOCK') as any, b.providerActioned !== false, { observedState: String(b.observedState ?? 'UNAVAILABLE'), expectedState: String(b.expectedState ?? 'UNAVAILABLE') });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evVerifyRoute[1]), verification: v, note: 'ACTIONED != VERIFIED — verification is independent of dispatch' });
   }
   const evRespRoute = path.match(/^\/enforcement\/([^/]+)\/(responses|withdraw)$/);
   if (evRespRoute && (method === 'GET' || method === 'POST')) {
+    const gg36 = await gate('ORCHESTRATION_VIEW'); if (gg36.deny) return gg36.deny;
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evRespRoute[1]), resource: evRespRoute[2], note: 'provider-originated states come only from the synthetic adapter; withdrawal after dispatch records a cancellation request, not a fabricated provider acceptance' });
   }
   const evHistoryRoute = path.match(/^\/enforcement\/([^/]+)\/verification-history$/);
   if (evHistoryRoute && method === 'GET') {
+    const gg37 = await gate('ORCHESTRATION_VIEW'); if (gg37.deny) return gg37.deny;
     // Continuous / follow-up verification history for an orchestration (synthetic, append-only).
     const ref = decodeURIComponent(evHistoryRoute[1]);
     const orchestration = syntheticVerifiedOrchestration({ orchestrationReference: ref });
@@ -621,6 +661,7 @@ export const handler = async (event: FnUrlEvent) => {
       actionedButNotVerified: actionedButNotVerified(orchestration) });
   }
   if (path.startsWith('/enforcement/') && method === 'GET') {
+    const gg38 = await gate('ORCHESTRATION_VIEW'); if (gg38.deny) return gg38.deny;
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(path.slice('/enforcement/'.length)) });
   }
 
@@ -629,6 +670,7 @@ export const handler = async (event: FnUrlEvent) => {
   //    /auto-referral. Human review is required before any routing; routing goes to C6/C8 only.
   const REENTRY_SAFETY = { isIllegalityDetermined: false, isAuthorityApplied: false, isEnforcementDispatched: false, isRealObservationSource: false, isExternalNetworkCall: false, note: 're-entry candidate is correlation + verification intelligence for human review; C10 cannot re-block/re-refer/dispatch and cannot self-assert authority' };
   if (path === '/reentry' && method === 'GET') {
+    const gg39 = await gate('REENTRY_REVIEW'); if (gg39.deny) return gg39.deny;
     const jur = query.get('jurisdiction') ?? 'ZA-GP';
     const decision = detectReentry({ jurisdiction: jur, orchestration: syntheticVerifiedOrchestration({ jurisdiction: jur }), signal: SIGNAL_SAME_TARGET_AVAILABLE, coverage: coverageExplicit({ jurisdiction: jur }) });
     return json(200, { product: 'GUARDIAN', jurisdiction: jur, dataClass: 'synthetic', safety: REENTRY_SAFETY, candidate: decision });
@@ -657,6 +699,7 @@ export const handler = async (event: FnUrlEvent) => {
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: decodeURIComponent(reentryRouteRoute[1]), routing, note: 'routing target is C6 investigation or C8 authority review only — final authorisation remains C8; dispatch remains C9' });
   }
   if (path.startsWith('/reentry/') && method === 'GET') {
+    const gg40 = await gate('REENTRY_REVIEW'); if (gg40.deny) return gg40.deny;
     const ref = decodeURIComponent(path.slice('/reentry/'.length));
     const decision = detectReentry({ jurisdiction: query.get('jurisdiction') ?? 'ZA-GP', orchestration: syntheticVerifiedOrchestration(), signal: SIGNAL_SAME_TARGET_AVAILABLE, coverage: coverageExplicit() });
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: REENTRY_SAFETY, reentryCandidateId: ref, candidate: decision });
