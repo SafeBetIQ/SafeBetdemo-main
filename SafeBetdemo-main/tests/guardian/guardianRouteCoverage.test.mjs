@@ -51,6 +51,30 @@ test('gate() count covers the privileged surface', () => {
 // Capability/SoD matrix the routes rely on (mirrors authorize.ts) — a privileged human can only do
 // what its role permits; a GUARDIAN_ADMINISTRATOR cannot read business data; only an officer authorises.
 const P = (role) => ({ product: 'GUARDIAN', principalKind: 'HUMAN', role, jurisdiction: 'ZA-GP', mfaSatisfied: true });
+// PR1.1 independent-review remediation: state-changing/high-impact ops are bounded above read tier.
+test('remediation: enforcement withdraw is AUTHORISING_OFFICER-only (not view-tier)', () => {
+  assert.equal(hasCapability(P('AUTHORISING_OFFICER'), 'ENFORCEMENT_WITHDRAW'), true);
+  assert.equal(hasCapability(P('INVESTIGATOR'), 'ENFORCEMENT_WITHDRAW'), false);   // was ORCHESTRATION_VIEW over-permission
+  assert.equal(hasCapability(P('LEGAL_REVIEWER'), 'ENFORCEMENT_WITHDRAW'), false);
+  // view/dispatch boundary preserved: view-tier still cannot dispatch either
+  assert.equal(hasCapability(P('INVESTIGATOR'), 'AUTHORISE_ACTION'), false);
+  assert.equal(hasCapability(P('INVESTIGATOR'), 'ORCHESTRATION_VIEW'), true);      // reads still allowed
+});
+test('remediation: evidence hold/export are LEGAL_REVIEWER/AUTHORISING_OFFICER-only (not plain read)', () => {
+  for (const cap of ['EVIDENCE_HOLD', 'EVIDENCE_EXPORT']) {
+    assert.equal(hasCapability(P('LEGAL_REVIEWER'), cap), true);
+    assert.equal(hasCapability(P('AUTHORISING_OFFICER'), cap), true);
+    assert.equal(hasCapability(P('INVESTIGATOR'), cap), false);   // was EVIDENCE_ACCESS over-permission
+  }
+  // plain read/retrieve/link still available to the investigator
+  assert.equal(hasCapability(P('INVESTIGATOR'), 'EVIDENCE_ACCESS'), true);
+});
+test('remediation: the split routes use the distinct capabilities in source', () => {
+  assert.ok(/evSub\[2\] === 'export' \? 'EVIDENCE_EXPORT'/.test(SRC), 'export gated by EVIDENCE_EXPORT');
+  assert.ok(/'EVIDENCE_HOLD'/.test(SRC), 'hold gated by EVIDENCE_HOLD');
+  assert.ok(/evRespRoute\[2\] === 'withdraw' \? 'ENFORCEMENT_WITHDRAW'/.test(SRC), 'withdraw gated by ENFORCEMENT_WITHDRAW');
+});
+
 test('capability matrix: SoD is enforced by role', () => {
   assert.equal(hasCapability(P('INVESTIGATOR'), 'AUTHORISE_ACTION'), false);
   assert.equal(hasCapability(P('LEGAL_REVIEWER'), 'AUTHORISE_ACTION'), false);

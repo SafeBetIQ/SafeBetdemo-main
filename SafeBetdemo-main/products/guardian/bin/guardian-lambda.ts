@@ -548,7 +548,10 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evSub = path.match(/^\/evidence\/([^/]+)\/(link-case|hold|export)$/);
   if (evSub && method === 'POST') {
-    const gg29 = await gate('EVIDENCE_ACCESS'); if (gg29.deny) return gg29.deny;
+    // PR1.1 remediation (P2-2): hold (legal hold) + export (custody disclosure) require distinct
+    // higher capabilities than plain read/retrieve; link-case remains EVIDENCE_ACCESS (investigator).
+    const evCap: GuardianCapability = evSub[2] === 'export' ? 'EVIDENCE_EXPORT' : evSub[2] === 'hold' ? 'EVIDENCE_HOLD' : 'EVIDENCE_ACCESS';
+    const gg29 = await gate(evCap); if (gg29.deny) return gg29.deny;
     const ref = decodeURIComponent(evSub[1]); const sub = evSub[2]; const fx = SYNTHETIC_EVIDENCE_FIXTURES[ref];
     if (!fx) return json(404, { product: 'GUARDIAN', error: 'evidence not found', evidenceReference: ref });
     const r = registerEvidence(fx, { evidenceId: `GEV-${ref}` });
@@ -645,7 +648,9 @@ export const handler = async (event: FnUrlEvent) => {
   }
   const evRespRoute = path.match(/^\/enforcement\/([^/]+)\/(responses|withdraw)$/);
   if (evRespRoute && (method === 'GET' || method === 'POST')) {
-    const gg36 = await gate('ORCHESTRATION_VIEW'); if (gg36.deny) return gg36.deny;
+    // PR1.1 remediation (P2-1): withdraw is a state-changing cancellation of a dispatched enforcement
+    // → AUTHORISING_OFFICER-only ENFORCEMENT_WITHDRAW (symmetric with dispatch); responses stays read-tier.
+    const gg36 = await gate(evRespRoute[2] === 'withdraw' ? 'ENFORCEMENT_WITHDRAW' : 'ORCHESTRATION_VIEW'); if (gg36.deny) return gg36.deny;
     return json(200, { product: 'GUARDIAN', dataClass: 'synthetic', safety: ORCH_SAFETY, orchestrationId: decodeURIComponent(evRespRoute[1]), resource: evRespRoute[2], note: 'provider-originated states come only from the synthetic adapter; withdrawal after dispatch records a cancellation request, not a fabricated provider acceptance' });
   }
   const evHistoryRoute = path.match(/^\/enforcement\/([^/]+)\/verification-history$/);
