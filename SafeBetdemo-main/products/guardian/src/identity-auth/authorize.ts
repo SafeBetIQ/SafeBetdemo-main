@@ -10,14 +10,20 @@ import type { AuthenticatedGuardianPrincipal } from './principal.ts';
 import type { PrivilegedGuardianRole } from './entitlement.ts';
 
 export type GuardianCapability =
-  | 'CASE_VIEW' | 'CASE_REVIEW' | 'EVIDENCE_ACCESS' | 'LEGAL_REVIEW' | 'POLICY_ADMINISTER'
-  | 'PROPOSE_ACTION' | 'AUTHORISE_ACTION' | 'ORCHESTRATION_VIEW' | 'REENTRY_REVIEW' | 'IDENTITY_ADMINISTER';
+  | 'CASE_VIEW' | 'CASE_REVIEW' | 'EVIDENCE_ACCESS' | 'EVIDENCE_HOLD' | 'EVIDENCE_EXPORT'
+  | 'LEGAL_REVIEW' | 'POLICY_ADMINISTER' | 'PROPOSE_ACTION' | 'AUTHORISE_ACTION'
+  | 'ENFORCEMENT_WITHDRAW' | 'ORCHESTRATION_VIEW' | 'REENTRY_REVIEW' | 'IDENTITY_ADMINISTER';
 
-// Role → capabilities. Deliberately disjoint where SoD requires it.
+// Role → capabilities. Deliberately disjoint where SoD requires it. State-changing / high-impact
+// operations (PR1.1 independent-review remediation) hold DISTINCT capabilities from read tiers:
+//   ENFORCEMENT_WITHDRAW (cancel a dispatched enforcement) — AUTHORISING_OFFICER only (authority-level,
+//     symmetric with AUTHORISE_ACTION/dispatch; a view-tier role must not cancel what it cannot dispatch).
+//   EVIDENCE_HOLD (legal hold) + EVIDENCE_EXPORT (custody-disclosure manifest) — LEGAL_REVIEWER +
+//     AUTHORISING_OFFICER only; NOT plain EVIDENCE_ACCESS (read/retrieve/verify/link).
 const ROLE_CAPS: Record<PrivilegedGuardianRole, GuardianCapability[]> = {
   INVESTIGATOR:          ['CASE_VIEW', 'CASE_REVIEW', 'EVIDENCE_ACCESS', 'PROPOSE_ACTION', 'ORCHESTRATION_VIEW', 'REENTRY_REVIEW'],
-  LEGAL_REVIEWER:        ['CASE_VIEW', 'EVIDENCE_ACCESS', 'LEGAL_REVIEW', 'ORCHESTRATION_VIEW', 'REENTRY_REVIEW'],
-  AUTHORISING_OFFICER:   ['CASE_VIEW', 'EVIDENCE_ACCESS', 'AUTHORISE_ACTION', 'ORCHESTRATION_VIEW'],
+  LEGAL_REVIEWER:        ['CASE_VIEW', 'EVIDENCE_ACCESS', 'EVIDENCE_HOLD', 'EVIDENCE_EXPORT', 'LEGAL_REVIEW', 'ORCHESTRATION_VIEW', 'REENTRY_REVIEW'],
+  AUTHORISING_OFFICER:   ['CASE_VIEW', 'EVIDENCE_ACCESS', 'EVIDENCE_HOLD', 'EVIDENCE_EXPORT', 'AUTHORISE_ACTION', 'ENFORCEMENT_WITHDRAW', 'ORCHESTRATION_VIEW'],
   POLICY_ADMINISTRATOR:  ['POLICY_ADMINISTER', 'CASE_VIEW'],
   GUARDIAN_ADMINISTRATOR:['IDENTITY_ADMINISTER'],   // administrative scope only — NO business authorisation
 };
