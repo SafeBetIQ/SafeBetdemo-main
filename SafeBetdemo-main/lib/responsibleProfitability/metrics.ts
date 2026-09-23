@@ -11,7 +11,7 @@ import {
   type MetricProvenance,
 } from './definitions.ts';
 import {
-  ggrForPeriod, stakesForPeriod, winningsForPeriod, certifiedMoney,
+  ggrForPeriod, certifiedMoney,
   financialStatusLabel, financialCurrency, financialTimezone, syntheticDisclosure,
   type FinancialPeriod,
 } from '../certifiedFinancial.ts';
@@ -89,30 +89,44 @@ export function computeResponsibleProfitability(input: RpInput): RpOverview {
     value: ggr, display: certifiedMoney(ggr), provenance: 'CERTIFIED', freshness: status, framing: 'PERFORMANCE',
     reason: ggr === null ? 'Certified GGR unavailable for this period.' : undefined });
 
-  // supporting certified stakes/winnings (context, same source)
-  const stakes = stakesForPeriod(fp, period); const wins = winningsForPeriod(fp, period);
-
   // ── risk_posture_distribution + elevated_risk_exposure (canonical KPI bands) ──
+  // Each band is read as number-or-null: a MISSING band is null (never coerced to 0 — finding 3).
+  const crit = kpi ? n(kpi.risk_critical) : null;
+  const high = kpi ? n(kpi.risk_high) : null;
+  const med = kpi ? n(kpi.risk_medium) : null;
+  const low = kpi ? n(kpi.risk_low) : null;
+  const active = kpi ? n(kpi.active_players) : null;
+
   if (!kpi) {
     metrics.push(notAvailable('risk_posture_distribution', 'EXPOSURE_TO_REDUCE'));
-    metrics.push(notAvailable('elevated_risk_exposure', 'EXPOSURE_TO_REDUCE'));
   } else {
-    const crit = n(kpi.risk_critical), high = n(kpi.risk_high), med = n(kpi.risk_medium), low = n(kpi.risk_low);
-    const active = n(kpi.active_players);
-    const elevated = (crit ?? 0) + (high ?? 0);
-    // k-anon EACH band: a genuine 0 renders "0", but a small non-zero band (>0,<floor)
-    // is masked "<N" so per-band figures can never expose a small identifiable group —
-    // consistent with the elevated-exposure suppression below.
+    // k-anon EACH band: a genuine 0 renders "0"; a MISSING band renders "—" (never 0 — finding 3);
+    // a small non-zero band (>0,<floor) is masked "<N" so per-band figures never expose a small group.
     const band = (c: number | null): string => (c === null ? '—' : suppressed(c) ? `<${RP_MIN_COHORT}` : String(c));
     metrics.push({ id: 'risk_posture_distribution', name: 'Player risk-posture distribution', availability: 'MEASURABLE',
-      value: active, display: `${band(crit)} critical · ${band(high)} high · ${band(med)} medium · ${band(low)} low`,
+      // No aggregate numeric value is emitted: the display carries per-band (masked) figures only, so no
+      // total can be combined with a masked band to recover it (finding 2 — complementary calculation).
+      value: null, display: `${band(crit)} critical · ${band(high)} high · ${band(med)} medium · ${band(low)} low`,
       provenance: 'OPERATIONAL_PROJECTION', framing: 'EXPOSURE_TO_REDUCE' });
+  }
+
+  // elevated_risk_exposure = critical + high. BOTH bands must be present, else NOT_AVAILABLE — a missing
+  // band is never treated as 0 (finding 3). It is suppressed when the sum OR EITHER component is a small
+  // group, because a visible component plus the sum would otherwise recover the masked one, and any ratio
+  // (elevated/active) would recover the count — so value, ratio AND display are all withheld (finding 2).
+  if (crit === null || high === null) {
+    metrics.push({ ...notAvailable('elevated_risk_exposure', 'EXPOSURE_TO_REDUCE'),
+      reason: 'Required risk-band inputs are missing; elevated exposure is not computed (missing is never treated as zero).' });
+  } else {
+    const elevated = crit + high;
+    const hide = suppressed(elevated) || suppressed(crit) || suppressed(high);
     metrics.push({ id: 'elevated_risk_exposure', name: 'Elevated harm-risk exposure',
-      availability: suppressed(elevated) ? 'SUPPRESSED' : 'MEASURABLE',
-      value: suppressed(elevated) ? null : elevated, ratio: active ? elevated / active : null,
-      display: suppressed(elevated) ? '—' : `${elevated}${active ? ` of ${active}` : ''}`,
+      availability: hide ? 'SUPPRESSED' : 'MEASURABLE',
+      value: hide ? null : elevated,
+      ratio: hide ? null : (active && active > 0 ? elevated / active : null),
+      display: hide ? '—' : `${elevated}${active && active > 0 ? ` of ${active}` : ''}`,
       provenance: 'OPERATIONAL_PROJECTION', framing: 'EXPOSURE_TO_REDUCE',
-      reason: suppressed(elevated) ? 'Cohort below the identifiable-exposure floor; suppressed.' : undefined });
+      reason: hide ? 'Cohort at or below the identifiable-exposure floor; suppressed (including complementary recovery).' : undefined });
   }
 
   // ── self_exclusion_protection (protection framing) ──
@@ -148,10 +162,54 @@ export function computeResponsibleProfitability(input: RpInput): RpOverview {
     metricsVersion: RP_METRICS_VERSION, casinoId: input.casinoId, period, generatedAt: input.now ?? new Date().toISOString(),
     currency: financialCurrency(fp), timezone: financialTimezone(fp), financialStatus: status,
     containsSyntheticData: !!fp?.containsSyntheticData, syntheticDisclosure: syntheticDisclosure(fp),
-    // B1 reuses the certified posture verbatim for all financial values → reconciles by construction.
-    reconciliation: fp ? 'RECONCILES_TO_CERTIFIED_POSTURE' : 'UNAVAILABLE',
+    // Reconciliation is reported only when the SELECTED period's certified value is actually present.
+    // "Reconciles by construction" is meaningful only when there is a value to reconcile to — if this
+    // period's certified GGR is unavailable, reconciliation is UNAVAILABLE, not RECONCILES (finding 5).
+    reconciliation: fp && ggr !== null ? 'RECONCILES_TO_CERTIFIED_POSTURE' : 'UNAVAILABLE',
     metrics,
   };
+}
+
+// ─── Pure authorization / staleness helpers (route-side, exported for testing) ─
+
+/**
+ * The Consumer Platform gateway is the authorization AUTHORITY (it enforces
+ * principalMayAccessCasino server-side). This maps its HTTP status to whether the
+ * route may proceed with any privileged (service-role) read. A 401/403 is
+ * propagated as a denial; any other non-2xx means authorization could not be
+ * confirmed, so NO privileged read runs, but it is not a hard denial.
+ */
+export function gatewayAuthorizationOutcome(status: number): { authorized: boolean; denyStatus: number | null } {
+  if (status >= 200 && status < 300) return { authorized: true, denyStatus: null };
+  if (status === 401 || status === 403) return { authorized: false, denyStatus: status };
+  return { authorized: false, denyStatus: null };
+}
+
+/**
+ * Resolve the single casino a Responsible-Profitability request may read, or a
+ * denial status. Operators are pinned to their own casino; a differing requested
+ * casino is refused for anyone pinned. Administrators (no casino assignment) must
+ * name a casino. No caller can ever widen beyond this — the gateway re-checks it.
+ */
+export function resolveRpScope(
+  profile: string | null,
+  casinoId: string | undefined,
+  requestedCasinoId: string | undefined,
+): { scopeCasino: string } | { deny: number } {
+  if (profile !== 'casino-operator' && profile !== 'administrator') return { deny: 403 };
+  if (casinoId && requestedCasinoId && requestedCasinoId !== casinoId) return { deny: 403 };
+  if (profile === 'casino-operator') {
+    if (!casinoId) return { deny: 403 };
+    return { scopeCasino: casinoId };
+  }
+  const scope = casinoId ?? requestedCasinoId;
+  if (!scope) return { deny: 403 };
+  return { scopeCasino: scope };
+}
+
+/** Client staleness guard: accept a fetched overview only if it is for the currently-selected period. */
+export function isOverviewForPeriod(o: { period: FinancialPeriod } | null | undefined, period: FinancialPeriod): boolean {
+  return !!o && o.period === period;
 }
 
 /** Guard for callers/tests: no MEASURABLE metric may carry growth/upsell/recovery framing. */

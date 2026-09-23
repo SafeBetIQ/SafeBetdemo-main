@@ -12,12 +12,13 @@
 // certified Consumer Platform posture verbatim (reconciles by construction) and
 // returns governed NOT_AVAILABLE metrics rather than estimates.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { readAccessTokenFast, supabase } from '@/lib/supabase';
+import { isOverviewForPeriod } from '@/lib/responsibleProfitability';
 import { FINANCIAL_PERIODS, type FinancialPeriod } from '@/lib/certifiedFinancial';
 import { ShieldCheck, RefreshCw, Info } from 'lucide-react';
 
@@ -57,19 +58,31 @@ export default function ResponsibleProfitabilityPage() {
   const [data, setData] = useState<RpOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
+  const reqGen = useRef(0);
 
   const refresh = useCallback(async () => {
-    setLoading(true); setUnavailable(false);
+    // Bump the request generation and clear any previously-shown figures so stale
+    // financial data can never render under a newly-selected period (finding 4).
+    const gen = ++reqGen.current;
+    setLoading(true); setUnavailable(false); setData(null);
     const t = await token();
+    if (gen !== reqGen.current) return;
     if (!t) { setUnavailable(true); setLoading(false); return; }
     try {
       const res = await fetch(`/api/casino/responsible-profitability?period=${period}`, {
         headers: { Authorization: `Bearer ${t}` }, cache: 'no-store',
       });
+      if (gen !== reqGen.current) return;   // a newer request superseded this one
       if (!res.ok) { setUnavailable(true); setData(null); }
-      else { const b = await res.json(); setData((b?.overview ?? null) as RpOverview | null); }
-    } catch { setUnavailable(true); setData(null); }
-    setLoading(false);
+      else {
+        const b = await res.json();
+        if (gen !== reqGen.current) return;
+        const ov = (b?.overview ?? null) as RpOverview | null;
+        // Only accept a response that is actually for the currently-selected period.
+        setData(isOverviewForPeriod(ov, period) ? ov : null);
+      }
+    } catch { if (gen === reqGen.current) { setUnavailable(true); setData(null); } }
+    if (gen === reqGen.current) setLoading(false);
   }, [period]);
 
   useEffect(() => { refresh(); }, [refresh]);

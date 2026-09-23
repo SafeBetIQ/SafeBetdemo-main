@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeResponsibleProfitability, type RpKpi, type RpInterventionCoverage } from '@/lib/responsibleProfitability';
+import { computeResponsibleProfitability, gatewayAuthorizationOutcome, resolveRpScope, type RpKpi, type RpInterventionCoverage } from '@/lib/responsibleProfitability';
 import { profileForRole } from '@/lib/consumerPlatform/authorization';
 import { FINANCIAL_PERIODS, type FinancialPeriod } from '@/lib/certifiedFinancial';
 import type { FinancialPostureView, LiveKpiView } from '@/lib/consumerPlatform/contracts';
@@ -45,54 +45,63 @@ export async function GET(req: Request) {
   if (uErr || !u?.user) return deny(401);
   const { data: prof } = await admin.from('users').select('role, casino_id').eq('id', u.user.id).single();
   const profile = profileForRole(prof?.role);
-  // Responsible-Profitability is an operator-scoped view: operators + admins only.
-  if (!profile || (profile !== 'casino-operator' && profile !== 'administrator')) return deny(403);
   const casinoId = (prof?.casino_id as string | undefined) ?? undefined;
-  if (profile === 'casino-operator' && !casinoId) return deny(403);
 
   // Period selection only SELECTS a certified view; it can never widen scope.
   const params = new URL(req.url).searchParams;
   const requested = (params.get('period') ?? 'TODAY').toUpperCase();
   const period: FinancialPeriod = FINANCIAL_PERIODS.some((p) => p.key === requested)
     ? (requested as FinancialPeriod) : 'TODAY';
-  // An operator is pinned to their own casino; a differing request is refused.
-  const reqCasino = params.get('casino_id') ?? undefined;
-  if (reqCasino && casinoId && reqCasino !== casinoId) return deny(403);
-  const scopeCasino = casinoId ?? reqCasino;
-  if (!scopeCasino) return deny(403);
 
-  // ── certified live-floor bundle, via the caller's OWN JWT (scope enforced by
-  //    the gateway). financial + kpi are reused verbatim → reconciles by
-  //    construction; no second GGR computation happens here. ──
+  // Resolve the single casino this caller may read (operators pinned; admins must
+  // name one; cross-casino refused). Any denial is returned before any read.
+  const reqCasino = params.get('casino_id') ?? undefined;
+  const scope = resolveRpScope(profile, casinoId, reqCasino);
+  if ('deny' in scope) return deny(scope.deny);
+  const scopeCasino = scope.scopeCasino;
+
+  // ── certified live-floor bundle, via the caller's OWN JWT. The gateway is the
+  //    AUTHORIZATION AUTHORITY (principalMayAccessCasino server-side); its status
+  //    decides whether any privileged read may proceed. financial + kpi are reused
+  //    verbatim → reconciles by construction; no second GGR computation here. ──
   let floor: LiveFloorLite = { kpi: null, financial: null };
+  let gatewayStatus = 0;
   try {
     const qs = new URLSearchParams({ view: 'live-floor', version: 'v1', casino_id: scopeCasino });
     const res = await fetch(`${url}/functions/v1/consumer-gateway?${qs.toString()}`, {
       headers: { Authorization: `Bearer ${token}`, apikey: anon },
     });
+    gatewayStatus = res.status;
     if (res.ok) {
       const body = await res.json();
       const data = (body?.data ?? null) as LiveFloorLite | null;
       if (data) floor = { kpi: data.kpi ?? null, financial: data.financial ?? null };
     }
-    // A non-OK gateway response is treated as UNAVAILABLE data (null-not-zero),
-    // never as a silent 0 — computeResponsibleProfitability renders "—".
   } catch {
-    /* leave floor null → certified metrics render "—" */
+    gatewayStatus = 0; // network/timeout → authorization unconfirmed
   }
 
+  // Propagate an authorization denial from the gateway; on any unconfirmed status,
+  // no privileged read runs (financial/kpi/self-exclusion all stay "—").
+  const gateway = gatewayAuthorizationOutcome(gatewayStatus);
+  if (gateway.denyStatus !== null) return deny(gateway.denyStatus);
+
   // ── casino-scoped active self-exclusion COUNT (protection metric input) ──
-  //    Count only, scoped to the gateway-confirmed casino; never identities.
+  //    Runs ONLY after the gateway has AUTHORISED this casino (finding 1): the
+  //    service-role client bypasses RLS, so it must never read without the
+  //    authority's confirmation. Count only; scoped; never identities.
   let activeSelfExclusions: number | null = null;
-  try {
-    const { count, error } = await admin
-      .from('self_exclusions')
-      .select('id', { count: 'exact', head: true })
-      .eq('casino_id', scopeCasino)
-      .in('status', ['active', 'breached']);
-    if (!error) activeSelfExclusions = count ?? 0;
-  } catch {
-    activeSelfExclusions = null; // unavailable → "—", never 0
+  if (gateway.authorized) {
+    try {
+      const { count, error } = await admin
+        .from('self_exclusions')
+        .select('id', { count: 'exact', head: true })
+        .eq('casino_id', scopeCasino)
+        .in('status', ['active', 'breached']);
+      if (!error) activeSelfExclusions = count ?? 0;
+    } catch {
+      activeSelfExclusions = null; // unavailable → "—", never 0
+    }
   }
 
   // ── intervention coverage: currently NOT_AVAILABLE by design ──

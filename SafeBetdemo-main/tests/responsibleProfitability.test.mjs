@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   RP_METRICS_VERSION, RP_METRIC_DEFINITIONS, RP_MIN_COHORT, rpMetricById,
   computeResponsibleProfitability, assertNoOpportunityFraming,
+  gatewayAuthorizationOutcome, resolveRpScope, isOverviewForPeriod,
 } from '../lib/responsibleProfitability/index.ts';
 import { ggrForPeriod } from '../lib/certifiedFinancial.ts';
 
@@ -132,4 +133,90 @@ test('every definition carries the universal safeguards + prohibited interpretat
     assert.ok(Array.isArray(d.safeguards) && d.safeguards.length >= 4);
     if (d.availability === 'NOT_AVAILABLE') assert.ok(d.notAvailableReason && d.notAvailableReason.length > 20);
   }
+});
+
+// ── FINAL REVIEW REMEDIATION — one regression per finding ─────────────────────
+
+// Finding 1: unsuccessful gateway authorization must prevent the service-role read.
+test('F1: gateway authorization outcome propagates 401/403 and blocks reads on any non-2xx', () => {
+  assert.deepEqual(gatewayAuthorizationOutcome(200), { authorized: true, denyStatus: null });
+  assert.deepEqual(gatewayAuthorizationOutcome(204), { authorized: true, denyStatus: null });
+  assert.deepEqual(gatewayAuthorizationOutcome(401), { authorized: false, denyStatus: 401 });
+  assert.deepEqual(gatewayAuthorizationOutcome(403), { authorized: false, denyStatus: 403 });
+  // gateway unavailable / network (0, 500, 502): NOT authorized (no privileged read), but not a hard deny
+  for (const s of [0, 500, 502, 504]) {
+    assert.deepEqual(gatewayAuthorizationOutcome(s), { authorized: false, denyStatus: null });
+  }
+});
+test('F1: scope resolution pins operators and handles administrators without a casino assignment', () => {
+  // operator with own casino, no request → own casino
+  assert.deepEqual(resolveRpScope('casino-operator', 'c1', undefined), { scopeCasino: 'c1' });
+  // operator with own casino, matching request → own casino
+  assert.deepEqual(resolveRpScope('casino-operator', 'c1', 'c1'), { scopeCasino: 'c1' });
+  // operator requesting a DIFFERENT casino → denied
+  assert.deepEqual(resolveRpScope('casino-operator', 'c1', 'c2'), { deny: 403 });
+  // operator with no casino assignment → denied
+  assert.deepEqual(resolveRpScope('casino-operator', undefined, 'c1'), { deny: 403 });
+  // administrator without a casino assignment MUST name a casino
+  assert.deepEqual(resolveRpScope('administrator', undefined, 'c9'), { scopeCasino: 'c9' });
+  assert.deepEqual(resolveRpScope('administrator', undefined, undefined), { deny: 403 });
+  // ineligible profiles (regulator / unknown / null) → denied
+  for (const p of ['regulator', 'executive', 'api-client', null]) {
+    assert.deepEqual(resolveRpScope(p, 'c1', 'c1'), { deny: 403 });
+  }
+});
+
+// Finding 2: no small-cohort disclosure via ratio / aggregate / complementary calc.
+test('F2: a small component band cannot be recovered from the elevated sum minus a visible band', () => {
+  // critical = 3 (small) but high = 1104 (large) → elevated sum 1107 would be > floor.
+  const o = computeResponsibleProfitability({ ...base, kpi: { active_players: 18152, risk_critical: 3, risk_high: 1104, risk_medium: 7667, risk_low: 9218 } });
+  const e = get(o, 'elevated_risk_exposure');
+  assert.equal(e.availability, 'SUPPRESSED');   // suppressed because a component is small
+  assert.equal(e.value, null);                  // no sum → cannot do sum − high = critical
+  assert.ok(e.ratio == null);                   // no ratio → cannot do ratio × active = count
+  assert.equal(e.display, '—');
+  // distribution masks the small band and emits NO aggregate numeric value
+  const d = get(o, 'risk_posture_distribution');
+  assert.match(d.display, /<10 critical/);
+  assert.equal(d.value, null);
+});
+test('F2: elevated ratio is withheld whenever the metric is suppressed', () => {
+  const o = computeResponsibleProfitability({ ...base, kpi: { active_players: 100, risk_critical: 2, risk_high: 3, risk_medium: 10, risk_low: 80 } });
+  const e = get(o, 'elevated_risk_exposure');
+  assert.equal(e.availability, 'SUPPRESSED');
+  assert.ok(e.ratio == null);
+  assert.equal(e.value, null);
+});
+
+// Finding 3: a MISSING risk band is not interpreted as zero.
+test('F3: a missing (null) critical band makes elevated exposure NOT_AVAILABLE, never treated as 0', () => {
+  const o = computeResponsibleProfitability({ ...base, kpi: { active_players: 18152, risk_critical: null, risk_high: 1104, risk_medium: 7667, risk_low: 9218 } });
+  const e = get(o, 'elevated_risk_exposure');
+  assert.equal(e.availability, 'NOT_AVAILABLE');   // NOT computed as 0 + 1104 = 1104
+  assert.equal(e.value, null);
+  assert.match(e.reason, /missing/i);
+  // distribution shows the missing band as "—", not "0"
+  assert.match(get(o, 'risk_posture_distribution').display, /— critical/);
+});
+
+// Finding 4: stale financial must not display under a newly-selected period.
+test('F4: overview is accepted only when its period matches the current selection', () => {
+  const forToday = { period: 'TODAY' };
+  assert.equal(isOverviewForPeriod(forToday, 'TODAY'), true);
+  assert.equal(isOverviewForPeriod(forToday, 'MTD'), false);   // a stale TODAY payload is rejected under MTD
+  assert.equal(isOverviewForPeriod(null, 'TODAY'), false);
+  assert.equal(isOverviewForPeriod(undefined, 'TODAY'), false);
+});
+
+// Finding 5: reconciliation is not reported when the selected period's value is unavailable.
+test('F5: reconciliation is UNAVAILABLE when the selected period certified value is null', () => {
+  // posture present, but the MTD certified value is unavailable for this period
+  const fp = posture({ ggrMonthToDate: null });
+  const o = computeResponsibleProfitability({ ...base, financial: fp, period: 'MTD' });
+  assert.equal(get(o, 'certified_ggr').availability, 'NOT_AVAILABLE');
+  assert.equal(get(o, 'certified_ggr').display, '—');
+  assert.equal(o.reconciliation, 'UNAVAILABLE');   // nothing to reconcile to for this period
+  // and a period WITH a value still reconciles
+  const o2 = computeResponsibleProfitability({ ...base, financial: fp, period: 'TODAY' });
+  assert.equal(o2.reconciliation, 'RECONCILES_TO_CERTIFIED_POSTURE');
 });
