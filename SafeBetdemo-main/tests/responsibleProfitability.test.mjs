@@ -109,6 +109,15 @@ test('small cohorts below the k-anon floor are suppressed', () => {
   assert.equal(get(o, 'self_exclusion_protection').availability, 'SUPPRESSED'); // 4 < 10
   assert.ok(RP_MIN_COHORT >= 10);
 });
+test('per-band distribution masks small non-zero bands but shows a genuine 0', () => {
+  const o = computeResponsibleProfitability({ ...base, kpi: { active_players: 30, risk_critical: 3, risk_high: 2, risk_medium: 0, risk_low: 25 } });
+  const d = get(o, 'risk_posture_distribution').display;
+  assert.match(d, /<10 critical/);   // 3 masked
+  assert.match(d, /<10 high/);       // 2 masked
+  assert.match(d, /0 medium/);       // genuine 0 shown, not masked
+  assert.match(d, /25 low/);         // large band shown
+  assert.doesNotMatch(d, /3 critical|2 high/); // raw small counts never exposed
+});
 
 // ── §5 safeguards: no growth/upsell/recovery framing anywhere ──
 test('no opportunity/upsell/recovery framing on any metric (safeguard)', () => {

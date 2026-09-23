@@ -100,9 +100,12 @@ export function computeResponsibleProfitability(input: RpInput): RpOverview {
     const crit = n(kpi.risk_critical), high = n(kpi.risk_high), med = n(kpi.risk_medium), low = n(kpi.risk_low);
     const active = n(kpi.active_players);
     const elevated = (crit ?? 0) + (high ?? 0);
-    // distribution is a set of large cohorts; suppress only truly small ones.
+    // k-anon EACH band: a genuine 0 renders "0", but a small non-zero band (>0,<floor)
+    // is masked "<N" so per-band figures can never expose a small identifiable group —
+    // consistent with the elevated-exposure suppression below.
+    const band = (c: number | null): string => (c === null ? '—' : suppressed(c) ? `<${RP_MIN_COHORT}` : String(c));
     metrics.push({ id: 'risk_posture_distribution', name: 'Player risk-posture distribution', availability: 'MEASURABLE',
-      value: active, display: `${crit ?? 0} critical · ${high ?? 0} high · ${med ?? 0} medium · ${low ?? 0} low`,
+      value: active, display: `${band(crit)} critical · ${band(high)} high · ${band(med)} medium · ${band(low)} low`,
       provenance: 'OPERATIONAL_PROJECTION', framing: 'EXPOSURE_TO_REDUCE' });
     metrics.push({ id: 'elevated_risk_exposure', name: 'Elevated harm-risk exposure',
       availability: suppressed(elevated) ? 'SUPPRESSED' : 'MEASURABLE',
