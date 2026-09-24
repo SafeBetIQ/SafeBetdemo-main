@@ -35,16 +35,29 @@ interface RpOverview {
   reconciliation: 'RECONCILES_TO_CERTIFIED_POSTURE' | 'UNAVAILABLE';
   metrics: RpMetric[];
 }
+// B2 Intervention Outcome Intelligence (ALL_RECORDED, casino grain, Demo records).
+interface B2Metric {
+  id: string; name: string;
+  availability: 'MEASURABLE' | 'PARTIAL' | 'NOT_AVAILABLE' | 'SUPPRESSED';
+  value: number | null; ratio?: number | null; display: string;
+  provenance: string; reason?: string; framing: string;
+}
+interface B2Overview {
+  metricsVersion: string; casinoId: string; observationWindow: string; source: string;
+  generatedAt: string; dataProvenanceNote: string; lastInterventionAt: string | null;
+  metrics: B2Metric[];
+}
 
 const AVAIL_TONE: Record<string, 'default' | 'secondary' | 'outline'> = {
-  MEASURABLE: 'default', NOT_AVAILABLE: 'outline', SUPPRESSED: 'secondary',
+  MEASURABLE: 'default', PARTIAL: 'secondary', NOT_AVAILABLE: 'outline', SUPPRESSED: 'secondary',
 };
 const AVAIL_LABEL: Record<string, string> = {
-  MEASURABLE: 'Measured', NOT_AVAILABLE: 'Not available', SUPPRESSED: 'Suppressed (small group)',
+  MEASURABLE: 'Measured', PARTIAL: 'Partial', NOT_AVAILABLE: 'Not available', SUPPRESSED: 'Suppressed (small group)',
 };
 const PROV_LABEL: Record<string, string> = {
   CERTIFIED: 'Certified', OPERATIONAL_PROJECTION: 'Operational projection',
   DERIVED: 'Derived', SYNTHETIC_DEMO: 'Synthetic (demo)',
+  DEMO_INTERVENTION_RECORD: 'Demo intervention record', NONE: '—',
 };
 
 async function token(): Promise<string | null> {
@@ -56,6 +69,7 @@ async function token(): Promise<string | null> {
 export default function ResponsibleProfitabilityPage() {
   const [period, setPeriod] = useState<FinancialPeriod>('TODAY');
   const [data, setData] = useState<RpOverview | null>(null);
+  const [b2, setB2] = useState<B2Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const reqGen = useRef(0);
@@ -64,7 +78,7 @@ export default function ResponsibleProfitabilityPage() {
     // Bump the request generation and clear any previously-shown figures so stale
     // financial data can never render under a newly-selected period (finding 4).
     const gen = ++reqGen.current;
-    setLoading(true); setUnavailable(false); setData(null);
+    setLoading(true); setUnavailable(false); setData(null); setB2(null);
     const t = await token();
     if (gen !== reqGen.current) return;
     if (!t) { setUnavailable(true); setLoading(false); return; }
@@ -79,7 +93,10 @@ export default function ResponsibleProfitabilityPage() {
         if (gen !== reqGen.current) return;
         const ov = (b?.overview ?? null) as RpOverview | null;
         // Only accept a response that is actually for the currently-selected period.
-        setData(isOverviewForPeriod(ov, period) ? ov : null);
+        const accepted = isOverviewForPeriod(ov, period);
+        setData(accepted ? ov : null);
+        // B2 intervention outcomes are period-independent; attach only with an accepted response.
+        setB2(accepted ? ((b?.interventionOutcomes ?? null) as B2Overview | null) : null);
       }
     } catch { if (gen === reqGen.current) { setUnavailable(true); setData(null); } }
     if (gen === reqGen.current) setLoading(false);
@@ -194,6 +211,47 @@ export default function ResponsibleProfitabilityPage() {
                         {m.reason && <span className="text-xs text-muted-foreground">{m.reason}</span>}
                       </div>
                     ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* B2 — Intervention Outcome Intelligence (ALL_RECORDED, Demo records) */}
+              {b2 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Intervention outcomes</CardTitle>
+                    <CardDescription>
+                      Recorded responsible-gambling interventions for this casino (all recorded history, not a
+                      financial period). {b2.dataProvenanceNote}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {b2.metrics.filter((m) => m.availability !== 'NOT_AVAILABLE').map((m) => (
+                      <div key={m.id} className="flex flex-col gap-0.5 border-b pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium">{m.name}</span>
+                          <div className="flex gap-1">
+                            <Badge variant={AVAIL_TONE[m.availability]}>{AVAIL_LABEL[m.availability]}</Badge>
+                            <Badge variant="outline">{PROV_LABEL[m.provenance] ?? m.provenance}</Badge>
+                          </div>
+                        </div>
+                        <span className="text-sm">{m.display}</span>
+                        {m.reason && <span className="text-xs text-muted-foreground">{m.reason}</span>}
+                      </div>
+                    ))}
+                    {/* Honest not-measurable intervention metrics (coverage / causal / timing / completion) */}
+                    <div className="pt-2">
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">Not measurable from current evidence:</p>
+                      {b2.metrics.filter((m) => m.availability === 'NOT_AVAILABLE').map((m) => (
+                        <div key={m.id} className="flex flex-col gap-0.5 py-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs">{m.name}</span>
+                            <Badge variant="outline">Not available</Badge>
+                          </div>
+                          {m.reason && <span className="text-[11px] text-muted-foreground">{m.reason}</span>}
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
