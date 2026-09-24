@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeResponsibleProfitability, gatewayAuthorizationOutcome, resolveRpScope, type RpKpi, type RpInterventionCoverage } from '@/lib/responsibleProfitability';
+import { computeResponsibleProfitability, gatewayAuthorizationOutcome, resolveRpScope, computeInterventionOutcomes, type RpKpi, type RpInterventionCoverage, type InterventionOutcomeAggregate } from '@/lib/responsibleProfitability';
 import { profileForRole } from '@/lib/consumerPlatform/authorization';
 import { FINANCIAL_PERIODS, type FinancialPeriod } from '@/lib/certifiedFinancial';
 import type { FinancialPostureView, LiveKpiView } from '@/lib/consumerPlatform/contracts';
@@ -104,11 +104,44 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── intervention coverage: currently NOT_AVAILABLE by design ──
-  //    projection_intervention_state is unpopulated on this environment; B1 does
-  //    NOT fabricate coverage. A labelled, isolated synthetic Demo fixture would
-  //    be required to make this MEASURABLE (deliberately withheld — §4/§6).
+  // ── intervention coverage (B1 metric): remains NOT_AVAILABLE by design ──
+  //    Player-attributed coverage needs an eligible cohort with historical risk-state
+  //    timing + a verified identity bridge — neither exists (see B2 governed reason).
   const interventionCoverage: RpInterventionCoverage | null = null;
+
+  // ── B2 intervention-outcome aggregate (casino grain; NO player identifiers) ──
+  //    Read ONLY after the gateway authorised this casino (same posture as the
+  //    self-exclusion count). Scoped by casino_id. If the projection is absent
+  //    (e.g. pre-release), the aggregate stays null → B2 metrics render NOT_AVAILABLE.
+  let interventionAggregate: InterventionOutcomeAggregate | null = null;
+  if (gateway.authorized) {
+    try {
+      const { data, error } = await admin
+        .from('projection_intervention_outcome_state')
+        .select('*')
+        .eq('casino_id', scopeCasino)
+        .maybeSingle();
+      if (!error && data) {
+        const r = data as Record<string, number | string | null>;
+        const num = (v: number | string | null): number => (typeof v === 'number' ? v : Number(v ?? 0)) || 0;
+        interventionAggregate = {
+          casinoId: scopeCasino,
+          interventionsRecorded: num(r.interventions_recorded),
+          distinctPlayers: num(r.distinct_players),
+          outcomeAccepted: num(r.outcome_accepted), outcomeDeclined: num(r.outcome_declined),
+          outcomePending: num(r.outcome_pending), outcomeSuccessful: num(r.outcome_successful),
+          outcomeUnsuccessful: num(r.outcome_unsuccessful),
+          statusSent: num(r.status_sent), statusDelivered: num(r.status_delivered),
+          followUpRequired: num(r.follow_up_required), nrgpReported: num(r.nrgp_reported),
+          withOutcome: num(r.with_outcome), withDeliveredAt: num(r.with_delivered_at),
+          withAcknowledgedAt: num(r.with_acknowledged_at), withRiskScoreAfter: num(r.with_risk_score_after),
+          lastInterventionAt: (r.last_intervention_at as string | null) ?? null,
+        };
+      }
+    } catch {
+      interventionAggregate = null; // projection absent/unreadable → NOT_AVAILABLE, never fabricated
+    }
+  }
 
   const kpi: RpKpi | null = floor.kpi
     ? {
@@ -120,6 +153,7 @@ export async function GET(req: Request) {
       }
     : null;
 
+  const now = new Date().toISOString();
   const overview = computeResponsibleProfitability({
     casinoId: scopeCasino,
     period,
@@ -127,11 +161,16 @@ export async function GET(req: Request) {
     kpi,
     activeSelfExclusions,
     interventionCoverage,
-    now: new Date().toISOString(),
+    now,
   });
 
+  // B2 Intervention Outcome Intelligence — ALL_RECORDED window, casino grain, honest
+  // NOT_AVAILABLE for coverage/causal/delivery-timing/follow-up-completion. Independent
+  // of B1's certified financial periods (not joined to current risk or the financial period).
+  const interventionOutcomes = computeInterventionOutcomes(scopeCasino, interventionAggregate, now);
+
   return NextResponse.json(
-    { ok: true, correlationId, overview },
+    { ok: true, correlationId, overview, interventionOutcomes },
     { headers: { 'Cache-Control': 'no-store, private' } },
   );
 }
