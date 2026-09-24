@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { GovernedKpiCard } from '@/components/dashboard/GovernedKpiCard';
 import { RpTabs, ScopeChip, useResponsibleProfitability } from '@/components/responsibleProfitability/shared';
-import { isChartable, breakdownToChartData } from '@/lib/responsibleProfitability/dashboardView';
+import { isChartable, breakdownToChartData, availabilityPresentation } from '@/lib/responsibleProfitability/dashboardView';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { HeartPulse, Users, CalendarClock, FileCheck, Info } from 'lucide-react';
 
@@ -46,7 +46,7 @@ function GovernedBarChart({ title, m }: { title: string; m: { availability: stri
           </div>
         ) : (
           <div className="flex h-56 items-center justify-center text-center text-sm text-muted-foreground">
-            <div><Badge variant="outline" className="mb-2">{m?.availability ?? 'Not available'}</Badge><p className="text-xs">{m?.reason ?? 'Not measurable from current evidence.'}</p></div>
+            <div><Badge variant={availabilityPresentation(m?.availability ?? 'NOT_AVAILABLE').tone} className="mb-2">{availabilityPresentation(m?.availability ?? 'NOT_AVAILABLE').label}</Badge><p className="text-xs">{m?.reason ?? 'Not measurable from current evidence.'}</p></div>
           </div>
         )}
       </CardContent>
@@ -94,9 +94,18 @@ export default function InterventionIntelligencePage() {
 
               {evidence && (
                 <Card>
-                  <CardHeader className="pb-1"><CardTitle className="text-sm font-medium">Intervention evidence completeness</CardTitle>
-                    <CardDescription>How complete the recorded evidence is per lifecycle field. Low completeness is a data gap — never grounds to fabricate values.</CardDescription></CardHeader>
-                  <CardContent><div className="text-sm">{evidence.display}</div></CardContent>
+                  <CardHeader className="pb-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <CardTitle className="text-sm font-medium">Intervention evidence completeness</CardTitle>
+                      <Badge variant={availabilityPresentation(evidence.availability).tone}>{availabilityPresentation(evidence.availability).label}</Badge>
+                    </div>
+                    <CardDescription>How complete the recorded evidence is per lifecycle field. Low completeness is a data gap — never grounds to fabricate values.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {(evidence.availability === 'MEASURABLE' || evidence.availability === 'PARTIAL')
+                      ? <div className="text-sm">{evidence.display}</div>
+                      : <div className="text-sm text-muted-foreground">— {evidence.reason && <span className="text-xs">{evidence.reason}</span>}</div>}
+                  </CardContent>
                 </Card>
               )}
 
