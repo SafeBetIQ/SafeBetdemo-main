@@ -309,6 +309,27 @@ function na(id: string, framing: B2Framing): B2MetricResult {
   return { id, name: d.name, availability: 'NOT_AVAILABLE', value: null, display: '—', provenance: d.provenance, reason: d.notAvailableReason, framing };
 }
 
+const COHORT_SUPPRESS_REASON =
+  'This casino’s intervention population is below the identifiable-exposure floor; the full intervention breakdown (counts, distributions, ratios and completeness) is suppressed together to prevent recovery of a small cohort through complementary calculation.';
+
+/** Whole-metric suppression: no value, no ratio, no breakdown — nothing that could be subtracted or combined. */
+function cohortSuppress(id: string, framing: B2Framing): B2MetricResult {
+  const d = b2MetricById(id)!;
+  return { id, name: d.name, availability: 'SUPPRESSED', value: null, ratio: null, breakdown: null, display: '—', provenance: d.provenance, reason: COHORT_SUPPRESS_REASON, framing };
+}
+
+// Framing per measurable metric id — used for both the live and the suppressed rendering.
+const B2_MEASURABLE_FRAMING: Record<string, B2Framing> = {
+  interventions_recorded: 'COVERAGE_GAP',
+  distinct_intervention_players: 'PROTECTION',
+  intervention_status_distribution: 'DATA_QUALITY',
+  intervention_outcome_distribution: 'OUTCOME_OBSERVED',
+  follow_up_required_rate: 'COVERAGE_GAP',
+  reporting_completeness: 'DATA_QUALITY',
+  intervention_evidence_completeness: 'DATA_QUALITY',
+};
+const B2_MEASURABLE_IDS = Object.keys(B2_MEASURABLE_FRAMING);
+
 /**
  * Compute the B2 intervention-outcome overview from a casino-grain aggregate.
  * `agg` null (view absent / no rows for the casino) → the measurable metrics report
@@ -319,12 +340,21 @@ export function computeInterventionOutcomes(casinoId: string, agg: InterventionO
   const metrics: B2MetricResult[] = [];
   const provNote = 'Figures are derived from persisted DEMO intervention records (not verified real-world player interventions). Occurrence and recorded outcomes are shown; no causal effectiveness is claimed.';
 
+  // Whole-cohort suppression: if the casino's DISTINCT-PLAYER population is a small group
+  // (0 < players < floor), the ENTIRE measurable block is suppressed together — not just the
+  // player count. Surfacing the intervention count, status/outcome distributions, follow-up and
+  // reporting/evidence figures for a sub-floor population would let a small cohort be recovered
+  // by complementary subtraction, ratios×denominators, or values repeated across metric objects.
+  const cohortSuppressed = !!agg && agg.interventionsRecorded > 0 && suppressed(agg.distinctPlayers);
+
   if (!agg || agg.interventionsRecorded <= 0) {
     // No source rows for this casino → measurable metrics NOT_AVAILABLE (never zero-filled).
-    for (const id of ['interventions_recorded', 'distinct_intervention_players', 'intervention_status_distribution',
-      'intervention_outcome_distribution', 'follow_up_required_rate', 'reporting_completeness', 'intervention_evidence_completeness']) {
-      metrics.push({ ...na(id, 'DATA_QUALITY'), reason: 'No intervention records are present for this casino.' });
+    for (const id of B2_MEASURABLE_IDS) {
+      metrics.push({ ...na(id, B2_MEASURABLE_FRAMING[id]), reason: 'No intervention records are present for this casino.' });
     }
+  } else if (cohortSuppressed) {
+    // Small casino population → suppress the whole measurable set (value/ratio/breakdown withheld).
+    for (const id of B2_MEASURABLE_IDS) metrics.push(cohortSuppress(id, B2_MEASURABLE_FRAMING[id]));
   } else {
     const n = agg.interventionsRecorded;
     metrics.push({ id: 'interventions_recorded', name: b2MetricById('interventions_recorded')!.name, availability: 'MEASURABLE',

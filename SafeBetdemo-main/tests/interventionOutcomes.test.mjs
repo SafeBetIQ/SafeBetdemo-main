@@ -117,6 +117,53 @@ test('distinct-player count is k-anon suppressed below the floor', () => {
   assert.equal(m.availability, 'SUPPRESSED');
   assert.equal(m.value, null); assert.equal(m.display, '—');
 });
+
+// ── FINAL PRIVACY CLOSE-OUT: whole-cohort suppression (no complementary recovery) ──
+const MEASURABLE = ['interventions_recorded', 'distinct_intervention_players', 'intervention_status_distribution',
+  'intervention_outcome_distribution', 'follow_up_required_rate', 'reporting_completeness', 'intervention_evidence_completeness'];
+
+test('small casino population suppresses the ENTIRE measurable block, not just the player count', () => {
+  // 8 players (<10) but many records — the whole breakdown must be withheld together.
+  const o = computeInterventionOutcomes('c1', agg({ distinctPlayers: 8, interventionsRecorded: 140 }));
+  for (const id of MEASURABLE) {
+    const m = get(o, id);
+    assert.equal(m.availability, 'SUPPRESSED', `${id} should be SUPPRESSED`);
+    assert.equal(m.value, null, `${id} value must be withheld`);
+    assert.ok(m.ratio == null, `${id} ratio must be withheld`);
+    assert.ok(m.breakdown == null, `${id} breakdown must be withheld`);
+    assert.equal(m.display, '—');
+  }
+});
+
+test('suppressed block leaks NO numeric value anywhere (no subtraction/ratio recovery)', () => {
+  const o = computeInterventionOutcomes('c1', agg({ distinctPlayers: 5, interventionsRecorded: 90,
+    outcomeAccepted: 20, outcomeDeclined: 20, outcomePending: 20, outcomeSuccessful: 15, outcomeUnsuccessful: 15,
+    statusSent: 60, statusDelivered: 30, followUpRequired: 40, nrgpReported: 12 }));
+  const measurableBlob = JSON.stringify(o.metrics.filter((m) => MEASURABLE.includes(m.id)));
+  // none of the real counts may appear anywhere in the measurable metric objects
+  for (const v of ['90', '20', '15', '60', '30', '40', '12', '"value":9', '"value":5']) {
+    assert.doesNotMatch(measurableBlob, new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `leaked ${v}`);
+  }
+  // and no breakdown objects survive
+  assert.doesNotMatch(measurableBlob, /"breakdown":\{/);
+});
+
+test('cohort suppression boundary: 10 players shows, 9 suppresses', () => {
+  const shown = computeInterventionOutcomes('c1', agg({ distinctPlayers: 10 }));
+  assert.equal(get(shown, 'interventions_recorded').availability, 'MEASURABLE');
+  assert.equal(get(shown, 'distinct_intervention_players').value, 10);
+  const hidden = computeInterventionOutcomes('c1', agg({ distinctPlayers: 9 }));
+  assert.equal(get(hidden, 'interventions_recorded').availability, 'SUPPRESSED');
+  assert.equal(get(hidden, 'intervention_outcome_distribution').availability, 'SUPPRESSED');
+});
+
+test('suppressed ≠ zero and ≠ not-available (a real small cohort exists, just protected)', () => {
+  const o = computeInterventionOutcomes('c1', agg({ distinctPlayers: 4 }));
+  const m = get(o, 'interventions_recorded');
+  assert.equal(m.availability, 'SUPPRESSED');   // not NOT_AVAILABLE (records DO exist), not 0
+  assert.equal(m.value, null);
+  assert.match(m.reason, /identifiable-exposure floor|small cohort|complementary/i);
+});
 test('a genuine 0 distinct players is not suppressed as identifying (whole casino NOT_AVAILABLE instead)', () => {
   const o = computeInterventionOutcomes('c1', agg({ interventionsRecorded: 0 }));
   // no records → measurable metrics NOT_AVAILABLE, never zero-filled

@@ -48,9 +48,13 @@ alter view projection_intervention_outcome_state set (security_invoker = true);
 comment on view projection_intervention_outcome_state is
   'B2 Responsible Profitability: casino-grain aggregate of player_protection_interventions (Demo records). No player identifiers. ALL_RECORDED window. Occurrence/outcome only — no delivery timing, no follow-up completion, no causal effectiveness.';
 
--- Least privilege: no PUBLIC / anon. The API reads it via the gateway-authorised,
--- casino-scoped service-role path (mirroring B1's self-exclusion read).
+-- Least privilege: SERVICE_ROLE ONLY. The k-anonymity suppression that protects a
+-- small casino's intervention cohort is applied in the API computation layer, NOT in
+-- this raw aggregate. Granting `authenticated` direct SELECT would let an operator read
+-- the UN-suppressed aggregate for their casino and bypass that protection, so direct
+-- authenticated access is deliberately NOT granted — the view is reachable only through
+-- the gateway-authorised, casino-scoped, suppression-applying API path (same posture as
+-- B1's self-exclusion read). security_invoker is retained as defence-in-depth.
 revoke all on projection_intervention_outcome_state from public;
+revoke all on projection_intervention_outcome_state from authenticated, anon;
 grant select on projection_intervention_outcome_state to service_role;
--- authenticated may read only what the underlying RLS permits (own casino), via security_invoker.
-grant select on projection_intervention_outcome_state to authenticated;
