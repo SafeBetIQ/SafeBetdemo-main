@@ -409,7 +409,9 @@ export function computeInterventionOutcomes(casinoId: string, agg: InterventionO
   return {
     metricsVersion: B2_METRICS_VERSION, casinoId, observationWindow: 'ALL_RECORDED', source: B2_SOURCE,
     generatedAt: now ?? new Date().toISOString(), dataProvenanceNote: provNote,
-    lastInterventionAt: agg?.lastInterventionAt ?? null, metrics,
+    // An exact intervention timestamp for a sub-floor cohort is a quasi-identifier, so it is
+    // withheld under whole-cohort suppression too — the breakdown is suppressed TOGETHER.
+    lastInterventionAt: cohortSuppressed ? null : (agg?.lastInterventionAt ?? null), metrics,
   };
 }
 

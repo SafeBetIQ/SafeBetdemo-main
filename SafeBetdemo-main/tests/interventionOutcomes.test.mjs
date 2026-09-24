@@ -147,6 +147,13 @@ test('suppressed block leaks NO numeric value anywhere (no subtraction/ratio rec
   // and no breakdown objects survive
   assert.doesNotMatch(measurableBlob, /"breakdown":\{/);
 });
+test('suppression withholds the exact last-intervention timestamp (quasi-identifier) for a small cohort', () => {
+  const o = computeInterventionOutcomes('c1', agg({ distinctPlayers: 5, lastInterventionAt: '2026-09-20T14:32:11Z' }));
+  assert.equal(o.lastInterventionAt, null);   // whole-overview: no exact timestamp survives
+  // shown for a healthy cohort
+  const shown = computeInterventionOutcomes('c1', agg({ distinctPlayers: 20, lastInterventionAt: '2026-09-20T14:32:11Z' }));
+  assert.equal(shown.lastInterventionAt, '2026-09-20T14:32:11Z');
+});
 
 test('cohort suppression boundary: 10 players shows, 9 suppresses', () => {
   const shown = computeInterventionOutcomes('c1', agg({ distinctPlayers: 10 }));
