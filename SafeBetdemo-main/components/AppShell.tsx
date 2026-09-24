@@ -61,6 +61,14 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: 'Responsible Profitability',
+    items: [
+      { title: 'Executive Overview',           href: '/casino/responsible-profitability',              icon: BarChart3,        roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Intervention Intelligence',    href: '/casino/responsible-profitability/interventions', icon: Activity,         roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+      { title: 'Governance & Reporting',       href: '/casino/responsible-profitability/governance',    icon: FileText,         roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
+    ],
+  },
+  {
     title: 'Cases & Workflow',
     items: [
       { title: 'Case Management',              href: '/casino/cases',                     icon: Briefcase,        roles: ['casino_admin', 'compliance_officer', 'super_admin'] },
