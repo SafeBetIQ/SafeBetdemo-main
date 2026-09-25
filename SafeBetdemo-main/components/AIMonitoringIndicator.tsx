@@ -9,7 +9,9 @@ export default function AIMonitoringIndicator() {
 
   return (
     <motion.div
-      className="fixed bottom-6 right-6 z-50"
+      // Respect mobile safe-area insets (notch/home indicator) and sit a touch
+      // tighter on small screens so the FAB clears page content; unchanged on ≥sm.
+      className="fixed z-50 bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] sm:bottom-6 sm:right-6"
       initial={{ opacity: 0, scale: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 1, type: 'spring' }}
@@ -33,7 +35,7 @@ export default function AIMonitoringIndicator() {
         />
 
         <motion.div
-          className="relative bg-gradient-to-br from-brand-400 to-brand-600 p-4 rounded-full shadow-2xl border-2 border-brand-400/50"
+          className="relative bg-gradient-to-br from-brand-400 to-brand-600 p-3 sm:p-4 rounded-full shadow-2xl border-2 border-brand-400/50"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -41,7 +43,7 @@ export default function AIMonitoringIndicator() {
             animate={isHovered ? { rotate: 360 } : {}}
             transition={{ duration: 1 }}
           >
-            <Brain className="w-6 h-6 text-white" />
+            <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </motion.div>
         </motion.div>
 
