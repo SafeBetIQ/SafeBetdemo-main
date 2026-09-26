@@ -349,9 +349,10 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </header>
 
-        {/* Page Content — extra bottom clearance on mobile so the last card can
-            scroll clear of the fixed AI-assistant FAB (bottom-right); none on ≥sm. */}
-        <main className="flex-1 overflow-y-auto overflow-x-auto min-w-0 pb-24 sm:pb-0">
+        {/* Page Content — bottom clearance at every width so the last card can
+            scroll clear of the fixed AI-assistant FAB (bottom-right, ~80px tall
+            incl. inset). 96px gives a clear gap on both mobile and desktop. */}
+        <main className="flex-1 overflow-y-auto overflow-x-auto min-w-0 pb-24">
           {children}
         </main>
       </div>
