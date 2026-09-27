@@ -112,6 +112,15 @@ function token() {
   return t;
 }
 
+/** Normalise the Management API result rows. The `/database/query` endpoint returns the result set
+ *  as a BARE JSON array (`[{...}]`); some deployments/paths wrap it as `{rows:[...]}`. Accept both so
+ *  every consumer can rely on a plain row array (a shape mismatch must never silently read zero rows). */
+export function rowsOf(json) {
+  if (Array.isArray(json)) return json;
+  if (json && Array.isArray(json.rows)) return json.rows;
+  return [];
+}
+
 export async function mgmtQuery(ref, sql, { readOnly = false } = {}) {
   if (readOnly) assertSelectOnly(sql);
   const res = await fetch(`${MGMT_BASE}/v1/projects/${ref}/database/query`, {
@@ -123,7 +132,7 @@ export async function mgmtQuery(ref, sql, { readOnly = false } = {}) {
     const body = await res.text().catch(() => '');
     throw new Error(`Management API query failed on ${ref}: HTTP ${res.status} ${body.slice(0, 200)}`);
   }
-  return res.json();
+  return { rows: rowsOf(await res.json().catch(() => null)) };   // always { rows: [...] } regardless of API shape
 }
 
 /** Allow-listed guardian tables (source, read-only), non-empty first for copy ordering context. */

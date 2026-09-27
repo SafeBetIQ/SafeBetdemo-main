@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   IQ_PRODUCTION_REF, GUARDIAN_SCHEMA,
   assertMigrationTargets, assertWritableTarget, assertSelectOnly, assertGuardianTable,
-  sqlJsonLiteral, buildInsertStatement, reconcileCounts,
+  sqlJsonLiteral, buildInsertStatement, reconcileCounts, rowsOf,
 } from '../../scripts/guardian/pr2/pr2-migration-mgmtapi.mjs';
 
 const SRC = 'uexdjngogzunjxkpxwll';   // IQ Demo
@@ -109,6 +109,16 @@ test('reconcileCounts flags every mismatch and totals correctly', () => {
   assert.equal(r.mismatches[0].table, 'b');
   assert.equal(r.mismatches[0].delta, -1);
   assert.equal(reconcileCounts([{ table: 'a', source: 3, target: 3 }]).ok, true);
+});
+
+// ── Management API result-shape normalisation (a shape mismatch must never read as zero rows) ──
+test('rowsOf accepts a bare array AND a {rows:[...]} wrapper; empty for anything else', () => {
+  const arr = [{ a: 1 }, { a: 2 }];
+  assert.deepEqual(rowsOf(arr), arr);                 // bare array (the endpoint's actual shape)
+  assert.deepEqual(rowsOf({ rows: arr }), arr);       // wrapped shape
+  assert.deepEqual(rowsOf(null), []);                 // null → empty (never throws / never undefined)
+  assert.deepEqual(rowsOf({}), []);                   // object without rows → empty
+  assert.deepEqual(rowsOf([]), []);                   // empty result
 });
 
 test('constants', () => {
