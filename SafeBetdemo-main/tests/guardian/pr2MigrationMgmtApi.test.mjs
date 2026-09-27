@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   IQ_PRODUCTION_REF, GUARDIAN_SCHEMA,
-  assertMigrationTargets, assertSelectOnly, assertGuardianTable,
+  assertMigrationTargets, assertWritableTarget, assertSelectOnly, assertGuardianTable,
   sqlJsonLiteral, buildInsertStatement, reconcileCounts,
 } from '../../scripts/guardian/pr2/pr2-migration-mgmtapi.mjs';
 
@@ -30,8 +30,15 @@ test('rejects malformed refs', () => {
   assert.throws(() => assertMigrationTargets(SRC, 'has-dashes-and-caps'), /invalid target/);
 });
 
+// ── write-path guard (P2-2) ──
+test('assertWritableTarget rejects Production + malformed refs, accepts a valid non-prod ref', () => {
+  assert.equal(assertWritableTarget(TGT), TGT);
+  assert.throws(() => assertWritableTarget(IQ_PRODUCTION_REF), /refusing to WRITE to IQ Production/);
+  assert.throws(() => assertWritableTarget('bad-ref'), /invalid target/);
+});
+
 // ── source read-only assertion ──
-test('assertSelectOnly accepts SELECT/WITH, rejects mutations + multi-statement', () => {
+test('assertSelectOnly accepts SELECT/WITH, rejects mutations, INTO, row-locks + multi-statement', () => {
   assert.ok(assertSelectOnly('select * from guardian.foo'));
   assert.ok(assertSelectOnly('WITH x as (select 1) select * from x'));
   for (const bad of [
@@ -42,7 +49,10 @@ test('assertSelectOnly accepts SELECT/WITH, rejects mutations + multi-statement'
     'truncate guardian.foo',
     'select 1; drop table guardian.foo',
     'grant all on guardian.foo to public',
-    "select 1; delete from guardian.bar",
+    'select 1; delete from guardian.bar',
+    'select * into guardian.copy from guardian.foo',   // SELECT…INTO = source mutation (P2-1)
+    'select * from guardian.foo for update',            // row lock on live source (P2-1)
+    'select * from guardian.foo for share',
   ]) assert.throws(() => assertSelectOnly(bad), undefined, `should reject: ${bad}`);
 });
 
@@ -62,7 +72,9 @@ test('sqlJsonLiteral doubles single quotes (injection-safe)', () => {
   const evil = JSON.stringify([{ note: "'); drop table guardian.x; --" }]);
   const lit = sqlJsonLiteral(evil);
   assert.ok(lit.startsWith("'") && lit.endsWith("'"));
-  assert.ok(!/'\)/.test(lit.slice(1, -1)) || /''\)/.test(lit));   // any inner ' is doubled
+  // every single-quote in the body is doubled → no odd-length run can terminate the literal early
+  const body = lit.slice(1, -1);
+  assert.doesNotMatch(body, /(^|[^'])'([^']|$)/);   // no lone (un-doubled) single quote survives
 });
 
 // ── idempotent, type-faithful insert builder ──
@@ -76,8 +88,10 @@ test('buildInsertStatement uses jsonb_populate_recordset + ON CONFLICT DO NOTHIN
 });
 test('buildInsertStatement neutralises quotes in the row payload', () => {
   const s = buildInsertStatement('guardian_case', JSON.stringify([{ a: "x'y" }]), ['guardian_case']);
-  assert.ok(s.includes("''") );                          // the inner single quote is doubled
-  assert.ok(!/[^']'[^'::)]/.test(s.replace(/''/g, '')) || true);
+  assert.ok(s.includes("x''y"));                         // the inner single quote is doubled
+  // after removing doubled quotes, the only single quotes left are the literal + ::jsonb cast delimiters
+  const singles = (s.replace(/''/g, '').match(/'/g) || []).length;
+  assert.equal(singles, 2);                              // exactly the opening and closing literal quotes
 });
 
 // ── reconciliation (no silent skips) ──

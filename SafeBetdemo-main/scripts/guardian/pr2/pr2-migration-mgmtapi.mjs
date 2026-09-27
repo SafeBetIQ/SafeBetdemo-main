@@ -25,8 +25,6 @@
 // Writes are GATED: this tool must pass tests + gates + independent review before it is run against a
 // target (owner §6). Schema is (re)created separately from the reviewed Guardian migrations.
 
-import { readFileSync } from 'node:fs';
-
 export const IQ_PRODUCTION_REF = 'ilibvipqbkugqkppzdmh';   // NEVER a source or target
 export const GUARDIAN_SCHEMA = 'guardian';
 const REF_RE = /^[a-z]{20}$/;                               // Supabase project refs are 20 lowercase letters
@@ -44,13 +42,24 @@ export function assertMigrationTargets(source, target) {
   return { source, target };
 }
 
+/** Write-path guard (P2-2 defence-in-depth): a WRITE target ref must be a valid, non-Production ref.
+ *  Enforced INSIDE the write path so a mis-wired caller can never write to Production. */
+export function assertWritableTarget(target) {
+  if (!REF_RE.test(String(target))) throw new Error(`invalid target project ref: ${target}`);
+  if (target === IQ_PRODUCTION_REF) throw new Error('refusing to WRITE to IQ Production');
+  return target;
+}
+
 /** A source statement must be a single read-only SELECT (defence-in-depth against source mutation). */
 export function assertSelectOnly(sql) {
   const s = String(sql).trim().replace(/;\s*$/, '');
   if (/;/.test(s)) throw new Error('source statement must be a single statement (no ";")');
   if (!/^(select|with)\b/i.test(s)) throw new Error('source statement must be read-only (SELECT/WITH only)');
-  if (/\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|do|merge)\b/i.test(s))
-    throw new Error('source statement must not contain a mutating keyword');
+  // reject mutating keywords AND SELECT…INTO / row-locking (which mutate/lock the live source)
+  if (/\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|do|merge|into)\b/i.test(s))
+    throw new Error('source statement must not contain a mutating keyword (incl. INTO)');
+  if (/\bfor\s+(update|share|no\s+key\s+update|key\s+share)\b/i.test(s))
+    throw new Error('source statement must not take row locks (FOR UPDATE/SHARE)');
   return s;
 }
 
@@ -128,10 +137,25 @@ export async function listGuardianTables(sourceRef) {
   return (rows.rows ?? rows ?? []).map((r) => ({ table: r.t, rows: Number(r.rows) }));
 }
 
-/** Copy one guardian table via keyset pagination on its PK, idempotently, preserving IDs/hashes. */
+/** Assert the SOURCE session emits hex bytea + standard string literals (so serialization is faithful). */
+export async function assertSourceSettings(sourceRef) {
+  const r = await mgmtQuery(sourceRef,
+    `select current_setting('standard_conforming_strings') as scs, current_setting('bytea_output') as bo`,
+    { readOnly: true });
+  const row = (r.rows ?? [])[0] ?? {};
+  if (row.scs !== 'on') throw new Error(`source standard_conforming_strings must be 'on' (got ${row.scs})`);
+  if (row.bo !== 'hex') throw new Error(`source bytea_output must be 'hex' (got ${row.bo})`);
+  return row;
+}
+
+/** Copy one guardian table via PK-ordered OFFSET pagination, idempotently, preserving IDs/hashes.
+ *  The allow-list is REQUIRED, and the target ref is re-checked as writable (never Production). */
 export async function copyTable(sourceRef, targetRef, table, allowlist, { page = 500 } = {}) {
+  if (!Array.isArray(allowlist) || allowlist.length === 0) throw new Error('a non-empty guardian allow-list is required');
+  assertWritableTarget(targetRef);
+  if (sourceRef === targetRef) throw new Error('source and target refs must differ');
   assertGuardianTable(table, allowlist);
-  // primary key columns (for stable ordering + keyset pagination)
+  // primary key columns (for stable PK-ordered OFFSET pagination)
   const pk = await mgmtQuery(sourceRef,
     `select a.attname from pg_index i join pg_class c on c.oid=i.indrelid` +
     ` join pg_namespace n on n.oid=c.relnamespace join pg_attribute a on a.attrelid=c.oid and a.attnum=any(i.indkey)` +
@@ -153,5 +177,43 @@ export async function copyTable(sourceRef, targetRef, table, allowlist, { page =
   return { table, copied, pk: pkCols };
 }
 
-// (schema creation + full runMigration orchestration are invoked by the operator step AFTER the
-//  review gate; kept out of module import side-effects. This file has no top-level execution.)
+/** Per-table content fingerprint (order-independent) on BOTH sides — surfaces content divergence that
+ *  count parity + ON CONFLICT DO NOTHING would otherwise hide (review P2-3). Read-only both sides. */
+export async function tableContentHash(ref, table, allowlist) {
+  assertGuardianTable(table, allowlist);
+  const r = await mgmtQuery(ref,
+    `select md5(coalesce(string_agg(h, '' order by h), '')) as fp, count(*) as n from` +
+    ` (select md5(row_to_json(t)::text) as h from ${GUARDIAN_SCHEMA}.${table} t) s`,
+    { readOnly: true });
+  const row = (r.rows ?? [])[0] ?? {};
+  return { table, fingerprint: row.fp, rows: Number(row.n) };
+}
+
+/**
+ * Orchestrate the INITIAL data copy (NOT the cutover). Guards run FIRST (P2-2). Schema must already
+ * exist on the target (created separately from the reviewed Guardian migrations). Reads source
+ * read-only; writes only guardian.<allow-listed> on the validated non-Production target; idempotent.
+ * Returns a manifest (per-table copied/source/target counts + content fingerprints + reconciliation).
+ */
+export async function runInitialMigration(sourceRef, targetRef, { page = 500, tables } = {}) {
+  const { source, target } = assertMigrationTargets(sourceRef, targetRef);   // hard guards first
+  assertWritableTarget(target);
+  await assertSourceSettings(source);                                        // faithful serialization preconditions
+  const srcTables = tables ?? (await listGuardianTables(source)).map((t) => t.table);
+  const allowlist = srcTables.slice();                                       // curated allow-list = the source's guardian tables
+  const manifest = { source, target, startedAt: new Date().toISOString(), tables: [], reconcile: null };
+  for (const t of srcTables) {
+    const copied = await copyTable(source, target, t, allowlist, { page });
+    const [sh, th] = [await tableContentHash(source, t, allowlist), await tableContentHash(target, t, allowlist)];
+    manifest.tables.push({ table: t, copied: copied.copied, pk: copied.pk,
+      source: sh.rows, target: th.rows, sourceFp: sh.fingerprint, targetFp: th.fingerprint,
+      contentMatch: sh.fingerprint === th.fingerprint });
+  }
+  manifest.reconcile = reconcileCounts(manifest.tables);
+  manifest.contentMismatches = manifest.tables.filter((t) => !t.contentMatch).map((t) => t.table);
+  manifest.finishedAt = new Date().toISOString();
+  return manifest;   // caller inspects; NEVER contains the token or any secret
+}
+
+// No top-level execution — import-safe. The operator runs runInitialMigration(...) explicitly after
+// the review gate, with SUPABASE_ACCESS_TOKEN in the environment, against the dedicated target only.
