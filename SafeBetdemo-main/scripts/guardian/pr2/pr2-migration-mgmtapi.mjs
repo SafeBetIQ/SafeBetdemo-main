@@ -84,9 +84,12 @@ export function sqlJsonLiteral(jsonText) {
  * coercion via jsonb_populate_recordset (bytea via \\x hex, jsonb, timestamptz from ISO, arrays,
  * NULL) so no per-type serialization is hand-rolled. ON CONFLICT DO NOTHING = idempotent retry.
  */
-export function buildInsertStatement(table, rowsJsonArrayText, allowlist) {
+export function buildInsertStatement(table, rowsJsonArrayText, allowlist, { overridingSystemValue = false } = {}) {
   assertGuardianTable(table, allowlist);
-  return `insert into ${GUARDIAN_SCHEMA}.${table} ` +
+  // OVERRIDING SYSTEM VALUE is required to preserve the original id of a GENERATED ALWAYS AS IDENTITY
+  // column (a faithful migration must keep the source PK, not let the target generate a new one).
+  const overriding = overridingSystemValue ? 'overriding system value ' : '';
+  return `insert into ${GUARDIAN_SCHEMA}.${table} ${overriding}` +
     `select * from jsonb_populate_recordset(null::${GUARDIAN_SCHEMA}.${table}, ${sqlJsonLiteral(rowsJsonArrayText)}::jsonb) ` +
     `on conflict do nothing`;
 }
@@ -172,6 +175,14 @@ export async function copyTable(sourceRef, targetRef, table, allowlist, { page =
     { readOnly: true });
   const pkCols = (pk.rows ?? []).map((r) => r.attname);
   const orderBy = pkCols.length ? pkCols.map((c) => `"${c}"`).join(',') : 'ctid';
+  // Detect a GENERATED ALWAYS AS IDENTITY column (attidentity='a') — its original value can only be
+  // inserted with OVERRIDING SYSTEM VALUE (required to preserve the source PK on a faithful copy).
+  const idc = await mgmtQuery(sourceRef,
+    `select count(*) as n from pg_attribute a join pg_class c on c.oid=a.attrelid` +
+    ` join pg_namespace n on n.oid=c.relnamespace where n.nspname='${GUARDIAN_SCHEMA}'` +
+    ` and c.relname='${table}' and a.attnum>0 and not a.attisdropped and a.attidentity='a'`,
+    { readOnly: true });
+  const overridingSystemValue = Number((idc.rows ?? [])[0]?.n ?? 0) > 0;
   let copied = 0, offset = 0;
   for (;;) {
     const q = `select coalesce(jsonb_agg(row_to_json(t) order by ${orderBy}), '[]'::jsonb) as j from` +
@@ -179,11 +190,11 @@ export async function copyTable(sourceRef, targetRef, table, allowlist, { page =
     const r = await mgmtQuery(sourceRef, q, { readOnly: true });
     const arr = (r.rows?.[0]?.j) ?? [];
     if (!Array.isArray(arr) || arr.length === 0) break;
-    await mgmtQuery(targetRef, buildInsertStatement(table, JSON.stringify(arr), allowlist));
+    await mgmtQuery(targetRef, buildInsertStatement(table, JSON.stringify(arr), allowlist, { overridingSystemValue }));
     copied += arr.length; offset += arr.length;
     if (arr.length < page) break;
   }
-  return { table, copied, pk: pkCols };
+  return { table, copied, pk: pkCols, overridingSystemValue };
 }
 
 /** Per-table content fingerprint (order-independent) on BOTH sides — surfaces content divergence that

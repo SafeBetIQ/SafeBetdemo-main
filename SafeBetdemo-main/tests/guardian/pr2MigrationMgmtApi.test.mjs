@@ -84,7 +84,13 @@ test('buildInsertStatement uses jsonb_populate_recordset + ON CONFLICT DO NOTHIN
   assert.match(s, /^insert into guardian\.guardian_case /);
   assert.match(s, /jsonb_populate_recordset\(null::guardian\.guardian_case, '\[\{"id":"x"\}\]'::jsonb\)/);
   assert.match(s, /on conflict do nothing$/);           // idempotent: never overwrites a differing row
+  assert.doesNotMatch(s, /overriding system value/i);   // no OVERRIDING unless explicitly requested
   assert.throws(() => buildInsertStatement('players', '[]', allow), /allow-list/);
+});
+test('buildInsertStatement emits OVERRIDING SYSTEM VALUE for a GENERATED ALWAYS identity table (preserves source PK)', () => {
+  const s = buildInsertStatement('audit_context', '[{"id":1}]', ['audit_context'], { overridingSystemValue: true });
+  assert.match(s, /^insert into guardian\.audit_context overriding system value select /);
+  assert.match(s, /on conflict do nothing$/);           // still idempotent
 });
 test('buildInsertStatement neutralises quotes in the row payload', () => {
   const s = buildInsertStatement('guardian_case', JSON.stringify([{ a: "x'y" }]), ['guardian_case']);
