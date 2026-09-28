@@ -9,6 +9,7 @@
 // IAM: s3:GetObject on evidence/* only (no List/Delete/Put). No public URL. No enforcement.
 
 import { Client } from 'pg';
+import { guardianDbSsl } from '../src/db/tls.ts';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { authoriseRetrieval, verifyRetrievedBytes, computeCustodyEventHash, CUSTODY_GENESIS } from '../src/index.ts';
@@ -37,7 +38,7 @@ type Req = { evidenceReference?: string; evidenceId?: string; jurisdiction: stri
 
 export const handler = async (event: Req) => {
   const conn = await loadConn();
-  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: { rejectUnauthorized: false }, statement_timeout: 12000, connectionTimeoutMillis: 8000 });
+  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: guardianDbSsl({ host: conn.host }), statement_timeout: 12000, connectionTimeoutMillis: 8000 });
   await client.connect();
   const actor = event.actor ?? 'guardian-evidence-reader'; const corr = event.correlationId ?? `ret-${Date.now()}`;
   try {

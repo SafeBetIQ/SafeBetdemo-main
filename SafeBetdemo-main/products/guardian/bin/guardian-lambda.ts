@@ -42,6 +42,7 @@ import {
   type AuthenticatedGuardianPrincipal, type GuardianCapability, type EntitlementRecord,
 } from '../src/identity-auth/index.ts';
 import { Client as PgClient } from 'pg';
+import { guardianDbSsl } from '../src/db/tls.ts';
 import { SecretsManagerClient as SM, GetSecretValueCommand as GetSecret } from '@aws-sdk/client-secrets-manager';
 
 // ── PR1 production-ready auth infrastructure (module-level singletons; cached across invocations) ──
@@ -68,7 +69,7 @@ async function identityConn() {
 /** Governed entitlement lookup by trusted subject (least-privilege resolver role). */
 async function lookupEntitlement(subject: string): Promise<EntitlementRecord | null> {
   const c = await identityConn();
-  const client = new PgClient({ host: c.host, port: c.port, user: c.user, password: c.password, database: c.database, ssl: { rejectUnauthorized: false }, statement_timeout: 8000, connectionTimeoutMillis: 6000 });
+  const client = new PgClient({ host: c.host, port: c.port, user: c.user, password: c.password, database: c.database, ssl: guardianDbSsl({ host: c.host }), statement_timeout: 8000, connectionTimeoutMillis: 6000 });
   await client.connect();
   try {
     const r = await client.query('select subject, guardian_role, jurisdiction, account_state, effective_from, effective_until, is_human from guardian.identity_entitlement where subject=$1', [subject]);

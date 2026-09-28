@@ -371,6 +371,24 @@ controls:
     exceptions: "DEMO / test identities only (NON-PRODUCTION, is_synthetic_test); no real regulator/privileged user activated; MFA hard gate remains for real users. Cognito omits amr -> MFA assurance uses verified pool-enforcement assertion (MfaConfiguration=ON recorded in runbook). Step-up auth DEFERRED (explicit). Access-token revocation bounded by <=60min expiry (honest). ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Separate Guardian DB = P1 (PR2). CA-validated PostgreSQL TLS = P1 (PR2). Duplicate hosted zones = P1. See docs/products/guardian/ + ADR-0021."
     review_date: TBD
 
+  - control_id: SEC-DBISOLATION-PR2-022
+    standard: ISO/IEC 27001 + 27701 + 42001 + 22301 + 20000-1 + 9001/SANS90003 + 27017/27018 + Architecture Authority v4.0 §7/§10
+    edition: "2022 / 2019 / 2023 / 2015"
+    clause_reference: "Authority §7/§10; database segregation; cryptographic transport (CA-validated TLS); least privilege; secrets; change management; backup/recovery; migration integrity"
+    product: SAFEBET_GUARDIAN
+    component: database-isolation-tls
+    applicability: APPLICABLE
+    requirement_summary: "Move Guardian to an independently governed non-production PostgreSQL database (dedicated Supabase project, NOT a schema/role/connection in the shared DB) with CA-validated TLS on every runtime connection, full C1-C10+PR1 data/contract reconstruction with critical ID/hash/custody preservation, dedicated least-privilege direct-login roles, per-worker secret isolation, no split-brain, immutable-alias cutover, non-destructive rollback — and NO SafeBet IQ change, NO Production, NO real users/providers"
+    technical_control: "products/guardian/src/db/tls.ts guardianDbSsl() (rejectUnauthorized:true + hostname verify + TLS1.2 min + controlled CA bundle; structurally cannot emit insecure config; throws on NODE_TLS/no-verify bypass); scripts/guardian/pr2/pr2-migration.mjs (manifest+SHA-256 ledger, FK-safe idempotent copy over CA-validated TLS refusing IQ tables, source-vs-target reconciliation, C7 evidence/custody digest); 23 arch_v4 migrations rebuild schema+11 roles+RLS+9 contract views (0 guardian->public FK; 0 IQ coupling); per-worker secret rotation + narrowed GetSecretValue IAM; dedicated Supabase project SafeBet Guardian - Demo eu-west-1 Micro"
+    process_control: "ADR-0022; GUARDIAN_DATABASE_ARCHITECTURE/ISOLATION/MIGRATION/ROLE_MATRIX/TLS/CERTIFICATE_TRUST/CUTOVER/ROLLBACK + BACKUP_RECOVERY.md; source reconciliation baseline captured (110 tables/437 rows + critical digests); insecure-TLS scan (11 clients to remediate at cutover -> target 0); Cognito MFA-drift check (pool MfaConfiguration=ON); route-auth inventory; independent review; exact canonical provenance"
+    evidence_required: "TLS module 9/9 offline tests; migration manifest ledger digest; source baseline digests (evidence-content af7fa707, custody-head 8073f393, orchestration-payload 67123e1c, entitlement c30dcafc); post-provisioning: target reconciliation match + C7 byte-integrity + custody-head equality + positive/negative TLS proof + 0 old-DB writes + C1-C10+PR1 regression on new DB + IQ non-impact"
+    control_owner: TBD
+    validation_method: "node --test (guardian db tls) + pr2-migration reconcile/evidence + live TLS positive/negative + full regression on dedicated DB + independent review"
+    validation_frequency: per-change
+    status: "IN PROGRESS (pre-provisioning engineering complete; provisioning gated on Supabase Pro upgrade; DEMO/synthetic only; no cutover performed)"
+    exceptions: "Dedicated Guardian DB not yet provisioned (Supabase org free-tier 2-project cap; Pro upgrade approved, owner checkout pending before 2026-10-19). No cutover/live deploy performed. SafeBet IQ + Production untouched. ISO/IEC 27017/27018 clause text: STANDARD_TEXT_REQUIRED. Carried P1: duplicate hosted zones (PR3); step-up auth; PR1 route-coverage gap (C6/C7/C9 mutation routes not yet human-JWT-gated -> blocks real-user activation, not DB cutover). See docs/products/guardian/ + ADR-0022."
+    review_date: TBD
+
   - control_id: SANS1718-007
     standard: SANS 1718 family
     edition: "verify"

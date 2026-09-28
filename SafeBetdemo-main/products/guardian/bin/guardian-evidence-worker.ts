@@ -10,6 +10,7 @@
 // idempotent. NO enforcement, NO provider action, NO legal determination.
 
 import { Client } from 'pg';
+import { guardianDbSsl } from '../src/db/tls.ts';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { GuardianEvidenceWorker, EvidencePoisonMessageError, buildEvidencePersistencePlan, SYNTHETIC_EVIDENCE_FIXTURES, type EvidencePersistencePlan } from '../src/index.ts';
@@ -51,7 +52,7 @@ async function storeSynthetic(plan: EvidencePersistencePlan, syntheticBody: stri
 
 async function persist(plan: EvidencePersistencePlan, storageRef: string): Promise<{ persisted: number; alreadyPresent: boolean }> {
   const conn = await loadConn();
-  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: { rejectUnauthorized: false }, statement_timeout: 12000, connectionTimeoutMillis: 8000 });
+  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: guardianDbSsl({ host: conn.host }), statement_timeout: 12000, connectionTimeoutMillis: 8000 });
   await client.connect();
   try {
     await client.query('begin');

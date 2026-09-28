@@ -9,6 +9,7 @@
 // NO enforcement, NO provider action, NO legal determination. Case opened != illegal.
 
 import { Client } from 'pg';
+import { guardianDbSsl } from '../src/db/tls.ts';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { GuardianCaseWorker, CasePoisonMessageError, buildCasePersistencePlan, verifyEvidenceIntegrity, type CasePersistencePlan } from '../src/index.ts';
 
@@ -52,7 +53,7 @@ async function resolveSubject(client: Client, subjectType: string, ref: string):
 
 async function persist(plan: CasePersistencePlan): Promise<{ persisted: number; alreadyPresent: boolean }> {
   const conn = await loadConn();
-  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: { rejectUnauthorized: false }, statement_timeout: 12000, connectionTimeoutMillis: 8000 });
+  const client = new Client({ host: conn.host, port: conn.port, user: conn.user, password: conn.password, database: conn.database, ssl: guardianDbSsl({ host: conn.host }), statement_timeout: 12000, connectionTimeoutMillis: 8000 });
   await client.connect();
   try {
     await client.query('begin');
