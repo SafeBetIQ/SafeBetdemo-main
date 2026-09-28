@@ -185,14 +185,19 @@ export async function copyTable(sourceRef, targetRef, table, allowlist, { page =
   const overridingSystemValue = Number((idc.rows ?? [])[0]?.n ?? 0) > 0;
   let copied = 0, offset = 0;
   for (;;) {
-    const q = `select coalesce(jsonb_agg(row_to_json(t) order by ${orderBy}), '[]'::jsonb) as j from` +
+    // Fetch the page as jsonb TEXT (+ the page row count) and hand the RAW string to the insert
+    // builder. Never JS-parse the payload: a JSON round-trip through a JS Number is lossy for
+    // scaled numerics (e.g. numeric 12345.00 -> 12345) — the raw text preserves scale/precision,
+    // and Postgres re-parses it faithfully via '...'::jsonb -> jsonb_populate_recordset.
+    const q = `select coalesce(jsonb_agg(row_to_json(t) order by ${orderBy}), '[]'::jsonb)::text as j, count(*) as n from` +
       ` (select * from ${GUARDIAN_SCHEMA}.${table} order by ${orderBy} limit ${page} offset ${offset}) t`;
     const r = await mgmtQuery(sourceRef, q, { readOnly: true });
-    const arr = (r.rows?.[0]?.j) ?? [];
-    if (!Array.isArray(arr) || arr.length === 0) break;
-    await mgmtQuery(targetRef, buildInsertStatement(table, JSON.stringify(arr), allowlist, { overridingSystemValue }));
-    copied += arr.length; offset += arr.length;
-    if (arr.length < page) break;
+    const jsonText = r.rows?.[0]?.j ?? '[]';
+    const n = Number(r.rows?.[0]?.n ?? 0);
+    if (n === 0) break;
+    await mgmtQuery(targetRef, buildInsertStatement(table, jsonText, allowlist, { overridingSystemValue }));
+    copied += n; offset += n;
+    if (n < page) break;
   }
   return { table, copied, pk: pkCols, overridingSystemValue };
 }

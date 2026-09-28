@@ -92,6 +92,14 @@ test('buildInsertStatement emits OVERRIDING SYSTEM VALUE for a GENERATED ALWAYS 
   assert.match(s, /^insert into guardian\.audit_context overriding system value select /);
   assert.match(s, /on conflict do nothing$/);           // still idempotent
 });
+test('buildInsertStatement preserves a scaled-numeric payload verbatim (no JS number coercion)', () => {
+  // copyTable passes the raw jsonb::text string; scale must survive into the SQL literal so Postgres
+  // re-parses numeric 12345.00 exactly (a JSON round-trip through a JS Number would drop to 12345).
+  const raw = '[{"observation_id":"x","amount_aggregate":12345.00}]';
+  const s = buildInsertStatement('payment_observation', raw, ['payment_observation']);
+  assert.ok(s.includes('"amount_aggregate":12345.00'), 'trailing-zero scale preserved in the emitted SQL');
+  assert.ok(!s.includes('"amount_aggregate":12345}') && !s.includes('"amount_aggregate":12345,'), 'not coerced to un-scaled 12345');
+});
 test('buildInsertStatement neutralises quotes in the row payload', () => {
   const s = buildInsertStatement('guardian_case', JSON.stringify([{ a: "x'y" }]), ['guardian_case']);
   assert.ok(s.includes("x''y"));                         // the inner single quote is doubled
