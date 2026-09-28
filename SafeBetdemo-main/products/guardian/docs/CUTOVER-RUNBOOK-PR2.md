@@ -27,7 +27,13 @@ DEFINER** functions (no escalation path). A runtime role's DELETE/UPDATE fails `
 
 **Therefore UPDATE and DELETE are structurally impossible for the runtime.** Post-cutover writes are
 strictly new INSERTs, so the rollback delta = `target_PK \ baseline_PK` is **complete** (no UPDATE/DELETE
-to miss). Rollback invariant (§5 below) restores the source to the exact logical state.
+to miss). Rollback invariant (§8 below) restores the source to the exact logical state.
+
+**Scoping assumption (operating, not a runtime-reachable path):** this completeness holds for *runtime*
+(`guardian_*`) writes. `service_role` is retained for break-glass admin and bypasses RLS; an out-of-band
+admin `UPDATE`/`DELETE` on the target during the authoritative window would not produce a new PK and
+would therefore be missed by the PK-diff. The cutover operating rule is **no out-of-band admin mutation
+of the target during the authoritative window** (all changes flow through the append-only runtime roles).
 
 ---
 
@@ -116,15 +122,24 @@ select grantee, table_name, privilege_type
  order by grantee, table_name, privilege_type;   -- persist this set as the restore manifest
 ```
 
-**(b) Revoke write authority (guardian schema + guardian_* roles only):**
+**(b) Revoke write authority (guardian schema + guardian_* roles only).** Derive the role list
+DYNAMICALLY from `pg_roles` so it self-reconciles to exactly the existing 11 roles — do NOT hard-code a
+role list (there is no `guardian_authorisation_worker`; the authorisation worker connects as
+`guardian_policy_worker`, so a hard-coded name would raise `42704 role does not exist` and abort the whole
+statement):
 ```sql
-revoke insert, update, delete, truncate on all tables in schema guardian from
-  guardian_app_worker, guardian_authorisation_worker, guardian_case_worker, guardian_domain_worker,
-  guardian_enforcement_worker, guardian_evidence_reader, guardian_evidence_worker, guardian_geo_worker,
-  guardian_identity_resolver, guardian_payment_worker, guardian_policy_worker, guardian_reentry_worker;
--- (SELECT retained so a read-only drain can complete; the final baseline is read by the admin path.)
+do $$
+declare r record;
+begin
+  for r in select rolname from pg_roles where rolname like 'guardian\_%' loop
+    execute format('revoke insert, update, delete, truncate on all tables in schema guardian from %I', r.rolname);
+  end loop;
+end $$;
+-- SELECT retained so a read-only drain can complete; the final baseline is read by the admin path.
 ```
-(Any role that lacks a given privilege makes that revoke a harmless no-op.)
+(Revoking a privilege a role does not hold is a harmless no-op; because the list is derived from
+`pg_roles`, a non-existent role can never be referenced — avoiding the hard `42704` error a hard-coded
+list would raise.)
 
 **(c) Verify the revoke (expect 0 rows):**
 ```sql
