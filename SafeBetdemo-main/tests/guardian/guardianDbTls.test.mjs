@@ -37,6 +37,32 @@ test('a non-PEM CA bundle path is refused (no silent insecure fallback)', () => 
   assert.throws(() => guardianDbSsl({ env: { GUARDIAN_DB_CA_BUNDLE: 'Z:/does/not/exist.pem' } }));
 });
 
+test('fail-closed: an explicitly-set but malformed inline CA PEM is refused (no silent trust downgrade)', () => {
+  // PR2 §4: GUARDIAN_DB_CA_PEM present but not a certificate MUST throw — never fall back to the
+  // public trust store for an explicitly-configured invalid CA.
+  assert.throws(() => guardianDbSsl({ env: { GUARDIAN_DB_CA_PEM: 'not-a-certificate' } }), InsecureTlsForbiddenError);
+  assert.throws(() => guardianDbSsl({ env: { GUARDIAN_DB_CA_PEM: '{"looks":"like json, lacks the PEM certificate header"}' } }), InsecureTlsForbiddenError);
+});
+
+test('an empty/whitespace inline CA PEM is treated as unset (public trust, still rejectUnauthorized:true)', () => {
+  for (const v of ['', '   ', '\n']) {
+    const s = guardianDbSsl({ env: { GUARDIAN_DB_CA_PEM: v } });
+    assert.equal(s.rejectUnauthorized, true);
+    assert.equal(s.ca, undefined);        // no CA pinned → Node public trust store (verification still on)
+  }
+});
+
+test('all 11 Guardian DB clients use guardianDbSsl() and none set rejectUnauthorized:false (source)', () => {
+  const dir = 'products/guardian/bin';
+  const clients = readdirSync(dir).filter((f) => f.endsWith('.ts') && readFileSync(`${dir}/${f}`, 'utf8').includes("from 'pg'"));
+  assert.equal(clients.length, 11, `expected 11 pg clients, found ${clients.length}`);
+  for (const f of clients) {
+    const src = readFileSync(`${dir}/${f}`, 'utf8');
+    assert.ok(!/rejectUnauthorized\s*:\s*false/.test(src), `${f} still sets rejectUnauthorized:false`);
+    assert.ok(/guardianDbSsl\s*\(/.test(src), `${f} does not use guardianDbSsl()`);
+  }
+});
+
 test('guardianPgSsl mirrors guardianDbSsl', () => {
   const a = guardianPgSsl('h'); assert.equal(a.rejectUnauthorized, true); assert.equal(a.servername, 'h');
 });

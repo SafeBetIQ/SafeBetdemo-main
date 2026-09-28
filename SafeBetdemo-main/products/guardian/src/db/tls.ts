@@ -36,13 +36,20 @@ export function assertNoInsecureTls(env: NodeJS.ProcessEnv = process.env): void 
 }
 
 function loadCaBundle(env: NodeJS.ProcessEnv): string | undefined {
-  if (env.GUARDIAN_DB_CA_PEM && env.GUARDIAN_DB_CA_PEM.includes('BEGIN CERTIFICATE')) return env.GUARDIAN_DB_CA_PEM;
-  if (env.GUARDIAN_DB_CA_BUNDLE) {
+  // Fail-closed (PR2 §4): if an inline CA PEM is EXPLICITLY supplied but malformed, refuse the
+  // connection — NEVER silently downgrade to a different trust path for an explicitly configured
+  // invalid CA. (An empty/whitespace-only value is treated as "not supplied".)
+  if (env.GUARDIAN_DB_CA_PEM != null && env.GUARDIAN_DB_CA_PEM.trim() !== '') {
+    if (!env.GUARDIAN_DB_CA_PEM.includes('BEGIN CERTIFICATE'))
+      throw new InsecureTlsForbiddenError('GUARDIAN_DB_CA_PEM is explicitly set but is not a PEM certificate (refusing to silently downgrade the trust path)');
+    return env.GUARDIAN_DB_CA_PEM;
+  }
+  if (env.GUARDIAN_DB_CA_BUNDLE != null && env.GUARDIAN_DB_CA_BUNDLE.trim() !== '') {
     const pem = readFileSync(env.GUARDIAN_DB_CA_BUNDLE, 'utf8');
     if (!pem.includes('BEGIN CERTIFICATE')) throw new InsecureTlsForbiddenError('GUARDIAN_DB_CA_BUNDLE is not a PEM certificate');
     return pem;
   }
-  return undefined; // fall back to Node's built-in public CA trust store (still rejectUnauthorized:true)
+  return undefined; // no CA configured → Node's built-in public CA trust store (still rejectUnauthorized:true)
 }
 
 /** Build the CA-validated TLS config for a Guardian pg client. Never returns an insecure config. */
