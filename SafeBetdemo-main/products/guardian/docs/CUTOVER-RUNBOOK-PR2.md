@@ -33,7 +33,7 @@ public trust store. Therefore `guardianDbSsl()` relying on public trust is **ins
 target — the runtime **MUST** supply the Supabase CA bundle.
 
 **Deployment requirement:** set `GUARDIAN_DB_CA_PEM` (or `GUARDIAN_DB_CA_BUNDLE`) to
-`products/guardian/config/supabase-root-2021-ca.pem` (a **public** CA cert; safe to commit; valid to 2031).
+`products/guardian/config/supabase-root-2021-ca.crt` (a **public** CA cert; safe to commit; valid to 2031).
 `guardianDbSsl()` then produces `{ rejectUnauthorized: true, minVersion: 'TLSv1.2', ca: <Supabase Root>,
 servername: <pooler host> }`.
 
