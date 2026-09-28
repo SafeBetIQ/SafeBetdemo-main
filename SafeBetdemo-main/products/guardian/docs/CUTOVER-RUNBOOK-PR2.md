@@ -1,192 +1,242 @@
-# SafeBet Guardian — PR2 Dedicated-Database Cutover Runbook
+# SafeBet Guardian — PR2 Dedicated-Database Cutover Runbook (v2, gates closed)
 
 **Status: CUTOVER-READINESS PREPARATION. The live cutover has NOT been performed.**
-Source Guardian schema (IQ Demo `uexdjngogzunjxkpxwll`) remains the sole live writable authority.
-Target dedicated project: `druuskabkgyotslcgnys` (SafeBet Guardian – Demo, eu-west-1, PG 17.6).
-
-This runbook is validated technically and, where non-destructive, proven against the target. It must
-NOT be executed end-to-end until an explicit, separate **live cutover authorisation**.
-
----
-
-## 0. Verified initial-migration checkpoint (§1)
-
-Accepted as **logical-content parity under the verified serialization/reconciliation method** — NOT a
-claim of PostgreSQL physical byte-for-byte storage identity:
-
-- 110 Guardian tables · 440 source rows · 440 target rows
-- 0 count mismatches · 0 canonical-content fingerprint mismatches (order-independent `md5(row_to_json)`)
-- Manifest preserved (per-table copied/source/target counts + fingerprints + reconcile).
-
-Because the cutover uses a **final full copy** (below), this checkpoint is a validation of the mechanism,
-not the authoritative dataset for cutover.
+Source Guardian (IQ Demo `uexdjngogzunjxkpxwll` / schema `guardian`) remains the sole live writable
+authority. Target: `druuskabkgyotslcgnys` (SafeBet Guardian – Demo, eu-west-1, PG 17.6). Guardian live
+runtime: `be34a417`. This runbook is validated technically and, where non-destructive, proven against
+the target. Do NOT execute end-to-end until an explicit, separate **live cutover authorisation**.
 
 ---
 
-## 1. TLS trust path (§4/§5) — REQUIRED deployment configuration
+## 0. Verified initial-migration checkpoint (§1 of prior task)
 
-**Finding (corrected):** the target's only reachable endpoint is the **pooler**
-`aws-1-eu-west-1.pooler.supabase.com:6543` (transaction mode; username `<role>.druuskabkgyotslcgnys`).
-The direct host `db.druuskabkgyotslcgnys.supabase.co` does **not resolve** from the runtime environment.
-The pooler certificate chains to the **private `Supabase Root 2021 CA`**, which is **not** in Node's
-public trust store. Therefore `guardianDbSsl()` relying on public trust is **insufficient** for the
-target — the runtime **MUST** supply the Supabase CA bundle.
-
-**Deployment requirement:** set `GUARDIAN_DB_CA_PEM` (or `GUARDIAN_DB_CA_BUNDLE`) to
-`products/guardian/config/supabase-root-2021-ca.crt` (a **public** CA cert; safe to commit; valid to 2031).
-`guardianDbSsl()` then produces `{ rejectUnauthorized: true, minVersion: 'TLSv1.2', ca: <Supabase Root>,
-servername: <pooler host> }`.
-
-**Proven (non-live):** with the CA pinned → TLSv1.3, `authorized:true`, `current_user=guardian_evidence_reader`.
-Without the CA → connection **refused** (`self-signed certificate in certificate chain`) — fail-secure.
-`tls.ts` is now fail-closed: an explicitly-set-but-malformed `GUARDIAN_DB_CA_PEM` throws instead of
-silently downgrading trust.
+**Logical-content parity under the verified serialization/reconciliation method** — NOT a claim of
+PostgreSQL physical byte-for-byte storage identity: 110 tables · 440 source = 440 target rows · 0 count
+mismatches · 0 canonical-content fingerprint mismatches. The cutover re-copies from a fresh frozen
+baseline, so this is a mechanism validation, not the cutover dataset.
 
 ---
 
-## 2. Final full-copy cutover sequence (§2) — validated; DO NOT EXECUTE YET
+## 1. Rollback completeness — runtime is APPEND-ONLY (§1)
 
-1. **Quiesce source writes (§8)** — stop write consumers, drain, revoke source write grants (see §5 below).
-2. **Drain in-flight** — allow open API requests / worker invocations / transactions to complete.
-3. **Revoke source write grants** — `REVOKE INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA guardian FROM
-   guardian_*_worker, guardian_identity_resolver;` on the **source** (read stays for the final snapshot).
-4. **Capture final authoritative source baseline** — per-table row counts + PK set + content fingerprints
-   (the reviewed `tableContentHash` / reconcile method), and freeze it as the rollback baseline.
-5. **Truncate TARGET only** — `TRUNCATE guardian.<all tables> RESTART IDENTITY CASCADE` (target-only;
-   append-only triggers fire on UPDATE/DELETE, not TRUNCATE, so TRUNCATE is permitted).
-6. **Reload target from the frozen source** — the reviewed Management-API copy
-   (`runInitialMigration`, head with `rowsOf` + `OVERRIDING SYSTEM VALUE` + `jsonb::text` scale fidelity),
-   FK-topological order.
-7. **Reconcile** — exact row counts + canonical content fingerprints must match the frozen baseline
-   (`reconcile.ok === true`, `contentMismatches === []`).
-8. **Advance identity sequences (§7)** — see below; run AFTER reload, BEFORE any target write.
-9. **Switch Guardian runtime to the target** — repoint the 11 clients to the staged target credentials
-   (promote `safebet-guardian/target/*` → the live secret ids, or repoint client secret ids) + set
-   `GUARDIAN_DB_CA_PEM`. (This is the irreversible authority switch — requires cutover authorisation.)
-10. **Acceptance (§C1–C10)** — run the acceptance plan below against the target runtime.
-11. **Preserve the frozen source** — retain the original source schema (read-only) for the rollback window.
+**Proven from DB privileges (target):** the 11 guardian_* runtime roles hold **only INSERT (90) + SELECT
+(124)** — **no UPDATE / DELETE / TRUNCATE** on any guardian table. Per-table classification: 78
+INSERT_ONLY (runtime-writable), 0 INSERT_AND_UPDATE, **0 INSERT_UPDATE_DELETE**, 11 READ_ONLY, 21
+NO_GRANT. Defense-in-depth: 28 `*_append_only` BEFORE UPDATE/DELETE block-mutation triggers; **0 SECURITY
+DEFINER** functions (no escalation path). A runtime role's DELETE/UPDATE fails `42501` (proven).
 
-Technical validation notes: the copy is idempotent (`ON CONFLICT DO NOTHING`) and FK-safe (topological);
-`TRUNCATE ... RESTART IDENTITY CASCADE` clears all rows + resets identity; the reconcile is the go/no-go gate.
+**Therefore UPDATE and DELETE are structurally impossible for the runtime.** Post-cutover writes are
+strictly new INSERTs, so the rollback delta = `target_PK \ baseline_PK` is **complete** (no UPDATE/DELETE
+to miss). Rollback invariant (§5 below) restores the source to the exact logical state.
 
 ---
 
-## 3. Identity-sequence repair (§7) — proven on temp tables; run post-reload, pre-first-write
+## 2. TLS trust path + CA verification (§5)
 
-Rows loaded with `OVERRIDING SYSTEM VALUE` do **not** advance a `GENERATED ALWAYS AS IDENTITY` sequence,
-so the first app insert would collide (reproduced: `23505 unique_violation`). Repair per identity table
-(only `guardian.audit_context.id` today; 0 by-default-identity, 0 stored-generated):
+Target reachable **only via the pooler** `aws-1-eu-west-1.pooler.supabase.com:6543` (transaction mode;
+user `<role>.druuskabkgyotslcgnys`). Direct `db.<ref>.supabase.co` does **not resolve**. Pooler cert
+chains `*.pooler.supabase.com → Supabase Intermediate 2021 CA → Supabase Root 2021 CA` (private root, not
+in the public trust store).
+
+**Required deployment config:** `GUARDIAN_DB_CA_PEM` (or `_CA_BUNDLE`) =
+`products/guardian/config/supabase-root-2021-ca.crt`. Verified: **certificate only, no private key**;
+subject == issuer `CN=Supabase Root 2021 CA`; `basicConstraints CA:TRUE`; **SHA-256 fingerprint
+`80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA`**;
+valid `2021-04-28 → 2031-04-26`. Proven: with CA pinned → TLSv1.3 authorized; **without CA → refused**
+(`self-signed certificate in certificate chain`) = fail-secure. `guardianDbSsl()` keeps
+`rejectUnauthorized:true` + `minVersion TLSv1.2` + hostname (SNI) verification, and is **fail-closed** (an
+explicitly-set-but-malformed `GUARDIAN_DB_CA_PEM` throws; no alternate insecure trust path).
+
+---
+
+## 3. Pooler compatibility (§4) — CONFIRMED
+
+Workers wrap each unit of work in `begin; select set_config('app.guardian.jurisdiction',<jur>,true);
+<writes>; commit` (transaction-local GUC). No `SET SESSION`, LISTEN/NOTIFY, advisory/session locks, temp
+tables, prepared-statement assumptions, or long-lived transactions anywhere in Guardian runtime.
+**Proven on the transaction-mode pooler:** in-transaction the transaction-local GUC drives RLS (4 ZA-GP
+rows visible); a plain statement without the GUC sees 0 rows (no cross-transaction leak); repeatable
+across sequential transactions on the pooled connection. Operational note: supavisor caches role
+credentials — after `ALTER ROLE … PASSWORD`, allow a few seconds / connect with a short retry.
+
+---
+
+## 4. `authenticated` role decision (§3) — REVOKED on target
+
+No Guardian runtime path depends on the PostgreSQL `authenticated` role: no `@supabase/supabase-js`,
+`createClient`, PostgREST, or `NEXT_PUBLIC_SUPABASE` usage anywhere in Guardian; the runtime connects via
+the `guardian_*` roles on the pooler; the API Lambda uses `guardian_identity_resolver`. C1–C10 flows use
+these roles only. **Applied on the target (only):** `authenticated` guardian grants 216 → 0 and schema
+USAGE removed; the 11 guardian_* roles are intact (214 grants). Documented inverse (only if ever needed):
+`grant usage on schema guardian to authenticated; grant select, insert on all tables in schema guardian
+to authenticated;`. NOTE: this is the one intentional, documented divergence of the target schema from the
+reviewed source; the final data-only reload preserves it. If the schema is ever rebuilt from migrations,
+re-apply the REVOKE.
+
+---
+
+## 5. Identity-sequence repair (§6) — robust for empty AND non-empty
+
+`OVERRIDING SYSTEM VALUE`-loaded rows do not advance a `GENERATED ALWAYS AS IDENTITY` sequence; the naive
+`setval(seq, coalesce(max,0))` breaks on an empty table (`0 < MINVALUE 1`). Robust repair, per identity
+table (only `guardian.audit_context.id` today; 0 by-default-identity, 0 stored-generated), run AFTER the
+final reload and BEFORE the first target write:
 
 ```sql
-select setval(pg_get_serial_sequence('guardian.audit_context','id'),
-              (select coalesce(max(id),0) from guardian.audit_context), true);
+do $$
+declare mx bigint; seq text;
+begin
+  seq := pg_get_serial_sequence('guardian.audit_context','id');
+  select max(id) into mx from guardian.audit_context;
+  if mx is null then perform setval(seq, 1, false);   -- empty  -> next nextval = 1
+  else               perform setval(seq, mx, true);   -- non-empty -> next nextval = max+1
+  end if;
+end $$;
 ```
 
-**Proven:** after `setval` to MAX(id)=39, subsequent plain inserts received ids 40, 41 — no collision.
-Do **NOT** run this now (the final truncate would reset it); run it only after the final reload and
-before enabling target writes. Discover identity tables generically:
-`select c.relname, a.attname from pg_attribute a join pg_class c ... where a.attidentity='a'`.
+**Proven:** non-empty (max=39) → next inserts 40, 41; empty → first insert id = 1 (no error). Discover
+identity tables generically: `select c.relname, a.attname from pg_attribute a join pg_class c … where
+a.attidentity='a'`.
 
 ---
 
-## 4. Source quiescence (§8) — measurable SOURCE WRITES = 0
+## 6. Source quiescence SQL (§2) — Management-API path; guardian-scoped; NOT executed
 
-An alias switch alone does **not** provide write quiescence. Ordered procedure:
+The already-approved Supabase Management API admin query path can execute the narrowly-scoped source
+quiescence on `uexdjngogzunjxkpxwll` — **no privileged direct-PG IQ credential or postgres-password reset
+is required.** All statements are restricted to the `guardian` schema and the known `guardian_*` roles;
+**no `public`/IQ object is touched.** These require independent review and explicit cutover authorisation
+before execution.
 
-1. **Stop consumers** — disable the SQS event-source mappings / scheduled triggers for all 11 workers;
-   set the API to read-only or stop it accepting mutating routes.
-2. **Drain** — wait for in-flight Lambda invocations + open transactions to finish (monitor
-   `pg_stat_activity` for `state='active'` write queries in the guardian schema = 0; queue `ApproximateNumberOfMessages` + `...NotVisible` = 0).
-3. **Revoke DB write-grants** on the source (step 3 above) — makes writes structurally impossible.
-4. **Verify SOURCE WRITES = 0** (measurable proof, all must hold for a stable window, e.g. 5 min):
-   - `pg_stat_activity`: 0 non-idle sessions from `guardian_*` roles running INSERT/UPDATE/DELETE.
-   - Per-table `xact_commit` deltas via a guardian write-counter (or `pg_stat_user_tables.n_tup_ins/upd/del`
-     deltas) = 0 across the window.
-   - SQS depth (queues + DLQs) = 0 and no in-flight.
-   - A canary write attempt by a `guardian_*_worker` role now fails with `42501` (grants revoked).
-5. Only then capture the final baseline (step 4 of §2).
-
----
-
-## 5. Rollback after target writes (§9) — designed; detection proven; no source write, no dual authority
-
-Scenario: target became authoritative, new Guardian records were written, acceptance then fails.
-
-**Invariant:** at all times exactly one writable authority. Rollback restores the source as sole authority
-with **no data loss** and **no blind alias flip**.
-
-Procedure:
-1. **Re-quiesce the target** (same measurable procedure as §4, applied to the target).
-2. **Detect post-cutover records** — rows in the target whose PK is absent from the frozen source baseline
-   (proven on temp tables: detection isolated exactly the new rows). Formally:
-   `target_PK \ baseline_PK` per table.
-3. **Export** those rows (with full content + custody/evidence/audit hashes) to a durable manifest.
-4. **Reconcile** the export: every detected row accounted for; hashes intact.
-5. **Replay into the restored source** — insert the exported rows into the source (which still holds the
-   frozen baseline), preserving PKs/hashes/identity via `OVERRIDING SYSTEM VALUE`, then re-run identity-
-   sequence repair on the source.
-6. **Verify** `source_PK == (baseline_PK ∪ detected_PK)` by PK **and** content fingerprint BEFORE restoring
-   source write-authority.
-7. **Restore source write-grants**; leave the target read-only/decommissioned. Single writable authority
-   throughout — the source is never written while the target is writable, and vice-versa.
-
-**Verification method / rollback invariant:** `reconcile(source, baseline ∪ export) == exact`
-(0 count + 0 content-fingerprint mismatch) is the go signal to restore source write-authority.
-
----
-
-## 6. Role/grant posture (§6) — verified on target
-
-All 11 Guardian roles are least-privilege (LOGIN only; no SUPER/CREATEROLE/CREATEDB/BYPASSRLS). Per-role
-grants are scoped INSERT/SELECT subsets (append-only; `guardian_identity_resolver`/API minimal at
-INSERT:1/SELECT:2). **0 SECURITY DEFINER functions; no PUBLIC/anon grants.** RLS is active (verified: a role
-with no jurisdiction claim sees 0 rows).
-
-**Hardening finding (recommended, not yet applied — needs owner/reviewer sign-off as it diverges the
-target schema from the reviewed source):** the Supabase `authenticated` role has broad INSERT/SELECT +
-schema USAGE on guardian (inherited from the reviewed migrations; RLS-scoped). The Guardian runtime uses
-only the `guardian_*` roles (direct pooler), not PostgREST/`authenticated`. Recommended at cutover
-hardening:
-
+**(a) Capture exact current grants (for a precise, least-privilege restore):**
 ```sql
-revoke all on all tables in schema guardian from authenticated;
-revoke usage on schema guardian from authenticated;
--- (service_role retained for break-glass admin; review separately)
+select grantee, table_name, privilege_type
+  from information_schema.role_table_grants
+ where table_schema='guardian' and grantee like 'guardian\_%'
+ order by grantee, table_name, privilege_type;   -- persist this set as the restore manifest
+```
+
+**(b) Revoke write authority (guardian schema + guardian_* roles only):**
+```sql
+revoke insert, update, delete, truncate on all tables in schema guardian from
+  guardian_app_worker, guardian_authorisation_worker, guardian_case_worker, guardian_domain_worker,
+  guardian_enforcement_worker, guardian_evidence_reader, guardian_evidence_worker, guardian_geo_worker,
+  guardian_identity_resolver, guardian_payment_worker, guardian_policy_worker, guardian_reentry_worker;
+-- (SELECT retained so a read-only drain can complete; the final baseline is read by the admin path.)
+```
+(Any role that lacks a given privilege makes that revoke a harmless no-op.)
+
+**(c) Verify the revoke (expect 0 rows):**
+```sql
+select grantee, privilege_type from information_schema.role_table_grants
+ where table_schema='guardian' and grantee like 'guardian\_%'
+   and left(privilege_type,3) in ('INS','UPD','DEL','TRU');
+```
+
+**(d) 42501 write canary (must fail):**
+```sql
+set role guardian_app_worker;
+-- expect ERROR 42501 insufficient_privilege:
+insert into guardian.audit_context (product, actor_principal_id, actor_role, jurisdiction, event_type,
+  correlation_id, occurred_at, sequence_number, previous_hash, event_id, event_hash)
+values ('GUARDIAN','canary','SYSTEM_SERVICE','ZZ-CANARY','guardian.canary','canary', now(), 1,
+  repeat('0',64), 'canary', repeat('0',64));
+reset role;
+```
+
+**(e) pg_stat_activity verification (expect 0 active guardian writers):**
+```sql
+select count(*) active_guardian_writes from pg_stat_activity
+ where usename like 'guardian\_%' and state <> 'idle'
+   and query ~* '(insert|update|delete)';
+```
+
+**(f) Tuple-write counter (capture, wait window ≥5 min, re-capture → delta 0):**
+```sql
+select coalesce(sum(n_tup_ins+n_tup_upd+n_tup_del),0) guardian_writes
+  from pg_stat_user_tables where schemaname='guardian';
+```
+
+**(g) Inverse / restore during pre-switch rollback (exact, least-privilege — replay the (a) manifest):**
+```sql
+-- for each saved row: grant <privilege_type> on guardian.<table_name> to <grantee>;
+-- (NOT a blanket "grant insert on all tables" — that would over-grant and break least-privilege.)
 ```
 
 ---
 
-## 7. C1–C10 acceptance plan (§16) — run against the target runtime post-switch
+## 7. Final cutover order (§7) — with STOP/ROLLBACK conditions. DO NOT EXECUTE YET.
 
-Per capability area, against the target-backed runtime (jwt auth mode, MFA), synthetic data only:
-
-- **C1 Legal registry:** `/registry/operators|licences|sources`, `/registry/match` — jurisdiction-scoped, `isIllegalDetermination:false`.
-- **C2 Domain / C3 App / C4 Payment / C5 Geo:** list + `observe` + get — NON-LEGAL, NON-ENFORCEMENT flags present; cross-jurisdiction denied (403).
-- **C6 Case:** `/cases` GET/POST + sub-resources — investigation only; no enforcement route exists.
-- **C7 Evidence:** register/verify/custody/retrieve/hold/export — SHA-256 content hash + append-only custody chain verify OK; `EVIDENCE_HOLD`/`EVIDENCE_EXPORT` capability-gated.
-- **C8 Authorisation:** policy applicability + human authorisation gate (AUTHORISING_OFFICER + MFA); worker cannot insert final authorisation.
-- **C9 Orchestration:** synthetic providers only; ACK≠ACTIONED≠VERIFIED.
-- **C10 Re-entry:** intelligence + routing only; human review; no auto re-enforcement.
-- **Cross-cutting:** each privileged route gated on the Cognito JWT path; per-jurisdiction RLS returns rows only for the caller's jurisdiction; audit chain verifies; `/version` four-way provenance parity; all 11 workers connect over CA-validated TLS.
-
-Acceptance gate: all green + reconcile parity + identity-sequence repair applied + SOURCE WRITES=0 confirmed pre-switch.
+| # | Step | STOP / ROLLBACK condition |
+|---|------|---------------------------|
+| 1 | Declare change window | Abort if no authorisation / no on-call. |
+| 2 | Stop/disable Guardian consumers (SQS event-source mappings, schedules; API mutating routes) | If any consumer cannot be stopped → STOP (no partial quiesce). |
+| 3 | Drain queues + in-flight work | Queue depth + in-flight not reaching 0 in window → STOP. |
+| 4 | Revoke source Guardian writes — §6(b) via Management API | Revoke errors / touches non-guardian → STOP + §6(g) restore. |
+| 5 | Prove SOURCE WRITES = 0 — §6(c)(d)(e)(f) | Any nonzero write signal or canary that succeeds → STOP + restore. |
+| 6 | Capture final source baseline (counts + PK set + content fingerprints) | Baseline capture incomplete/unreadable → STOP + restore. |
+| 7 | `TRUNCATE guardian.<all> RESTART IDENTITY CASCADE` — TARGET only (0 TRUNCATE-event triggers confirmed) | Truncate error / not target → STOP (no reload); target still non-authoritative. |
+| 8 | Reload from frozen source (reviewed Management-API mechanism; FK-topological) | Copy error → STOP; re-run idempotently or restore source authority. |
+| 9 | Reconcile counts + canonical fingerprints vs baseline | `reconcile.ok≠true` or `contentMismatches≠[]` → STOP; do NOT switch. |
+| 10 | Verify Guardian crypto artifacts (evidence content/custody, audit chain) | Any hash/chain verify failure → STOP; do NOT switch. |
+| 11 | Repair identity sequence(s) — §5 (after reload, before any write) | setval error → STOP; do NOT enable writes. |
+| 12 | Verify least-privilege target grants + `authenticated` removed (§4) + 0 SECDEF | Unexpected grant/SECDEF → STOP; remediate before switch. |
+| 13 | Verify secure pooler TLS (CA-validated, fail-closed) | TLS not CA-validated → STOP. |
+| 14 | Switch Guardian API + workers to target (promote staged `safebet-guardian/target/*` creds; set `GUARDIAN_DB_CA_PEM`) — **the authority switch** | Health/smoke fail post-switch → ROLLBACK (§8). |
+| 15 | Run C1–C10 + PR1 acceptance against target | Any acceptance failure → ROLLBACK (§8). |
+| 16 | Declare target authoritative | Only after 14+15 green. |
+| 17 | Keep old source frozen/read-only | — |
+| 18 | Start 30-day retention clock | — |
 
 ---
 
-## 8. 30-day retention (§17)
+## 8. Rollback after target writes (§9 of prior task) — proven detection; single-writer invariant
 
-Retain the original source Guardian schema (IQ Demo, read-only) for **30 days** post-cutover as the
-rollback source. After 30 days with no rollback, retirement of the original schema is a **separate**
-authorisation (not part of PR2). Retention record: keep the frozen baseline manifest + this runbook +
-the cutover acceptance evidence for the window.
+Because the runtime is append-only (§1), post-cutover changes are new INSERTs only.
+
+1. **Re-quiesce the target** (same measurable procedure as §6, applied to the target).
+2. **Detect** post-cutover rows: `target_PK \ baseline_PK` per table (**proven** on temp tables — isolates
+   exactly the new rows).
+3. **Export** them with full content + custody/evidence/audit hashes.
+4. **Replay into the restored source** (`OVERRIDING SYSTEM VALUE` to preserve PK/identity), then run the
+   §5 identity-sequence repair on the source.
+5. **Verify** `source_PK == baseline_PK ∪ detected_PK` by PK **and** content fingerprint **before**
+   restoring source write-authority (§6(g)).
+6. **Restore source write-grants** (§6(g) exact replay); leave target read-only/decommissioned.
+
+**Invariant:** exactly one writable authority at all times — source is quiesced before the target becomes
+authoritative, and the target is quiesced before the source is restored. **No dual-writer interval, no
+blind alias flip, no data loss.** Go signal to restore source authority = `reconcile(source, baseline ∪
+export)` exact (0 count + 0 content-fingerprint mismatch). A rollback restores the source to the exact
+logical state that would exist had the target's accepted INSERTs occurred there.
 
 ---
 
-## 9. Remaining cutover gates (§21)
+## 9. C1–C10 + PR1 acceptance plan (against target runtime, post-switch)
 
-1. Explicit **live cutover authorisation** (this runbook is preparation only).
-2. Direct-PG source credentials for the final quiesce/revoke on the source (§9 of the migration task).
-3. Owner/reviewer decision on the `authenticated` hardening REVOKE (§6 above).
-4. Cutover window scheduling + on-call + acceptance sign-off.
-5. Post-switch identity-sequence repair (§3 above) executed and verified.
-6. 30-day retention observed before any source retirement.
+Per capability (synthetic data; jwt auth mode + MFA): C1 registry (jurisdiction-scoped, isIllegal=false);
+C2 domain / C3 app / C4 payment / C5 geo (NON-LEGAL/NON-ENFORCEMENT, cross-jurisdiction 403); C6 case
+(investigation only); C7 evidence (SHA-256 content + append-only custody verify; EVIDENCE_HOLD/EXPORT
+capability-gated); C8 authorisation (human AUTHORISING_OFFICER + MFA; worker cannot insert final
+authorisation); C9 orchestration (synthetic providers; ACK≠ACTIONED≠VERIFIED); C10 re-entry (intelligence
++ routing; human review). Cross-cutting: every privileged route gated on the Cognito JWT path; per-
+jurisdiction RLS; audit-chain verify; `/version` four-way provenance; all 11 workers over CA-validated
+pooler TLS. Gate: all green + reconcile parity + identity repair applied + SOURCE WRITES=0 pre-switch.
+
+---
+
+## 10. 30-day retention (§8 of prior task)
+
+Retain the original source Guardian schema (read-only) for **30 days** post-cutover as the rollback
+source; retirement is a **separate** authorisation. Retain the frozen baseline manifest + this runbook +
+acceptance evidence for the window.
+
+---
+
+## 11. Remaining owner decisions / gates
+
+1. Explicit **live cutover authorisation**.
+2. Independent review of the §6 source quiescence + restore SQL (part of this task's review).
+3. Cutover window + on-call + acceptance sign-off.
+4. Confirm the supavisor credential-sync retry is built into the switch step (§3 note).
+5. 30-day retention observed before any source retirement.
