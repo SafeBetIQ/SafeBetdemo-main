@@ -1,0 +1,60 @@
+# SafeBet IQ — B4.1 positive-lifecycle ACCEPTANCE (temporary, acceptance branch ONLY).
+# Runs the disposable DB/runtime lifecycle suite against an EPHEMERAL PostgreSQL service
+# that exists only for this job and is destroyed with the runner. No deploy, no AWS/Supabase
+# credentials, no persistent infrastructure. NEVER merge this workflow into Demo.
+name: B4.1 Positive Lifecycle Acceptance
+
+on:
+  push:
+    branches: [acceptance/b4-1-positive-lifecycle]
+  workflow_dispatch: {}
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: ci_disposable_pw_b41
+          POSTGRES_DB: b41
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Ephemeral, localhost-only, disposable credentials for the throwaway service.
+      B41_TEST_DATABASE_URL: postgres://postgres:ci_disposable_pw_b41@localhost:5432/b41
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'   # test runner only (strips TS for .ts-importing suites); app runtime is Node 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Wait for ephemeral PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; then echo "postgres ready"; exit 0; fi
+            sleep 2
+          done
+          echo "postgres not ready" && exit 1
+      - name: B4.1 disposable DB positive-lifecycle suite
+        run: node --test tests/protectionAlertsDb.test.mjs
+      - name: Full test suite (Node 24 TS-strip)
+        run: node --test
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: B4.1 targeted lint
+        run: >-
+          npx next lint
+          --file app/api/casino/protection-alerts/route.ts
+          --file app/api/casino/protection-alerts/evaluate/route.ts
+          --file "app/api/casino/protection-alerts/[id]/acknowledge/route.ts"
+          --file "app/api/casino/protection-alerts/[id]/resolve/route.ts"
+          --file app/casino/responsible-profitability/alerts/page.tsx
+          --file lib/responsibleProfitability/alerts.ts
+          --file lib/responsibleProfitability/alertsServer.ts
