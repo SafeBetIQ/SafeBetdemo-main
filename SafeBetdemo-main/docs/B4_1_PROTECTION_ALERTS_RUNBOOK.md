@@ -12,6 +12,18 @@ Operator-local / own-casino protection-alert lifecycle only. Two governed rules:
 `SELF_EXCLUSION_EXPIRY_REVIEW`, `INTERVENTION_COMPLETENESS_REVIEW`, `CURRENT_HIGHER_RISK_REVIEW`.
 Cross-operator federation remains OFF; dormant objects untouched.
 
+## F1 least-privilege hardening (migration `20261001130000_b4_1_service_role_least_privilege.sql`)
+Supabase default privileges pre-grant `service_role` **ALL** on new public tables, so the base
+migration's `grant select, insert, update` left `service_role` with DELETE/TRUNCATE/REFERENCES/
+TRIGGER/MAINTAIN. This follow-up resets it: `REVOKE ALL … FROM service_role;` then
+`GRANT SELECT, INSERT, UPDATE … TO service_role;`. Effective result (verified on IQ Demo):
+service_role = SELECT/INSERT/UPDATE only (`relacl service_role=arw`); anon/authenticated/PUBLIC = none.
+Applied 2026-10-01 via governed raw SQL (explicit txn; ledger/audit/rows unchanged).
+
+**F2 (P3, informational, NOT changed):** the two trigger functions carry Supabase default `EXECUTE`
+to anon/authenticated/service_role (PUBLIC execute revoked). Harmless — PostgreSQL forbids direct
+invocation of trigger-returning functions; no table-access exploit path. Future hygiene only.
+
 ## Controlled application (requires a SEPARATE owner authorisation)
 The IQ migration ledger is unreconciled. Do **not** `supabase db push` / `migration up` /
 `migration repair` / bulk-reconcile. Application (when authorised) uses the controlled

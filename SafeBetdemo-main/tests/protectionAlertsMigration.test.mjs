@@ -4,11 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const SQL = readFileSync(join(here, '..', 'supabase', 'migrations', '20261001120000_b4_1_player_protection_alerts.sql'), 'utf8');
+const MIG = (name) => readFileSync(join(here, '..', 'supabase', 'migrations', name), 'utf8');
+const SQL = MIG('20261001120000_b4_1_player_protection_alerts.sql');
 const lower = SQL.toLowerCase();
 // Executable SQL with `-- ...` line comments stripped (for negative-presence checks
 // that must not be tripped by explanatory comment prose).
@@ -97,6 +99,30 @@ test('both triggers present (validate BEFORE, audit AFTER)', () => {
 test('no auto-executing rollback/DROP embedded in the forward migration', () => {
   assert.ok(!/drop table/.test(code));
   assert.ok(!/\bcascade\b/.test(code));
+});
+
+// ── F1 least-privilege hardening migration (20261001130000) ──
+test('base migration file is immutable (approved SHA-256 unchanged)', () => {
+  const sha = createHash('sha256').update(readFileSync(join(here, '..', 'supabase', 'migrations', '20261001120000_b4_1_player_protection_alerts.sql'))).digest('hex');
+  assert.equal(sha, '76018384f0e646a01cb8f925bf6e03c123c9b70457fe4d26c1ddb4e46ec6b6a6');
+});
+
+test('F1 hardening migration resets service_role to EXACTLY select/insert/update', () => {
+  const h = MIG('20261001130000_b4_1_service_role_least_privilege.sql').toLowerCase();
+  const hcode = h.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n');
+  // must first REVOKE ALL from service_role, then grant only the three approved operations
+  assert.ok(/revoke all privileges on table public\.player_protection_alerts from service_role/.test(hcode),
+    'must REVOKE ALL PRIVILEGES from service_role (defeats Supabase default-ALL)');
+  assert.ok(/grant select, insert, update on table public\.player_protection_alerts to service_role/.test(hcode));
+  const revokeIdx = hcode.indexOf('revoke all privileges');
+  const grantIdx = hcode.indexOf('grant select, insert, update');
+  assert.ok(revokeIdx >= 0 && grantIdx > revokeIdx, 'REVOKE ALL must precede the narrowed GRANT');
+  // must NOT re-grant any privilege beyond the three approved operations
+  assert.ok(!/grant[^;]*\b(delete|truncate|references|trigger|maintain|all)\b/.test(hcode), 'no privilege beyond select/insert/update may be granted');
+  // scope: privileges only — no structural/trigger/rls/function/execute change (incl. F2 untouched)
+  for (const banned of ['create table', 'alter table', 'create function', 'create trigger', 'drop ', 'on function', 'row level security']) {
+    assert.ok(!hcode.includes(banned), `hardening migration must not contain "${banned}"`);
+  }
 });
 
 test('federation isolation: no B4.1 source references dormant cross-operator objects', () => {
