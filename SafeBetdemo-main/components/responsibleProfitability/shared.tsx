@@ -36,6 +36,7 @@ export interface B2Overview {
 export const RP_TABS = [
   { href: '/casino/responsible-profitability', label: 'Executive Overview' },
   { href: '/casino/responsible-profitability/interventions', label: 'Intervention Intelligence' },
+  { href: '/casino/responsible-profitability/alerts', label: 'Protection Alerts' },
   { href: '/casino/responsible-profitability/governance', label: 'Governance & Reporting' },
 ];
 
