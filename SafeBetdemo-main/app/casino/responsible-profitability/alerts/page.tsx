@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { RpTabs } from '@/components/responsibleProfitability/shared';
 import { ProtectionActionTrace } from '@/components/responsibleProfitability/ProtectionActionTrace';
+import { AlertWorkloadPanel } from '@/components/responsibleProfitability/WorkloadPanels';
 import { readAccessTokenFast, supabase } from '@/lib/supabase';
 import { ALERT_RULES, type AlertType, type AlertStatus, type ProtectionAlertView } from '@/lib/responsibleProfitability/alerts';
 import { ShieldAlert, RefreshCw, Play, Check, CheckCheck, Info, Clock } from 'lucide-react';
@@ -133,6 +134,8 @@ export default function ProtectionAlertsPage() {
           </div>
 
           <RpTabs />
+
+          <AlertWorkloadPanel />
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex rounded-md border">
