@@ -93,6 +93,29 @@ export async function seedInterventions(casinoIds: string[], playerIds: string[]
 
 export async function resetInterventions(casinoIds: string[]): Promise<void> {
   if (casinoIds.length === 0) return;
+
+  // B6 traceability safety: a B6 alert_intervention_links row references an intervention
+  // via a composite FK with ON DELETE RESTRICT, so this bulk delete would be blocked at
+  // the DB. We detect B6 links up-front and ABORT the reseed rather than attempt (and
+  // partially fail) the delete — B6 traceability history is NEVER auto-deleted here. A
+  // deliberate full synthetic-environment reset is a separate, controlled maintenance
+  // operation. See docs/runbooks/b6-protection-action-traceability.md.
+  const { count, error: linkErr } = await db
+    .from('alert_intervention_links')
+    .select('id', { count: 'exact', head: true })
+    .in('casino_id', casinoIds);
+  if (linkErr) {
+    // If the B6 table does not yet exist (migration not applied), proceed as before.
+    if (!/relation .*alert_intervention_links.* does not exist/i.test(linkErr.message)) {
+      logErr(`reset interventions: could not verify B6 links (${linkErr.message}); aborting to protect traceability`);
+      return;
+    }
+  } else if ((count ?? 0) > 0) {
+    logErr(`reset interventions: ABORTED — ${count} B6 protection-action link(s) exist for the target casino(s). `
+      + 'B6 traceability history is not auto-deleted. Clear links through the governed maintenance runbook first.');
+    return;
+  }
+
   const { error } = await db.from('player_protection_interventions').delete().in('casino_id', casinoIds);
   if (error) logErr(`reset interventions: ${error.message}`);
   else logOk('Demo interventions deleted');
