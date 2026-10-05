@@ -12,6 +12,7 @@ import { CasinoAdminGuard } from '@/components/CasinoAdminGuard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RpTabs } from '@/components/responsibleProfitability/shared';
+import { ProtectionActionTrace } from '@/components/responsibleProfitability/ProtectionActionTrace';
 import { readAccessTokenFast, supabase } from '@/lib/supabase';
 import { ALERT_RULES, type AlertType, type AlertStatus, type ProtectionAlertView } from '@/lib/responsibleProfitability/alerts';
 import { ShieldAlert, RefreshCw, Play, Check, CheckCheck, Info, Clock } from 'lucide-react';
@@ -193,6 +194,7 @@ export default function ProtectionAlertsPage() {
                         <span className="ml-1">(resolve full detail via your governed player view)</span>
                       </div>
                       <Evidence a={a} />
+                      <ProtectionActionTrace alertId={a.id} token={token} />
                     </div>
                     <div className="flex shrink-0 gap-2">
                       {a.status === 'OPEN' && (

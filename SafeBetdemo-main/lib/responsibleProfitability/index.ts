@@ -6,3 +6,4 @@ export * from './metrics.ts';
 export * from './interventionOutcomes.ts';
 export * from './dashboardView.ts';
 export * from './alerts.ts';
+export * from './traceability.ts';
