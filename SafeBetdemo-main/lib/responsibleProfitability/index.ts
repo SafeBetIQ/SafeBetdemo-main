@@ -8,3 +8,4 @@ export * from './dashboardView.ts';
 export * from './alerts.ts';
 export * from './traceability.ts';
 export * from './workload.ts';
+export * from './followUpScheduling.ts';
