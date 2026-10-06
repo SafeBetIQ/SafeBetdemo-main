@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { GovernedKpiCard } from '@/components/dashboard/GovernedKpiCard';
 import { RpTabs, ScopeChip, useResponsibleProfitability } from '@/components/responsibleProfitability/shared';
+import { InterventionWorkloadPanel } from '@/components/responsibleProfitability/WorkloadPanels';
 import { isChartable, breakdownToChartData, availabilityPresentation } from '@/lib/responsibleProfitability/dashboardView';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { HeartPulse, Users, CalendarClock, FileCheck, Info } from 'lucide-react';
@@ -70,6 +71,8 @@ export default function InterventionIntelligencePage() {
             <p className="text-sm text-muted-foreground">Recorded responsible-gambling interventions for this casino. {b2 ? `Metrics v${b2.metricsVersion}.` : ''}</p>
           </div>
           <RpTabs />
+
+          <InterventionWorkloadPanel />
 
           <div className="flex flex-wrap items-center gap-2">
             <ScopeChip scope="all_recorded" />
