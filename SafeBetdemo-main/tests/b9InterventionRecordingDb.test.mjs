@@ -141,6 +141,16 @@ test('B9 DB behaviour', { skip }, async (t) => {
       assert.equal(await cnt(c, `select count(*)::int c from public.player_protection_interventions`), iv1);
       assert.equal(await cnt(c, `select count(*)::int c from public.audit_events`), au1);
       await q(c, `alter table public.alert_intervention_links drop constraint tmp_l`);
+      // (C) B6 link-AUDIT trigger (protection_alert.intervention_linked) failure → whole txn rolls back
+      const iv2 = await cnt(c, `select count(*)::int c from public.player_protection_interventions`);
+      const au2 = await cnt(c, `select count(*)::int c from public.audit_events`);
+      const lk2 = await cnt(c, `select count(*)::int c from public.alert_intervention_links`);
+      await q(c, `alter table public.audit_events add constraint tmp_la check (action <> 'protection_alert.intervention_linked') not valid`);
+      assert.ok(await raises(c, [AO, C, UA, kk(22), 'manual_review', null, false, null]));
+      assert.equal(await cnt(c, `select count(*)::int c from public.player_protection_interventions`), iv2);
+      assert.equal(await cnt(c, `select count(*)::int c from public.audit_events`), au2);
+      assert.equal(await cnt(c, `select count(*)::int c from public.alert_intervention_links`), lk2);
+      await q(c, `alter table public.audit_events drop constraint tmp_la`);
     });
 
     await t.test('idempotency CREATED/REPLAYED/CONFLICT', async () => {
