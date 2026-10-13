@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveAlertAccess } from './alertsServer.ts';
+import { buildFollowUpOccurrenceActivity } from './followUpOccurrenceServer.ts';
 import {
   sastToday, sastDateOf, dayDiff, buildInterventionCurrent, buildOutcomeDistribution,
   WORKLOAD_TIMEZONE, WORKLOAD_MAX_RANGE_DAYS, WORKLOAD_LINK_DENOMINATOR, WORKLOAD_SEMANTICS,
@@ -99,6 +100,10 @@ export async function buildWorkloadSummary(access: WorkloadAccessOk, period: Wor
     cnt(await LK().gte('linked_at', startIso).lt('linked_at', endIsoExclusive).not('supersedes_link_id', 'is', null)),
   ]);
 
+  // B10 additive: factual follow-up OCCURRENCE activity in the period (by occurred_on; SAST
+  // inclusive start / exclusive end). Occurrence ≠ completion; existing buckets are untouched.
+  const followUps = await buildFollowUpOccurrenceActivity(admin, C, period.startDate, period.endDate);
+
   return {
     scope: { casinoName },
     period: { start: period.startDate, endExclusive: period.endDate, timezone: WORKLOAD_TIMEZONE, maxRangeDays: WORKLOAD_MAX_RANGE_DAYS },
@@ -112,6 +117,10 @@ export async function buildWorkloadSummary(access: WorkloadAccessOk, period: Wor
       interventions: { interventionsRecordedInPeriod, recordedOutcomeDistribution },
       alerts: { alertsGeneratedInPeriod, alertsResolvedInPeriod },
       traceability: { initialLinksRecordedInPeriod, linkCorrectionsRecordedInPeriod },
+      followUps: {
+        followUpOccurrencesRecorded: followUps.followUpOccurrencesRecorded,
+        followUpOccurrenceTiming: followUps.followUpOccurrenceTiming,
+      },
     },
     dataQuality: {
       followUpRequiredButUndated: undated,

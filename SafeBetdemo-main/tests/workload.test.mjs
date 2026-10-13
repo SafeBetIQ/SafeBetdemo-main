@@ -90,6 +90,13 @@ test('semantics declare completion unavailable + no-SLA note', () => {
   assert.match(WORKLOAD_SEMANTICS.slaNote, /no safebet iq responsible-gambling sla/i);
   assert.match(WORKLOAD_SEMANTICS.currentVsPeriodNote, /not affected by the selected historical period/i);
 });
+test('B10 additive: occurrence availability is true but completion stays false (no completion claim)', () => {
+  assert.equal(WORKLOAD_SEMANTICS.followUpOccurrenceAvailable, true);
+  assert.equal(WORKLOAD_SEMANTICS.followUpCompletionAvailable, false);   // occurrence ≠ completion
+  assert.match(WORKLOAD_SEMANTICS.occurrenceNote, /does not establish that the scheduled obligation is complete/i);
+  // the additive note must not assert completion/effectiveness
+  assert.doesNotThrow(() => assertNoProhibitedWorkloadClaims([WORKLOAD_SEMANTICS.occurrenceNote]));
+});
 test('assertNoProhibitedWorkloadClaims rejects completion/effectiveness/SLA/"all on time"/"all players safe"', () => {
   for (const bad of [
     'Follow-up completed', 'completion rate 80%', 'closure rate', 'successful intervention',
