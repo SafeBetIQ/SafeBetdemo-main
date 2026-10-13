@@ -139,6 +139,10 @@ export const WORKLOAD_SEMANTICS = {
   overdueRule: 'Follow-up is overdue only when it is recorded as required, has a recorded follow-up date, and that date is before the current SAST business date.',
   acknowledgedAgeBasis: 'Age of the acknowledged state is measured from acknowledged_at.',
   followUpCompletionAvailable: false as const,
+  // B10 records factual follow-up OCCURRENCE evidence (not obligation completion, not
+  // effectiveness). Occurrence availability is additive and never implies completion.
+  followUpOccurrenceAvailable: true as const,
+  occurrenceNote: 'A recorded follow-up occurrence is factual evidence that a follow-up action took place; it does not establish that the scheduled obligation is complete or that the intervention was effective.',
   currentVsPeriodNote: 'Current workload is measured as of generatedAt and is not affected by the selected historical period.',
   outcomeNote: 'Recorded intervention outcome does not indicate intervention effectiveness.',
   slaNote: 'No SafeBet IQ responsible-gambling SLA threshold is configured for these metrics.',
