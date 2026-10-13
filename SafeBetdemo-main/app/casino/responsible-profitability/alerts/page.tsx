@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { RpTabs } from '@/components/responsibleProfitability/shared';
 import { ProtectionActionTrace } from '@/components/responsibleProfitability/ProtectionActionTrace';
+import { RecordIntervention } from '@/components/responsibleProfitability/RecordIntervention';
 import { AlertWorkloadPanel } from '@/components/responsibleProfitability/WorkloadPanels';
 import { readAccessTokenFast, supabase } from '@/lib/supabase';
 import { ALERT_RULES, type AlertType, type AlertStatus, type ProtectionAlertView } from '@/lib/responsibleProfitability/alerts';
@@ -198,6 +199,7 @@ export default function ProtectionAlertsPage() {
                       </div>
                       <Evidence a={a} />
                       <ProtectionActionTrace alertId={a.id} token={token} />
+                      <RecordIntervention alertId={a.id} token={token} onRecorded={load} />
                     </div>
                     <div className="flex shrink-0 gap-2">
                       {a.status === 'OPEN' && (
