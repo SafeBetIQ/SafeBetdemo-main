@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LayoutDashboard, Users, ShieldAlert, Activity, FileText, Plug, Menu, ChevronLeft, ChevronRight, Bell, User, LogOut, Shield, BookOpen, ChartBar as BarChart3, Network, Lock, CircleCheck as CheckCircle, Radio, HelpCircle, Briefcase, Lightbulb, Gauge, ClipboardCheck, Scale, Rocket, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationBell } from '@/components/responsibleProfitability/NotificationBell';
 
 interface NavItem {
   title: string;
@@ -343,9 +344,7 @@ export function AppShell({ children }: AppShellProps) {
             />
           </Link>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
-            </Button>
+            <NotificationBell />
           </div>
         </header>
 
