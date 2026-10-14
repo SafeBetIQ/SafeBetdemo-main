@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { readAccessTokenFast, supabase } from '@/lib/supabase';
 import { CalendarClock, Plus, RefreshCw, X, Info } from 'lucide-react';
 import { RecordFollowUp } from '@/components/responsibleProfitability/RecordFollowUp';
+import { CloseFollowUpRequirement } from '@/components/responsibleProfitability/CloseFollowUpRequirement';
 
 type Item = {
   interventionId: string; opaquePlayerRef: string; interventionType: string | null;
@@ -127,6 +128,8 @@ export function FollowUpScheduling() {
                     )}
                     {/* B10: every row here requires follow-up — record a factual occurrence (append-only). */}
                     <RecordFollowUp interventionId={i.interventionId} token={token} onRecorded={load} />
+                    {/* B11: one-way close of the follow-up requirement (no further follow-up required). */}
+                    <CloseFollowUpRequirement interventionId={i.interventionId} token={token} onClosed={load} />
                   </div>
                 ))}
               </div>
