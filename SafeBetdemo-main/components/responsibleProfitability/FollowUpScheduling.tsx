@@ -12,6 +12,7 @@ import { readAccessTokenFast, supabase } from '@/lib/supabase';
 import { CalendarClock, Plus, RefreshCw, X, Info } from 'lucide-react';
 import { RecordFollowUp } from '@/components/responsibleProfitability/RecordFollowUp';
 import { CloseFollowUpRequirement } from '@/components/responsibleProfitability/CloseFollowUpRequirement';
+import { PlayerCommunicationPanel } from '@/components/responsibleProfitability/PlayerCommunicationPanel';
 
 type Item = {
   interventionId: string; opaquePlayerRef: string; interventionType: string | null;
@@ -130,6 +131,8 @@ export function FollowUpScheduling() {
                     <RecordFollowUp interventionId={i.interventionId} token={token} onRecorded={load} />
                     {/* B11: one-way close of the follow-up requirement (no further follow-up required). */}
                     <CloseFollowUpRequirement interventionId={i.interventionId} token={token} onClosed={load} />
+                    {/* B13.1: governed SANDBOX responsible-gambling player communication (no real send). */}
+                    <PlayerCommunicationPanel interventionId={i.interventionId} interventionType={i.interventionType ?? ''} token={token} />
                   </div>
                 ))}
               </div>
