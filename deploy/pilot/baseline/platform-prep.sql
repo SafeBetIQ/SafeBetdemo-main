@@ -8,12 +8,20 @@
 -- lazily (pg_dump sets check_function_bodies=false), so those schemas are created but empty.
 
 -- Platform roles (Supabase provides these; the baseline only GRANTs to / owns against them).
-do $$ begin
-  if not exists (select 1 from pg_roles where rolname='anon') then create role anon nologin noinherit; end if;
-  if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin noinherit; end if;
-  if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role nologin noinherit bypassrls; end if;
+do $$
+declare r text;
+begin
+  foreach r in array array[
+    'anon','authenticated','service_role',
+    'supabase_admin','supabase_auth_admin','supabase_storage_admin','supabase_functions_admin',
+    'supabase_read_only_user','supabase_replication_admin','dashboard_user','pgbouncer'
+  ] loop
+    if not exists (select 1 from pg_roles where rolname=r) then execute format('create role %I nologin noinherit', r); end if;
+  end loop;
   if not exists (select 1 from pg_roles where rolname='authenticator') then create role authenticator noinherit login password 'disposable'; end if;
-  grant anon, authenticated, service_role to authenticator;
+  execute 'grant anon, authenticated, service_role to authenticator';
+  -- service_role bypasses RLS on the real platform.
+  execute 'alter role service_role bypassrls';
 end $$;
 
 -- Platform-managed schemas.
