@@ -1,0 +1,93 @@
+name: SafeBet IQ — Pilot M1A-R2 baseline extraction
+
+# M1A-R2: extract the AUTHORITATIVE application-owned (public schema) baseline from the live
+# IQ Demo database — READ ONLY, schema-only — then (later steps) apply it to a disposable
+# PostgreSQL and verify reproducibility/security. This workflow runs ONLY in CI, where the
+# authorised direct Postgres credential (secrets.SUPABASE_DB_URL_DEMO) and pg_dump exist.
+#
+# SAFETY: pg_dump --schema-only performs NO data/DDL mutation. We NEVER print the credential,
+# NEVER use the PROD secret, NEVER write to Demo. Probe stage validates connectivity + captures
+# the authoritative schema as an artifact for review before the generator/verifier are built.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'deploy/pilot/baseline/**'
+      - '.github/workflows/pilot-m1a-baseline.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  extract-demo-schema:
+    runs-on: ubuntu-latest
+    env:
+      # Authorised READ-ONLY direct Postgres connection to IQ Demo (runner secret; never echoed).
+      SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if the Demo DB credential is absent
+        run: |
+          if [ -z "$SUPABASE_DB_URL_DEMO" ]; then
+            echo "SUPABASE_DB_URL_DEMO secret is not available to this run."; exit 1; fi
+          echo "Demo DB credential present (value not printed)."
+
+      - name: PostgreSQL client version (runner)
+        run: pg_dump --version && psql --version
+
+      - name: Demo connection safety metadata (read-only; no secret printed)
+        run: |
+          psql "$SUPABASE_DB_URL_DEMO" -v ON_ERROR_STOP=1 -At <<'SQL'
+          select 'server_version=' || current_setting('server_version');
+          select 'database=' || current_database();
+          select 'current_user=' || current_user;
+          select 'default_read_only=' || current_setting('default_transaction_read_only');
+          -- positive Demo fingerprint: B13.1 table must exist on Demo
+          select 'has_b13_table=' || (to_regclass('public.intervention_player_communications') is not null)::text;
+          SQL
+
+      - name: Source schema inventory (read-only transaction)
+        run: |
+          psql "$SUPABASE_DB_URL_DEMO" -v ON_ERROR_STOP=1 -At <<'SQL'
+          begin transaction read only;
+          select 'tables=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r';
+          select 'partitioned_parents=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='p';
+          select 'views=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='v';
+          select 'matviews=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='m';
+          select 'functions=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
+          select 'secdef=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosecdef;
+          select 'triggers=' || count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and not t.tgisinternal;
+          select 'policies=' || count(*) from pg_policies where schemaname='public';
+          select 'rls_on=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity;
+          select 'force_rls=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relforcerowsecurity;
+          commit;
+          SQL
+
+      - name: Extract authoritative public-schema baseline (schema-only, READ ONLY)
+        run: |
+          mkdir -p artifact
+          pg_dump "$SUPABASE_DB_URL_DEMO" \
+            --schema-only \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            --no-publications \
+            --no-subscriptions \
+            --file=artifact/demo_public_schema.sql
+          echo "bytes=$(wc -c < artifact/demo_public_schema.sql)"
+          echo "lines=$(wc -l < artifact/demo_public_schema.sql)"
+
+      - name: Static data-leak scan (must be schema-only)
+        run: |
+          if grep -nE '^(COPY|INSERT INTO) public\.' artifact/demo_public_schema.sql; then
+            echo "FAIL: business data statements present in schema dump"; exit 1; fi
+          echo "OK: no COPY/INSERT public.* data statements"
+
+      - name: Upload authoritative schema artifact (for review)
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-public-schema
+          path: artifact/demo_public_schema.sql
+          retention-days: 7
