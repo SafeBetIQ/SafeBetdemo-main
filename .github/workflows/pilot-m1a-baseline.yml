@@ -68,14 +68,13 @@ jobs:
       - name: Extract authoritative public-schema baseline (schema-only, READ ONLY)
         run: |
           mkdir -p artifact
-          pg_dump "$SUPABASE_DB_URL_DEMO" \
-            --schema-only \
-            --schema=public \
-            --no-owner \
-            --no-privileges \
-            --no-publications \
-            --no-subscriptions \
-            --file=artifact/demo_public_schema.sql
+          # Demo server is PostgreSQL 17; the runner's bundled pg_dump is 16 and refuses a newer
+          # server. Run pg_dump from the matching postgres:17 image. Read-only (schema only).
+          docker run --rm --network host \
+            -e DSN="$SUPABASE_DB_URL_DEMO" \
+            -v "$PWD/artifact:/out" \
+            postgres:17 \
+            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-owner --no-privileges --no-publications --no-subscriptions -f /out/demo_public_schema.sql'
           echo "bytes=$(wc -c < artifact/demo_public_schema.sql)"
           echo "lines=$(wc -l < artifact/demo_public_schema.sql)"
 
