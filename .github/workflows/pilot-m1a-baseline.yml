@@ -1,13 +1,13 @@
 name: SafeBet IQ — Pilot M1A-R2 baseline extraction
 
 # M1A-R2: extract the AUTHORITATIVE application-owned (public schema) baseline from the live
-# IQ Demo database — READ ONLY, schema-only — then (later steps) apply it to a disposable
-# PostgreSQL and verify reproducibility/security. This workflow runs ONLY in CI, where the
-# authorised direct Postgres credential (secrets.SUPABASE_DB_URL_DEMO) and pg_dump exist.
+# IQ Demo database — READ ONLY, schema-only — then apply it to TWO disposable PostgreSQL 17
+# databases and prove reproducibility (identical structural fingerprint), zero business data,
+# and fidelity to Demo (baseline fingerprint == Demo public fingerprint). CI only.
 #
-# SAFETY: pg_dump --schema-only performs NO data/DDL mutation. We NEVER print the credential,
-# NEVER use the PROD secret, NEVER write to Demo. Probe stage validates connectivity + captures
-# the authoritative schema as an artifact for review before the generator/verifier are built.
+# SAFETY: pg_dump --schema-only + pure catalog SELECTs perform NO data/DDL mutation on Demo.
+# The credential (secrets.SUPABASE_DB_URL_DEMO) is never printed; the PROD secret is never used;
+# platform-managed roles/schemas live only in the disposable test harness, never in the baseline.
 
 on:
   workflow_dispatch:
@@ -20,22 +20,35 @@ permissions:
   contents: read
 
 jobs:
-  extract-demo-schema:
+  baseline:
     runs-on: ubuntu-latest
+
+    # Disposable PostgreSQL 17 (matches Demo server major). Destroyed with the job.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+
     env:
-      # Authorised READ-ONLY direct Postgres connection to IQ Demo (runner secret; never echoed).
       SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
+      LOCAL: postgres://postgres:postgres@localhost:5432
+      BASE: deploy/pilot/baseline
+      ART: deploy/pilot/baseline/pilot_app_schema_baseline.sql
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Fail if the Demo DB credential is absent
         run: |
-          if [ -z "$SUPABASE_DB_URL_DEMO" ]; then
-            echo "SUPABASE_DB_URL_DEMO secret is not available to this run."; exit 1; fi
+          [ -n "$SUPABASE_DB_URL_DEMO" ] || { echo "SUPABASE_DB_URL_DEMO missing"; exit 1; }
           echo "Demo DB credential present (value not printed)."
-
-      - name: PostgreSQL client version (runner)
-        run: pg_dump --version && psql --version
 
       - name: Demo connection safety metadata (read-only; no secret printed)
         run: |
@@ -43,50 +56,96 @@ jobs:
           select 'server_version=' || current_setting('server_version');
           select 'database=' || current_database();
           select 'current_user=' || current_user;
-          select 'default_read_only=' || current_setting('default_transaction_read_only');
-          -- positive Demo fingerprint: B13.1 table must exist on Demo
           select 'has_b13_table=' || (to_regclass('public.intervention_player_communications') is not null)::text;
           SQL
 
-      - name: Source schema inventory (read-only transaction)
+      - name: Extract authoritative public-schema baseline (schema-only, WITH owner + grants)
         run: |
-          psql "$SUPABASE_DB_URL_DEMO" -v ON_ERROR_STOP=1 -At <<'SQL'
-          begin transaction read only;
-          select 'tables=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r';
-          select 'partitioned_parents=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='p';
-          select 'views=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='v';
-          select 'matviews=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='m';
-          select 'functions=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public';
-          select 'secdef=' || count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosecdef;
-          select 'triggers=' || count(*) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and not t.tgisinternal;
-          select 'policies=' || count(*) from pg_policies where schemaname='public';
-          select 'rls_on=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relrowsecurity;
-          select 'force_rls=' || count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relforcerowsecurity;
-          commit;
-          SQL
+          # Server is PG17; use the matching pg_dump image. Keep owner + privileges so the
+          # baseline preserves SECURITY DEFINER ownership + RLS/policies + application grants.
+          docker run --rm --network host -e DSN="$SUPABASE_DB_URL_DEMO" -v "$PWD:/repo" -w /repo postgres:17 \
+            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-publications --no-subscriptions -f '"$ART"
+          echo "bytes=$(wc -c < "$ART")  lines=$(wc -l < "$ART")"
 
-      - name: Extract authoritative public-schema baseline (schema-only, READ ONLY)
+      - name: Static data-leak scan (schema only)
         run: |
-          mkdir -p artifact
-          # Demo server is PostgreSQL 17; the runner's bundled pg_dump is 16 and refuses a newer
-          # server. Run pg_dump from the matching postgres:17 image. Read-only (schema only).
-          docker run --rm --network host \
-            -e DSN="$SUPABASE_DB_URL_DEMO" \
-            -v "$PWD/artifact:/out" \
-            postgres:17 \
-            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-owner --no-privileges --no-publications --no-subscriptions -f /out/demo_public_schema.sql'
-          echo "bytes=$(wc -c < artifact/demo_public_schema.sql)"
-          echo "lines=$(wc -l < artifact/demo_public_schema.sql)"
-
-      - name: Static data-leak scan (must be schema-only)
-        run: |
-          if grep -nE '^(COPY|INSERT INTO) public\.' artifact/demo_public_schema.sql; then
-            echo "FAIL: business data statements present in schema dump"; exit 1; fi
+          if grep -nE '^(COPY|INSERT INTO) public\.' "$ART"; then echo "FAIL: data statements present"; exit 1; fi
           echo "OK: no COPY/INSERT public.* data statements"
 
-      - name: Upload authoritative schema artifact (for review)
+      - name: Guard — no platform roles/extensions created inside the baseline
+        run: |
+          if grep -nE '^\s*CREATE ROLE|^\s*CREATE SCHEMA (auth|vault|cron|net|extensions|storage|realtime)\b|^\s*CREATE EXTENSION' "$ART"; then
+            echo "FAIL: baseline must not create platform roles/schemas/extensions"; exit 1; fi
+          echo "OK: baseline contains no platform role/schema/extension creation"
+
+      - name: Demo structural fingerprint (read-only)
+        run: |
+          psql "$SUPABASE_DB_URL_DEMO" -f "$BASE/fingerprint.sql" | tr -d '\r' > demo.fp.txt
+          echo "demo_fingerprint=$(sha256sum demo.fp.txt | cut -d' ' -f1)"
+
+      - name: Apply to disposable DB #1 (platform prep + baseline)
+        run: |
+          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_baseline_test_1;"
+          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -f "$ART"
+          echo "apply #1 OK"
+
+      - name: Zero business data (DB #1)
+        run: |
+          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare t text; c bigint; bad text := '';
+          begin
+            foreach t in array array['casinos','users','players','gaming_sessions','casino_event_log','machine_activity','self_exclusions','player_protection_alerts','player_protection_interventions','alert_intervention_links','intervention_follow_up_events','operator_notification_reads','intervention_player_communications','workflow_notifications','audit_events'] loop
+              if to_regclass('public.'||t) is not null then
+                execute format('select count(*) from public.%I', t) into c;
+                if c <> 0 then bad := bad || t || '=' || c || ' '; end if;
+              end if;
+            end loop;
+            if bad <> '' then raise exception 'NONZERO BUSINESS DATA: %', bad; end if;
+            raise notice 'zero-business-data OK';
+          end $$;
+          SQL
+
+      - name: Fingerprint DB #1
+        run: |
+          psql "$LOCAL/pilot_baseline_test_1" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp1.txt
+          echo "fp1=$(sha256sum fp1.txt | cut -d' ' -f1)"
+
+      - name: Apply to disposable DB #2 (independent)
+        run: |
+          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_baseline_test_2;"
+          psql "$LOCAL/pilot_baseline_test_2" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_baseline_test_2" -v ON_ERROR_STOP=1 -f "$ART"
+          psql "$LOCAL/pilot_baseline_test_2" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp2.txt
+          echo "fp2=$(sha256sum fp2.txt | cut -d' ' -f1)"
+
+      - name: Reproducibility + Demo-fidelity verdict
+        run: |
+          d=$(sha256sum demo.fp.txt | cut -d' ' -f1); a=$(sha256sum fp1.txt | cut -d' ' -f1); b=$(sha256sum fp2.txt | cut -d' ' -f1)
+          echo "demo=$d"; echo "fp1=$a"; echo "fp2=$b"
+          [ "$a" = "$b" ] || { echo "FAIL: baseline not reproducible (fp1 != fp2)"; diff <(sort fp1.txt) <(sort fp2.txt) | head -40; exit 1; }
+          if [ "$a" != "$d" ]; then
+            echo "NOTE: baseline fingerprint differs from Demo — classifying drift:"; diff <(sort demo.fp.txt) <(sort fp1.txt) | head -80; exit 1; fi
+          echo "OK: reproducible AND identical to Demo public schema"
+
+      - name: B13.1 + security spot-check (DB #1)
+        run: |
+          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -At <<'SQL'
+          select 'b13_force_rls=' || relforcerowsecurity::text from pg_class where oid='public.intervention_player_communications'::regclass;
+          select 'b13_policies=' || count(*)::text from pg_policies where tablename='intervention_player_communications';
+          select 'b13_secdef_fns=' || count(*)::text from pg_proc where proname like 'sbiq_b13_%' and prosecdef;
+          select 'delivery_mode_chk=' || pg_get_constraintdef(oid) from pg_constraint where conname='iplc_delivery_mode_chk';
+          select 'audit_verify_fn=' || (to_regprocedure('public.sbiq_verify_audit_chain()') is not null)::text;
+          SQL
+
+      - name: Upload baseline + fingerprints (for review)
         uses: actions/upload-artifact@v4
         with:
-          name: demo-public-schema
-          path: artifact/demo_public_schema.sql
+          name: pilot-app-schema-baseline
+          path: |
+            deploy/pilot/baseline/pilot_app_schema_baseline.sql
+            demo.fp.txt
+            fp1.txt
+            fp2.txt
           retention-days: 7
