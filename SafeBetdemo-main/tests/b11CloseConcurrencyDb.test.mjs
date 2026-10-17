@@ -65,7 +65,8 @@ insert into public.player_protection_interventions(id,casino_id,player_id,interv
 `;
 
 async function newClient() { const { default: pg } = await import('pg'); const c = new pg.Client({ connectionString: DSN }); await c.connect(); return c; }
-const closeOn = async (c, iv, key) => (await c.query(`select * from public.sbiq_b11_close_follow_up_requirement($1,$2,$3,$4)`, [C, UA, iv, key])).rows[0].status;
+// RPC signature order is (p_intervention_id, p_casino_id, p_actor_id, p_idempotency_key).
+const closeOn = async (c, iv, key) => (await c.query(`select * from public.sbiq_b11_close_follow_up_requirement($1,$2,$3,$4)`, [iv, C, UA, key])).rows[0].status;
 const rowOf = async (c, id) => (await c.query(`select follow_up_required, follow_up_date from public.player_protection_interventions where id=$1`, [id])).rows[0];
 const closureAudits = async (c, ids) => Number((await c.query(`select count(*)::int n from public.audit_events where action='intervention.follow_up_requirement_closed' and resource_id = any($1)`, [ids])).rows[0].n);
 
