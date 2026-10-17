@@ -38,3 +38,15 @@ create or replace function auth.jwt()  returns jsonb language sql stable as $$ s
 -- does not abort. Function bodies that call them are not validated at creation time.
 create table if not exists vault.secrets (id uuid primary key default gen_random_uuid(), name text, secret text);
 create or replace view vault.decrypted_secrets as select id, name, secret as decrypted_secret from vault.secrets;
+
+-- pg_cron relations (a public view/object selects from these). Columns mirror pg_cron.
+create table if not exists cron.job (
+  jobid bigint primary key, schedule text, command text, nodename text, nodeport integer,
+  database text, username text, active boolean, jobname text);
+create table if not exists cron.job_run_details (
+  jobid bigint, runid bigint, job_pid integer, database text, username text, command text,
+  status text, return_message text, start_time timestamptz, end_time timestamptz);
+
+-- pg_net stub (referenced only inside SECURITY DEFINER function bodies; create for safety).
+create or replace function net.http_post(url text, body jsonb default '{}'::jsonb, params jsonb default '{}'::jsonb, headers jsonb default '{}'::jsonb, timeout_milliseconds integer default 5000)
+  returns bigint language sql as $$ select 0::bigint $$;
