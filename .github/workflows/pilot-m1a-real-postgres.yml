@@ -1,0 +1,101 @@
+name: SafeBet IQ — Pilot M1A real-Postgres concurrency
+
+# M1A-R1: close the PRE-REAL-DATA concurrency blocker for B11 (follow-up closure) and
+# B13.1 (player communication request/sequence/send races) on a REAL, DISPOSABLE PostgreSQL
+# running inside the isolated CI runner (a service container). No IQ Demo / Pilot / Production
+# / cloud database is ever contacted; the two databases live only for the life of the job.
+# This workflow is test/CI tooling only — no runtime product change, no cloud deployment.
+
+on:
+  pull_request:
+    paths:
+      - 'SafeBetdemo-main/tests/b11CloseConcurrencyDb.test.mjs'
+      - 'SafeBetdemo-main/tests/b13ConcurrencyDb.test.mjs'
+      - 'SafeBetdemo-main/tests/_disposableDbGuard.mjs'
+      - 'SafeBetdemo-main/tests/b11CloseFollowUpRequirementDb.test.mjs'
+      - 'SafeBetdemo-main/tests/b13PlayerCommunicationDb.test.mjs'
+      - 'SafeBetdemo-main/supabase/migrations/**'
+      - '.github/workflows/pilot-m1a-real-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: SafeBetdemo-main
+
+jobs:
+  real-postgres-concurrency:
+    runs-on: ubuntu-latest
+
+    # Disposable PostgreSQL 17 (Supabase major version). Ephemeral: destroyed with the job.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # The guard requires this explicit marker; every DB below is local/ephemeral.
+      SAFEBET_DISPOSABLE_TEST_DB: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 20 = the SafeBet IQ deployment target. The gated suites import only Node
+          # builtins + the `pg` driver (no TypeScript modules), so native TS stripping is
+          # not required here.
+          node-version: '20'
+
+      - name: Install (npm ci)
+        run: npm ci
+
+      # One pristine database PER SUITE. The product migrations use CREATE FUNCTION (not
+      # OR REPLACE), so two suites must never share a database — each applies the migrations
+      # exactly once onto an empty database.
+      - name: Create isolated disposable databases (one per suite)
+        run: |
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE safebet_b11_concurrency_test;" \
+            -c "CREATE DATABASE safebet_b11_sequential_test;" \
+            -c "CREATE DATABASE safebet_b13_concurrency_test;" \
+            -c "CREATE DATABASE safebet_b13_sequential_test;"
+
+      - name: Report runtime versions (evidence)
+        run: |
+          node --version
+          psql "postgres://postgres:postgres@localhost:5432/postgres" -t -c "select version();"
+
+      - name: B11 true-concurrency acceptance
+        env:
+          B11_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/safebet_b11_concurrency_test
+        run: node --test tests/b11CloseConcurrencyDb.test.mjs
+
+      - name: B13.1 true-concurrency acceptance
+        env:
+          B13_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/safebet_b13_concurrency_test
+        run: node --test tests/b13ConcurrencyDb.test.mjs
+
+      # Re-run the pre-existing gated sequential suites on their own pristine databases
+      # (they confirm the full lifecycle/security posture on real Postgres, not just PGlite).
+      - name: B11 sequential gated suite (real Postgres)
+        env:
+          B11_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/safebet_b11_sequential_test
+        run: node --test tests/b11CloseFollowUpRequirementDb.test.mjs
+
+      - name: B13.1 sequential gated suite (real Postgres)
+        env:
+          B13_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/safebet_b13_sequential_test
+        run: node --test tests/b13PlayerCommunicationDb.test.mjs
