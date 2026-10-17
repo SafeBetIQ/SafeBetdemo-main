@@ -63,8 +63,12 @@ jobs:
         run: |
           # Server is PG17; use the matching pg_dump image. Keep owner + privileges so the
           # baseline preserves SECURITY DEFINER ownership + RLS/policies + application grants.
+          # Generator post-processing (documented): the `public` schema already exists on every
+          # target (disposable test DB and a fresh Supabase project), so drop the single
+          # `CREATE SCHEMA public;` statement. All object DDL, ownership, RLS/policies, and
+          # grants are retained. Done inside the container (root owns the mounted file).
           docker run --rm --network host -e DSN="$SUPABASE_DB_URL_DEMO" -v "$PWD:/repo" -w /repo postgres:17 \
-            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-publications --no-subscriptions -f '"$ART"
+            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-publications --no-subscriptions -f '"$ART"' && sed -i "/^CREATE SCHEMA public;$/d" '"$ART"' && chmod 0644 '"$ART"
           echo "bytes=$(wc -c < "$ART")  lines=$(wc -l < "$ART")"
 
       - name: Static data-leak scan (schema only)
