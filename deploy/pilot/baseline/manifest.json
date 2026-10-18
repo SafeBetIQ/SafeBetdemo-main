@@ -1,0 +1,65 @@
+{
+  "artifact": "pilot_app_schema_baseline.sql",
+  "purpose": "Authoritative application-owned (public schema) baseline for bootstrapping a new isolated Pilot Supabase project (M1B). Not migration replay; not Demo business data.",
+  "authorities": {
+    "repository_authority_sha": "8ae2ea0b20603570af968ff8ea63979665edb640",
+    "live_runtime_deployment_sha": "e1ace600f42961109d0cc0777e59179a0cc8631d",
+    "live_runtime_deployment_label": "demo-node20-202610151445-e1ace60",
+    "schema_authority": "live IQ Demo public schema (read-only pg_dump --schema-only)",
+    "ci_only_delta": "repository_authority differs from runtime only by PR #131 CI/test tooling"
+  },
+  "source": {
+    "demo_postgres_server_version": "17.6",
+    "pg_dump_version": "17.11",
+    "extraction": "pg_dump --schema-only --schema=public --no-publications --no-subscriptions (owner + grants retained); post-processed to drop the single 'CREATE SCHEMA public;' statement"
+  },
+  "baseline_file": {
+    "bytes": 1485809,
+    "lines": 41135,
+    "sha256_lf_point_in_time": "fd6484cb6369e46cb9c0a65bc23ef184208953349b1a5e64c85206272add8710",
+    "note": "File SHA is point-in-time: pg_dump 17.11 emits a random per-dump \\restrict token, so the file bytes are not reproducible. Provenance/drift is anchored on the deterministic structural fingerprint below."
+  },
+  "structural_fingerprint": {
+    "sha256": "0bd7547d427b2146ac915b0a6834ba7c9995084f8b992d1e098fd3db1d06d280",
+    "algorithm": "deploy/pilot/baseline/fingerprint.sql — canonical, OID/timestamp/row-count-free structural digest over public tables/columns/constraints/indexes/functions(owner+secdef+search_path)/triggers/policies/RLS+FORCE/views/matviews/grants; SHA-256 of the ordered blob",
+    "reproducible": true,
+    "identical_across": ["IQ Demo public", "disposable DB #1", "disposable DB #2"]
+  },
+  "included_schemas": ["public"],
+  "excluded_schemas": ["guardian", "auth", "storage", "realtime", "graphql", "graphql_public", "vault", "cron", "net", "extensions", "supabase_migrations", "pg_catalog", "information_schema"],
+  "extensions_required": {
+    "application_required": ["pgcrypto", "uuid-ossp", "plpgsql"],
+    "platform_required": ["pg_cron"],
+    "platform_or_optional": ["pg_net", "pg_stat_statements", "supabase_vault"],
+    "note": "Extension implementation objects are NOT dumped; the target platform (or the disposable test harness) supplies them."
+  },
+  "object_counts": {
+    "tables": 331, "partitioned_parents": 4, "views": 25, "materialized_views": 5,
+    "functions": 169, "security_definer_functions": 146, "triggers": 55,
+    "policies": 677, "rls_enabled": 319, "force_rls": 117
+  },
+  "security": {
+    "b13_1_table_force_rls": true,
+    "b13_1_table_policies": 0,
+    "b13_1_security_definer_rpcs": 3,
+    "b13_1_delivery_mode_check": "CHECK ((delivery_mode = 'SANDBOX'::text))",
+    "audit_chain_functions_present": true,
+    "audit_chain_present_evidence": "identical Demo-vs-baseline structural fingerprint (all 169 functions incl. sbiq_verify_audit_chain/_range + compute_audit_chain_hash + triggers trg_audit_chain/trg_audit_events_immutable)"
+  },
+  "b_series_present": "B1-B13.1 database objects present (verified by identical Demo-vs-baseline fingerprint)",
+  "certified_financial_present": ["projection_financial_posture", "sbiq_certified_financial_posture_v2", "sbiq_financial_rollup_hourly", "sbiq_financial_rollup_checkpoint", "sbiq_financial_rollup_run_log", "financial_source_capability", "financial_shift_policy"],
+  "machine_posture_present": ["machine_activity", "projection_machine_state"],
+  "business_data": "NONE (schema-only; zero-business-data assertion passed on fresh apply)",
+  "intentional_exclusions": [
+    "guardian schema (out of IQ pilot scope)",
+    "Supabase-managed schemas (auth/storage/realtime/vault/graphql) and their data",
+    "cron job rows + cron schema implementation",
+    "supabase_migrations ledger history",
+    "database/platform roles (supplied by platform; test harness stubs only)",
+    "extension implementation objects",
+    "all business/evidence rows and simulator data",
+    "the single 'CREATE SCHEMA public;' statement (target already has public)"
+  ],
+  "provenance_model": "Git-reviewed baseline SQL + this manifest + structural fingerprint + controlled deployment evidence. The Supabase migration ledger is deliberately NOT treated as baseline provenance (the 291 local files != 329 Demo ledger rows is not reconciled or replayed). No new DB provenance table is recommended for M1B.",
+  "verification_run": "GitHub Actions 'SafeBet IQ — Pilot M1A-R2 baseline extraction' run 39063709266 (green): extract -> 2x disposable apply (platform-prep + baseline, 0 errors) -> identical structural fingerprint -> fingerprint == Demo -> zero-business-data -> B13.1/security spot-check"
+}
