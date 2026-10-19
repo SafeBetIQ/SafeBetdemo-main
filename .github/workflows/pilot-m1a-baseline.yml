@@ -45,6 +45,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install app deps (for the gated node tamper test's pg driver)
+        working-directory: SafeBetdemo-main
+        run: npm ci
+
       - name: Fail if the Demo DB credential is absent
         run: |
           [ -n "$SUPABASE_DB_URL_DEMO" ] || { echo "SUPABASE_DB_URL_DEMO missing"; exit 1; }
@@ -142,6 +150,23 @@ jobs:
           select 'delivery_mode_chk=' || pg_get_constraintdef(oid) from pg_constraint where conname='iplc_delivery_mode_chk';
           select 'audit_verify_fn=' || (to_regprocedure('public.sbiq_verify_audit_chain()') is not null)::text;
           SQL
+
+      - name: Audit-chain tamper detection (gated, disposable DB #1)
+        working-directory: SafeBetdemo-main
+        env:
+          SAFEBET_DISPOSABLE_TEST_DB: '1'
+          AUDIT_TAMPER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/pilot_baseline_test_1
+        run: node --test tests/auditChainTamperDb.test.mjs
+
+      - name: Deep Demo-identifier scan (informational — classification in the acceptance report)
+        run: |
+          echo "Scanning the EXECUTABLE baseline for Demo-coupled identifiers/subsystem..."
+          echo "demo/showcase/sim objects: $(grep -ocE 'CREATE (TABLE|FUNCTION|VIEW|MATERIALIZED VIEW|SEQUENCE) public\.(sbiq_demo[a-z_]*|[a-z_]*showcase[a-z_]*|simulate_live_feed|simulation_config)' "$ART")"
+          echo "demo casino UUID refs: $(grep -ocE 'a1b2c3d4-0000-0000-0000-000000000001|cc00000[1-5]-0000-0000-0000-00000000000[1-5]' "$ART")"
+          echo "demo-simulator producer refs: $(grep -ocE 'safebet-demo-live-simulator|demo-live-simulator-v2' "$ART")"
+          echo "connection-strings/JWT/AWS-keys (must be 0): $(grep -ocE 'postgres(ql)?://|eyJ[A-Za-z0-9_-]{10,}|AKIA[0-9A-Z]{16}' "$ART")"
+          echo "NOTE: the faithful public dump includes the Demo simulation/showcase subsystem."
+          echo "      Classification + M1B curation decision are recorded in the M1A-R2.1 report."
 
       - name: Upload baseline + fingerprints (for review)
         uses: actions/upload-artifact@v4
