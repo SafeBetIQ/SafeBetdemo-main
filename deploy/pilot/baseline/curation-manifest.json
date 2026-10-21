@@ -1,0 +1,59 @@
+{
+  "purpose": "Exact, reviewed set of Demo-only objects excluded from the Pilot baseline (M1A-R2.2). Applied as deploy/pilot/baseline/curation.sql (explicit DROP ... RESTRICT, no CASCADE) to a disposable copy of the post-decoupling Demo public schema; the curated DB is re-dumped to produce pilot_app_schema_baseline.sql.",
+  "authorities": {
+    "repository_authority_sha": "91161a0df0fe3e39b7fc55d9cd8a5bbcd16c20ef",
+    "deployed_runtime_sha": "e1ace600f42961109d0cc0777e59179a0cc8631d",
+    "pre_decoupling_full_demo_fingerprint": "0bd7547d427b2146ac915b0a6834ba7c9995084f8b992d1e098fd3db1d06d280",
+    "pr133_decoupling_migration_sha": "b414bb45486c97a35b9b8d25b7755f33daf02e30add77a54d67629d753e529b3",
+    "post_decoupling_full_demo_fingerprint": "9d7b6c5ac957bbeb51467cae368c1e276bc9b3eaba197735048cbfbb43bd9601",
+    "historical_uncurated_baseline_sha": "fd6484cb6369e46cb9c0a65bc23ef184208953349b1a5e64c85206272add8710"
+  },
+  "dependency_proof": "Reverse-dependency over the full candidate set after PR #133: 0 retained functions (prosrc), 0 retained views/matviews, 0 retained triggers, 0 retained FKs reference any excluded object. 0 intra-demo FKs/triggers. DROP ... RESTRICT succeeded for every object (CI), proving no residual hard dependency.",
+  "difference_proof": "fingerprint(source-DB-after-curation) == fingerprint(fresh re-apply of curated baseline) == 5f324b14... ; the ONLY structural difference from the post-decoupling full Demo schema is exactly this curation set.",
+  "excluded_views": [
+    {"name": "sbiq_demo_sim_health_overall", "class": "B", "reason": "demo-sim health view"},
+    {"name": "sbiq_demo_simulation_health", "class": "B", "reason": "demo-sim health view"},
+    {"name": "sbiq_demo_simulator_usage", "class": "B", "reason": "demo-sim usage view"},
+    {"name": "sbiq_demo_storage_status", "class": "B", "reason": "demo-sim storage view"}
+  ],
+  "excluded_functions": [
+    {"sig": "sbiq_admin_financial_section(timestamp with time zone)", "class": "B", "reason": "demo super-admin overview (demo-env NON-PRODUCTION route /api/admin/overview)"},
+    {"sig": "sbiq_admin_overview_snapshot(boolean)", "class": "B", "reason": "demo super-admin overview; embeds synthetic Demo casino UUIDs + simulator producer"},
+    {"sig": "sbiq_admin_refresh_registered()", "class": "B", "reason": "demo admin registered-counts refresh"},
+    {"sig": "sbiq_admin_refresh_registered_manual(uuid, uuid)", "class": "B", "reason": "demo admin registered-counts refresh"},
+    {"sig": "sbiq_admin_registered_status()", "class": "B", "reason": "demo admin registered-counts status"},
+    {"sig": "sbiq_demo_activate_showcase(text, uuid, text, integer, uuid, uuid)", "class": "A", "reason": "demo showcase activation (synthetic)"},
+    {"sig": "sbiq_demo_audit_cleanup(text)", "class": "A", "reason": "demo audit helper"},
+    {"sig": "sbiq_demo_audit_insert(uuid)", "class": "A", "reason": "demo audit helper"},
+    {"sig": "sbiq_demo_broken_chain()", "class": "A", "reason": "demo audit-tamper demo helper"},
+    {"sig": "sbiq_demo_limit(text)", "class": "B", "reason": "demo simulator limit lookup"},
+    {"sig": "sbiq_demo_live_tick(integer)", "class": "A", "reason": "synthetic-data generator (demo live tick)"},
+    {"sig": "sbiq_demo_partition_readiness(boolean)", "class": "A", "reason": "demo partition-readiness (DEMO-ONLY)"},
+    {"sig": "sbiq_demo_raise_alert(text, text, text, uuid, jsonb, uuid)", "class": "B", "reason": "demo-sim alert emitter (replaced generically by sbiq_financial_rollup_raise_alert in PR #133)"},
+    {"sig": "sbiq_demo_scale_cleanup(text)", "class": "A", "reason": "synthetic scale-data cleanup"},
+    {"sig": "sbiq_demo_scale_seed_batch(uuid, text, integer, integer, integer, integer, text, integer)", "class": "A", "reason": "synthetic-data generator (scale seed)"},
+    {"sig": "sbiq_demo_showcase_maintenance()", "class": "A", "reason": "demo showcase maintenance"},
+    {"sig": "sbiq_demo_sim_health_snapshot()", "class": "B", "reason": "demo-sim health snapshot (demo-env route /api/admin/simulation-health)"},
+    {"sig": "sbiq_demo_tick_watchdog()", "class": "A", "reason": "demo tick watchdog"},
+    {"sig": "simulate_live_feed()", "class": "A", "reason": "synthetic live-feed generator"}
+  ],
+  "excluded_tables": [
+    {"name": "sbiq_demo_sim_limits", "class": "B"},
+    {"name": "sbiq_demo_sim_alerts", "class": "B"},
+    {"name": "sbiq_demo_sim_run_log", "class": "B"},
+    {"name": "sbiq_demo_showcase_activations", "class": "B"},
+    {"name": "sbiq_demo_sim_flags", "class": "B"},
+    {"name": "sbiq_demo_sim_config", "class": "B"},
+    {"name": "sbiq_demo_showcase_windows", "class": "B"},
+    {"name": "simulation_config", "class": "A"},
+    {"name": "sbiq_admin_registered_counts", "class": "B"},
+    {"name": "sbiq_admin_registered_refresh_log", "class": "B"}
+  ],
+  "excluded_owned_sequences_note": "5 identity/serial sequences (sbiq_demo_sim_run_log_id_seq, sbiq_demo_showcase_activations_id_seq, sbiq_demo_showcase_windows_id_seq, sbiq_admin_registered_refresh_log_id_seq, sbiq_demo_sim_alerts_id_seq) are owned by the excluded tables and drop with them.",
+  "excluded_counts": {"views": 4, "functions": 19, "tables": 10, "owned_sequences": 5},
+  "classification_summary": {"A_synthetic_generator": 10, "B_showcase_or_demo_admin": 23, "C_generic_but_demo_coupled": 0, "D_required_pilot": 0, "E_false_positive": 0, "F_unknown": 0},
+  "runtime_references": "Excluded objects are referenced only by demo-env-gated super-admin routes (/api/admin/overview, /api/admin/simulation-health, /api/admin/overview/refresh-registered-counts), demo-auth (/api/demo-auth/login), and lib/demoSim* — all demo-env only, NON-PRODUCTION; NOT the casino-operator Pilot surface. M1B environment-hardening: the Pilot environment must not enable demo env / expose these demo super-admin/demo-auth routes.",
+  "retained_verification": "certified financial (sbiq_certified_financial_posture_v2 + projection_financial_posture) retained; generic financial rollup ops (sbiq_financial_rollup_ops_state/_ops_alerts/_raise_alert/refresh/watchdog/status) retained; B1-B13.1 objects retained; audit chain retained; machine/session/self-exclusion/event-log retained.",
+  "b1_b13_1_impact": "none (no excluded object is required by any governed operator workflow)",
+  "security_impact": "none adverse (removal only; no RLS/grant/definer weakening of retained objects)"
+}

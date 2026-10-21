@@ -1,0 +1,47 @@
+{
+  "artifact": "pilot_app_schema_baseline.sql",
+  "status": "CURATED (M1A-R2.2) — Demo simulation/showcase/demo-admin subsystem excluded",
+  "purpose": "Final authoritative application-owned (public) schema baseline to bootstrap a new isolated Pilot Supabase project (M1B). Not migration replay; not Demo business data; Demo-only subsystem removed.",
+  "authorities": {
+    "repository_authority_sha": "91161a0df0fe3e39b7fc55d9cd8a5bbcd16c20ef",
+    "deployed_runtime_sha": "e1ace600f42961109d0cc0777e59179a0cc8631d",
+    "deployed_runtime_label": "demo-node20-202610151445-e1ace60",
+    "schema_authority": "live IQ Demo public schema post-decoupling (read-only pg_dump --schema-only)"
+  },
+  "provenance_chain": {
+    "pre_decoupling_full_demo_fingerprint": "0bd7547d427b2146ac915b0a6834ba7c9995084f8b992d1e098fd3db1d06d280",
+    "pr133_decoupling_migration_sha": "b414bb45486c97a35b9b8d25b7755f33daf02e30add77a54d67629d753e529b3",
+    "post_decoupling_full_demo_fingerprint": "9d7b6c5ac957bbeb51467cae368c1e276bc9b3eaba197735048cbfbb43bd9601",
+    "historical_uncurated_baseline_sha": "fd6484cb6369e46cb9c0a65bc23ef184208953349b1a5e64c85206272add8710",
+    "curation_manifest_sha256": "4f0db01fe530373e575e93f55df78ef0692b674f67efc7fb2744901e5f5f12ae"
+  },
+  "curated_baseline": {
+    "bytes": 1386404,
+    "lines": 39103,
+    "sha256_lf_point_in_time": "530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182",
+    "note": "File SHA is point-in-time (pg_dump 17.11 random \\restrict token). Reproducibility/provenance is anchored on the structural fingerprint below."
+  },
+  "curated_structural_fingerprint": {
+    "sha256": "5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49",
+    "algorithm": "deploy/pilot/baseline/fingerprint.sql (OID/timestamp/row-count-free)",
+    "reproducible": true,
+    "identical_across": ["curated DB #1", "curated DB #2", "post-decoupling source DB after curation.sql"],
+    "note": "By design this differs from the full Demo fingerprint; the difference is exactly the curation set (see curation-manifest)."
+  },
+  "included_schemas": ["public"],
+  "excluded_schemas": ["guardian", "auth", "storage", "realtime", "graphql", "graphql_public", "vault", "cron", "net", "extensions", "supabase_migrations"],
+  "excluded_application_subsystem": "Demo simulation/showcase/demo-admin — 4 views + 19 functions + 10 tables (+5 owned sequences); see curation-manifest.json/md",
+  "extensions_required": {"application_required": ["pgcrypto", "uuid-ossp", "plpgsql"], "platform": ["pg_cron"], "platform_or_optional": ["pg_net", "pg_stat_statements", "supabase_vault"]},
+  "retained_highlights": {
+    "certified_financial": ["projection_financial_posture", "sbiq_certified_financial_posture_v2", "sbiq_financial_rollup_hourly", "financial_source_capability", "financial_shift_policy"],
+    "generic_financial_rollup_ops": ["sbiq_financial_rollup_ops_state(enabled=false)", "sbiq_financial_rollup_ops_alerts", "sbiq_financial_rollup_raise_alert", "sbiq_financial_rollup_refresh", "sbiq_financial_rollup_watchdog", "sbiq_financial_rollup_status"],
+    "b1_b13_1": "all governed operator-workflow objects (B4.1 alerts, B6 links, B8/B9/B10/B11 follow-up, B12 reads, B13.1 player communications + 3 DEFINER RPCs)",
+    "audit_chain": ["audit_events", "trg_audit_chain", "trg_audit_events_immutable", "sbiq_verify_audit_chain(text)", "sbiq_verify_audit_chain_range(text,bigint,bigint)"],
+    "machine_session": ["machine_activity", "projection_machine_state", "gaming_sessions", "self_exclusions", "casino_event_log"]
+  },
+  "business_data": "NONE (schema-only; zero-business-data assertion passed). Only static config row: sbiq_financial_rollup_ops_state(id=1, enabled=false).",
+  "security": {"b13_1_force_rls": true, "b13_1_delivery_mode_check": "SANDBOX only", "ops_tables_force_rls": true, "ops_tables_grants": "service_role SELECT-only", "audit_immutability": true, "audit_tamper_detection": true},
+  "provenance_model": "Git-reviewed curated baseline + this manifest + curation manifest + structural fingerprint + CI verification evidence. Supabase migration ledger deliberately NOT authoritative (329 Demo rows not copied; 291 local files not replayed; no baseline marker; no provenance DB table).",
+  "verification_run": "GitHub Actions 'SafeBet IQ — Pilot M1A-R2.2 curated baseline' run 39631763987 (green): full post-decoupling extract -> curation.sql DROP RESTRICT -> re-dump -> 2x fresh apply (identical fingerprint) -> zero-data + demo-absence + generic-ops + B13.1 -> audit tamper -> financial-ops smoke -> source→Pilot difference proof -> Demo-identifier/secret scan clean",
+  "m1b_hardening_requirement": "Pilot must not enable demo env / expose demo super-admin + demo-auth routes (/api/admin/overview, /api/admin/simulation-health, /api/admin/overview/refresh-registered-counts, /api/demo-auth/login)."
+}
