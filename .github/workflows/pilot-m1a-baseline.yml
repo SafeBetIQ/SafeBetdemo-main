@@ -1,13 +1,14 @@
-name: SafeBet IQ — Pilot M1A-R2 baseline extraction
+name: SafeBet IQ — Pilot M1A-R2.2 curated baseline
 
-# M1A-R2: extract the AUTHORITATIVE application-owned (public schema) baseline from the live
-# IQ Demo database — READ ONLY, schema-only — then apply it to TWO disposable PostgreSQL 17
-# databases and prove reproducibility (identical structural fingerprint), zero business data,
-# and fidelity to Demo (baseline fingerprint == Demo public fingerprint). CI only.
-#
-# SAFETY: pg_dump --schema-only + pure catalog SELECTs perform NO data/DDL mutation on Demo.
-# The credential (secrets.SUPABASE_DB_URL_DEMO) is never printed; the PROD secret is never used;
-# platform-managed roles/schemas live only in the disposable test harness, never in the baseline.
+# M1A-R2.2: produce + verify the FINAL CURATED Pilot application-schema baseline.
+#   extract full post-decoupling Demo public schema (READ ONLY) -> apply to a disposable source DB
+#   -> apply curation.sql (explicit DROP ... RESTRICT of the Demo sim/showcase/demo-admin subsystem)
+#   -> re-dump the curated DB = pilot_app_schema_baseline.sql
+#   -> apply the curated baseline to TWO fresh disposable DBs (identical fingerprint)
+#   -> zero business data, demo-subsystem ABSENT, generic financial ops RETAINED, B13.1 secure,
+#      audit tamper detected, Demo-identifier/secret scan clean,
+#   -> retained-only fingerprint of the full source == curated fingerprint (source→Pilot diff proof).
+# CI only; no Demo mutation (pg_dump --schema-only); PROD credential never used; no cloud/real data.
 
 on:
   workflow_dispatch:
@@ -20,161 +21,168 @@ permissions:
   contents: read
 
 jobs:
-  baseline:
+  curated-baseline:
     runs-on: ubuntu-latest
-
-    # Disposable PostgreSQL 17 (matches Demo server major). Destroyed with the job.
     services:
       postgres:
         image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres }
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s --health-timeout 5s --health-retries 10
-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
     env:
       SUPABASE_DB_URL_DEMO: ${{ secrets.SUPABASE_DB_URL_DEMO }}
       LOCAL: postgres://postgres:postgres@localhost:5432
       BASE: deploy/pilot/baseline
       ART: deploy/pilot/baseline/pilot_app_schema_baseline.sql
-
+      FULL: artifact/demo_full_public.sql
+      # candidate (Demo-only) object name alternation, for the retained-only difference proof
+      CAND: 'sbiq_demo_|simulate_live_feed|simulation_config|sbiq_admin_registered|sbiq_admin_financial_section|sbiq_admin_overview_snapshot|sbiq_admin_refresh_registered|sbiq_admin_registered_status'
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install app deps (for the gated node tamper test's pg driver)
+        with: { node-version: '20' }
+      - name: Install app deps (pg driver for the tamper test)
         working-directory: SafeBetdemo-main
         run: npm ci
 
-      - name: Fail if the Demo DB credential is absent
-        run: |
-          [ -n "$SUPABASE_DB_URL_DEMO" ] || { echo "SUPABASE_DB_URL_DEMO missing"; exit 1; }
-          echo "Demo DB credential present (value not printed)."
+      - name: Demo DB credential present
+        run: '[ -n "$SUPABASE_DB_URL_DEMO" ] || { echo "SUPABASE_DB_URL_DEMO missing"; exit 1; }; echo present'
 
-      - name: Demo connection safety metadata (read-only; no secret printed)
+      - name: Demo safety metadata (read-only; no secret printed)
         run: |
           psql "$SUPABASE_DB_URL_DEMO" -v ON_ERROR_STOP=1 -At <<'SQL'
           select 'server_version=' || current_setting('server_version');
-          select 'database=' || current_database();
-          select 'current_user=' || current_user;
-          select 'has_b13_table=' || (to_regclass('public.intervention_player_communications') is not null)::text;
+          select 'has_b13=' || (to_regclass('public.intervention_player_communications') is not null)::text;
+          select 'decoupled=' || (to_regclass('public.sbiq_financial_rollup_ops_state') is not null)::text;
           SQL
 
-      - name: Extract authoritative public-schema baseline (schema-only, WITH owner + grants)
+      - name: Extract FULL post-decoupling public schema (schema-only, READ ONLY)
         run: |
-          # Server is PG17; use the matching pg_dump image. Keep owner + privileges so the
-          # baseline preserves SECURITY DEFINER ownership + RLS/policies + application grants.
-          # Generator post-processing (documented): the `public` schema already exists on every
-          # target (disposable test DB and a fresh Supabase project), so drop the single
-          # `CREATE SCHEMA public;` statement. All object DDL, ownership, RLS/policies, and
-          # grants are retained. Done inside the container (root owns the mounted file).
+          mkdir -p artifact
           docker run --rm --network host -e DSN="$SUPABASE_DB_URL_DEMO" -v "$PWD:/repo" -w /repo postgres:17 \
+            sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-publications --no-subscriptions -f '"$FULL"' && sed -i "/^CREATE SCHEMA public;$/d" '"$FULL"' && chmod 0644 '"$FULL"
+          echo "full bytes=$(wc -c < "$FULL") lines=$(wc -l < "$FULL")"
+          grep -nE '^(COPY|INSERT INTO) public\.' "$FULL" && { echo FAIL data; exit 1; } || echo "no data statements"
+
+      - name: Full-source structural fingerprint (read-only)
+        run: psql "$SUPABASE_DB_URL_DEMO" -f "$BASE/fingerprint.sql" | tr -d '\r' > demo_full.fp.txt; echo "full_fp=$(sha256sum demo_full.fp.txt | cut -d' ' -f1)"
+
+      - name: Build curated baseline (apply full -> curation.sql RESTRICT -> re-dump curated)
+        run: |
+          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_source_test;"
+          psql "$LOCAL/pilot_source_test" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_source_test" -v ON_ERROR_STOP=1 -f "$FULL"
+          echo "-- applying curation.sql (DROP ... RESTRICT) --"
+          psql "$LOCAL/pilot_source_test" -v ON_ERROR_STOP=1 -f "$BASE/curation.sql"
+          # prove the demo subsystem is gone from the source DB
+          left=$(psql "$LOCAL/pilot_source_test" -At -c "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase' or c.relname in ('simulation_config','sbiq_admin_registered_counts','sbiq_admin_registered_refresh_log'))")
+          leftf=$(psql "$LOCAL/pilot_source_test" -At -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and (p.proname ~ '^sbiq_demo' or p.proname ~ 'showcase' or p.proname ~ '^sbiq_admin_(financial_section|overview_snapshot|refresh_registered|registered_status)' or p.proname='simulate_live_feed')")
+          echo "post-curation candidate relations=$left functions=$leftf"
+          [ "$left" = "0" ] && [ "$leftf" = "0" ] || { echo "FAIL: demo subsystem not fully removed"; exit 1; }
+          # re-dump the CURATED schema as the final Pilot baseline
+          docker run --rm --network host -e DSN="$LOCAL/pilot_source_test" -v "$PWD:/repo" -w /repo postgres:17 \
             sh -c 'pg_dump "$DSN" --schema-only --schema=public --no-publications --no-subscriptions -f '"$ART"' && sed -i "/^CREATE SCHEMA public;$/d" '"$ART"' && chmod 0644 '"$ART"
-          echo "bytes=$(wc -c < "$ART")  lines=$(wc -l < "$ART")"
+          echo "curated bytes=$(wc -c < "$ART") lines=$(wc -l < "$ART")"
 
-      - name: Static data-leak scan (schema only)
+      - name: Guard — curated baseline creates no platform roles/schemas/extensions
         run: |
-          if grep -nE '^(COPY|INSERT INTO) public\.' "$ART"; then echo "FAIL: data statements present"; exit 1; fi
-          echo "OK: no COPY/INSERT public.* data statements"
+          if grep -nE '^\s*CREATE ROLE|^\s*CREATE SCHEMA (auth|vault|cron|net|extensions|storage|realtime)\b|^\s*CREATE EXTENSION' "$ART"; then echo FAIL; exit 1; fi
+          echo ok
 
-      - name: Guard — no platform roles/extensions created inside the baseline
+      - name: Fresh apply #1 (platform-prep + curated baseline)
         run: |
-          if grep -nE '^\s*CREATE ROLE|^\s*CREATE SCHEMA (auth|vault|cron|net|extensions|storage|realtime)\b|^\s*CREATE EXTENSION' "$ART"; then
-            echo "FAIL: baseline must not create platform roles/schemas/extensions"; exit 1; fi
-          echo "OK: baseline contains no platform role/schema/extension creation"
+          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_curated_test_1;"
+          psql "$LOCAL/pilot_curated_test_1" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_curated_test_1" -v ON_ERROR_STOP=1 -f "$ART"
 
-      - name: Demo structural fingerprint (read-only)
+      - name: Zero business data + demo-subsystem absence + generic ops present (DB#1)
         run: |
-          psql "$SUPABASE_DB_URL_DEMO" -f "$BASE/fingerprint.sql" | tr -d '\r' > demo.fp.txt
-          echo "demo_fingerprint=$(sha256sum demo.fp.txt | cut -d' ' -f1)"
-
-      - name: Apply to disposable DB #1 (platform prep + baseline)
-        run: |
-          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_baseline_test_1;"
-          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
-          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -f "$ART"
-          echo "apply #1 OK"
-
-      - name: Zero business data (DB #1)
-        run: |
-          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 <<'SQL'
-          do $$
-          declare t text; c bigint; bad text := '';
+          psql "$LOCAL/pilot_curated_test_1" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare t text; c bigint; bad text:='';
           begin
             foreach t in array array['casinos','users','players','gaming_sessions','casino_event_log','machine_activity','self_exclusions','player_protection_alerts','player_protection_interventions','alert_intervention_links','intervention_follow_up_events','operator_notification_reads','intervention_player_communications','workflow_notifications','audit_events'] loop
-              if to_regclass('public.'||t) is not null then
-                execute format('select count(*) from public.%I', t) into c;
-                if c <> 0 then bad := bad || t || '=' || c || ' '; end if;
-              end if;
+              if to_regclass('public.'||t) is not null then execute format('select count(*) from public.%I',t) into c; if c<>0 then bad:=bad||t||'='||c||' '; end if; end if;
             end loop;
-            if bad <> '' then raise exception 'NONZERO BUSINESS DATA: %', bad; end if;
-            raise notice 'zero-business-data OK';
+            if bad<>'' then raise exception 'NONZERO BUSINESS DATA: %', bad; end if;
           end $$;
-          SQL
-
-      - name: Fingerprint DB #1
-        run: |
-          psql "$LOCAL/pilot_baseline_test_1" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp1.txt
-          echo "fp1=$(sha256sum fp1.txt | cut -d' ' -f1)"
-
-      - name: Apply to disposable DB #2 (independent)
-        run: |
-          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_baseline_test_2;"
-          psql "$LOCAL/pilot_baseline_test_2" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
-          psql "$LOCAL/pilot_baseline_test_2" -v ON_ERROR_STOP=1 -f "$ART"
-          psql "$LOCAL/pilot_baseline_test_2" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp2.txt
-          echo "fp2=$(sha256sum fp2.txt | cut -d' ' -f1)"
-
-      - name: Reproducibility + Demo-fidelity verdict
-        run: |
-          d=$(sha256sum demo.fp.txt | cut -d' ' -f1); a=$(sha256sum fp1.txt | cut -d' ' -f1); b=$(sha256sum fp2.txt | cut -d' ' -f1)
-          echo "demo=$d"; echo "fp1=$a"; echo "fp2=$b"
-          [ "$a" = "$b" ] || { echo "FAIL: baseline not reproducible (fp1 != fp2)"; diff <(sort fp1.txt) <(sort fp2.txt) | head -40; exit 1; }
-          if [ "$a" != "$d" ]; then
-            echo "NOTE: baseline fingerprint differs from Demo — classifying drift:"; diff <(sort demo.fp.txt) <(sort fp1.txt) | head -80; exit 1; fi
-          echo "OK: reproducible AND identical to Demo public schema"
-
-      - name: B13.1 + security spot-check (DB #1)
-        run: |
-          psql "$LOCAL/pilot_baseline_test_1" -v ON_ERROR_STOP=1 -At <<'SQL'
+          -- the only permitted static config row
+          select 'ops_state_rows=' || count(*) || ' enabled=' || bool_or(enabled)::text from public.sbiq_financial_rollup_ops_state;
+          -- demo subsystem ABSENT
+          select 'demo_objs_left=' || (count(*))::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase');
+          select 'demo_fns_left=' || (count(*))::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and (p.proname ~ '^sbiq_demo' or p.proname='simulate_live_feed');
+          -- generic financial ops RETAINED
+          select 'generic_ops=' || (
+            (to_regclass('public.sbiq_financial_rollup_ops_state') is not null)::int
+            + (to_regclass('public.sbiq_financial_rollup_ops_alerts') is not null)::int
+            + (to_regprocedure('public.sbiq_financial_rollup_raise_alert(text,text,text,jsonb)') is not null)::int
+            + (to_regprocedure('public.sbiq_financial_rollup_status()') is not null)::int)::text;
+          -- certified + B13.1 present
+          select 'certified=' || (to_regprocedure('public.sbiq_certified_financial_posture_v2(uuid,text)') is not null or to_regprocedure('public.sbiq_certified_financial_posture_v2()') is not null)::text;
           select 'b13_force_rls=' || relforcerowsecurity::text from pg_class where oid='public.intervention_player_communications'::regclass;
-          select 'b13_policies=' || count(*)::text from pg_policies where tablename='intervention_player_communications';
-          select 'b13_secdef_fns=' || count(*)::text from pg_proc where proname like 'sbiq_b13_%' and prosecdef;
-          select 'delivery_mode_chk=' || pg_get_constraintdef(oid) from pg_constraint where conname='iplc_delivery_mode_chk';
-          select 'audit_verify_fn=' || (to_regprocedure('public.sbiq_verify_audit_chain()') is not null)::text;
+          select 'b13_delivery_chk=' || pg_get_constraintdef(oid) from pg_constraint where conname='iplc_delivery_mode_chk';
           SQL
 
-      - name: Audit-chain tamper detection (gated, disposable DB #1)
+      - name: Fingerprint DB#1
+        run: psql "$LOCAL/pilot_curated_test_1" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp1.txt; echo "fp1=$(sha256sum fp1.txt|cut -d' ' -f1)"
+
+      - name: Fresh apply #2 + fingerprint
+        run: |
+          psql "$LOCAL/postgres" -v ON_ERROR_STOP=1 -c "create database pilot_curated_test_2;"
+          psql "$LOCAL/pilot_curated_test_2" -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_curated_test_2" -v ON_ERROR_STOP=1 -f "$ART"
+          psql "$LOCAL/pilot_curated_test_2" -f "$BASE/fingerprint.sql" | tr -d '\r' > fp2.txt; echo "fp2=$(sha256sum fp2.txt|cut -d' ' -f1)"
+
+      - name: Reproducibility + source→Pilot difference proof
+        run: |
+          a=$(sha256sum fp1.txt|cut -d' ' -f1); b=$(sha256sum fp2.txt|cut -d' ' -f1)
+          echo "curated fp1=$a fp2=$b"
+          [ "$a" = "$b" ] || { echo "FAIL: curated baseline not reproducible"; diff <(sort fp1.txt) <(sort fp2.txt)|head; exit 1; }
+          # retained-only fingerprint of the FULL source == curated fingerprint (difference == exactly the curation set)
+          grep -vniE "$CAND" demo_full.fp.txt | tr -d '\r' > demo_retained.fp.txt
+          cr=$(grep -vniE "$CAND" fp1.txt | sha256sum | cut -d' ' -f1)       # curated already has no candidates; filter is a no-op
+          dr=$(sha256sum demo_retained.fp.txt | cut -d' ' -f1)
+          echo "demo_retained=$dr curated_retained=$cr"
+          [ "$dr" = "$cr" ] || { echo "FAIL: source→Pilot difference not exactly the curation set"; diff <(grep -vniE "$CAND" demo_full.fp.txt|sort) <(grep -vniE "$CAND" fp1.txt|sort)|head -60; exit 1; }
+          echo "OK: curated reproducible AND equals full-source minus the curation set"
+
+      - name: Audit-chain tamper detection (gated, curated DB#1)
         working-directory: SafeBetdemo-main
         env:
           SAFEBET_DISPOSABLE_TEST_DB: '1'
-          AUDIT_TAMPER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/pilot_baseline_test_1
+          AUDIT_TAMPER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/pilot_curated_test_1
         run: node --test tests/auditChainTamperDb.test.mjs
 
-      - name: Deep Demo-identifier scan (informational — classification in the acceptance report)
+      - name: Generic financial ops smoke (curated DB#1; no Demo object required)
         run: |
-          echo "Scanning the EXECUTABLE baseline for Demo-coupled identifiers/subsystem..."
-          echo "demo/showcase/sim objects: $(grep -ocE 'CREATE (TABLE|FUNCTION|VIEW|MATERIALIZED VIEW|SEQUENCE) public\.(sbiq_demo[a-z_]*|[a-z_]*showcase[a-z_]*|simulate_live_feed|simulation_config)' "$ART")"
-          echo "demo casino UUID refs: $(grep -ocE 'a1b2c3d4-0000-0000-0000-000000000001|cc00000[1-5]-0000-0000-0000-00000000000[1-5]' "$ART")"
-          echo "demo-simulator producer refs: $(grep -ocE 'safebet-demo-live-simulator|demo-live-simulator-v2' "$ART")"
-          echo "connection-strings/JWT/AWS-keys (must be 0): $(grep -ocE 'postgres(ql)?://|eyJ[A-Za-z0-9_-]{10,}|AKIA[0-9A-Z]{16}' "$ART")"
-          echo "NOTE: the faithful public dump includes the Demo simulation/showcase subsystem."
-          echo "      Classification + M1B curation decision are recorded in the M1A-R2.1 report."
+          psql "$LOCAL/pilot_curated_test_1" -v ON_ERROR_STOP=1 -At <<'SQL'
+          select 'status_enabled=' || (public.sbiq_financial_rollup_status()->>'enabled');
+          select 'refresh_disabled_skip=' || (public.sbiq_financial_rollup_refresh()->>'skipped');
+          select 'watchdog_ok=' || (public.sbiq_financial_rollup_watchdog()->>'ok');
+          select public.sbiq_financial_rollup_raise_alert('TEST_SMOKE','warning','financial_rollup','{}'::jsonb);
+          select 'ops_alert_rows=' || count(*)::text from public.sbiq_financial_rollup_ops_alerts;
+          SQL
 
-      - name: Upload baseline + fingerprints (for review)
+      - name: Final Demo-identifier + secret scan (executable curated baseline)
+        run: |
+          fail=0
+          echo "demo-sim object defs (must be 0): $(grep -cE 'CREATE (TABLE|FUNCTION|VIEW|MATERIALIZED VIEW|SEQUENCE) public\.(sbiq_demo|simulate_live_feed|simulation_config)' "$ART")"
+          grep -qE 'CREATE (TABLE|FUNCTION|VIEW|MATERIALIZED VIEW|SEQUENCE) public\.(sbiq_demo|simulate_live_feed|simulation_config)' "$ART" && { echo "FAIL: demo object defined in baseline"; fail=1; }
+          echo "demo casino UUID refs (must be 0): $(grep -cE 'a1b2c3d4-0000-0000-0000-000000000001|cc00000[1-5]-0000-0000-0000-00000000000[1-5]' "$ART")"
+          grep -qE 'a1b2c3d4-0000-0000-0000-000000000001|cc00000[1-5]-0000-0000-0000-00000000000[1-5]' "$ART" && { echo "FAIL: demo casino UUID in baseline"; fail=1; }
+          echo "demo producer refs (must be 0): $(grep -cE 'safebet-demo-live-simulator' "$ART")"
+          grep -qE 'safebet-demo-live-simulator' "$ART" && { echo "FAIL: demo producer in baseline"; fail=1; }
+          echo "secrets/conn-strings (must be 0): $(grep -cE 'postgres(ql)?://|eyJ[A-Za-z0-9_-]{10,}|AKIA[0-9A-Z]{16}' "$ART")"
+          grep -qE 'postgres(ql)?://|eyJ[A-Za-z0-9_-]{10,}|AKIA[0-9A-Z]{16}' "$ART" && { echo "FAIL: secret/conn-string in baseline"; fail=1; }
+          [ "$fail" = "0" ] && echo "OK: no executable Demo/business/secret leak" || exit 1
+
+      - name: Upload curated baseline + fingerprints
         uses: actions/upload-artifact@v4
         with:
-          name: pilot-app-schema-baseline
+          name: pilot-curated-baseline
           path: |
             deploy/pilot/baseline/pilot_app_schema_baseline.sql
-            demo.fp.txt
+            demo_full.fp.txt
             fp1.txt
             fp2.txt
           retention-days: 7
