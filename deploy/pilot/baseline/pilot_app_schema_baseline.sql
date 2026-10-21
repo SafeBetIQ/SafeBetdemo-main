@@ -2,9 +2,9 @@
 -- PostgreSQL database dump
 --
 
-\restrict b7zV9Ah1as9cPyI1tEND5WBP6a3GWgMxFimFSV4pN0Tmsw29M8tYhuaZPQaAUxX
+\restrict 8TQyzaoDzGI7ngWV1qq5agLacDAVQW8vesacMhOj99eIVrsTXwdPobHDJQDSpkp
 
--- Dumped from database version 17.6
+-- Dumped from database version 17.11 (Debian 17.11-1.pgdg13+2)
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg13+2)
 
 SET statement_timeout = 0;
@@ -3360,264 +3360,6 @@ $$;
 ALTER FUNCTION public.sbiq_active_policy_rules() OWNER TO postgres;
 
 --
--- Name: sbiq_admin_financial_section(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_admin_financial_section(p_as_of timestamp with time zone DEFAULT now()) RETURNS jsonb
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  use_rollup boolean := (select value='true' from sbiq_demo_sim_flags where key='ENABLE_FINANCIAL_ROLLUP');
-  cp record; v_fin jsonb; lag_s numeric; src_occ timestamptz; src_recv timestamptz; freshness text;
-begin
-  select last_success_at, last_source_max_received_at, rollup_version, last_failed_at
-    into cp from sbiq_financial_rollup_checkpoint where id=1;
-
-  if use_rollup is true then
-    select jsonb_build_object(
-      'currency', max(financial_currency), 'timezone', max(financial_timezone),
-      'ggr_today', coalesce(sum(ggr_today),0), 'ggr_current_shift', coalesce(sum(ggr_current_shift),0),
-      'ggr_last_24_hours', coalesce(sum(ggr_last_24_hours),0), 'ggr_month_to_date', coalesce(sum(ggr_month_to_date),0),
-      'stakes_today', coalesce(sum(stakes_today),0), 'player_winnings_today', coalesce(sum(player_winnings_today),0),
-      'settled_bets_today', coalesce(sum(settled_bets_today),0),
-      'status', max(financial_data_status), 'mode', max(financial_data_mode),
-      'is_simulated', bool_or(contains_synthetic_data), 'capability_status', max(financial_data_status),
-      'snapshot_at', max(financial_snapshot_at),
-      'by_casino', (select jsonb_object_agg(casino_id::text, jsonb_build_object('ggr_today',ggr_today,'stakes_today',stakes_today,'winnings_today',player_winnings_today,'status',financial_data_status)) from sbiq_certified_financial_posture_v2(null, p_as_of))
-    )
-    into v_fin
-    from sbiq_certified_financial_posture_v2(null, p_as_of);
-    select max(source_max_occurred_at) into src_occ from sbiq_financial_rollup_hourly;
-    v_fin := v_fin || jsonb_build_object('source_max_occurred_at', src_occ);
-    src_recv := cp.last_source_max_received_at;
-    lag_s := round(extract(epoch from now() - coalesce(cp.last_success_at, now())));
-    freshness := case when cp.last_success_at is null then 'Unknown'
-                      when cp.last_success_at < now() - interval '15 minutes' then 'Stale'
-                      when cp.last_success_at < now() - interval '5 minutes' then 'Delayed'
-                      else 'Current' end;
-    return v_fin || jsonb_build_object('source','rollup','fallback',false,
-      'rollup_computed_at', cp.last_success_at, 'source_max_ingested_at', src_recv,
-      'rollup_lag_seconds', lag_s, 'rollup_version', cp.rollup_version,
-      'freshness', freshness, 'reconciles', true);
-  else
-    -- Fallback to the certified source view (marked as fallback; not a false Healthy).
-    select jsonb_build_object(
-      'currency', max(financial_currency), 'timezone', max(financial_timezone),
-      'ggr_today', coalesce(sum(ggr_today),0), 'ggr_current_shift', coalesce(sum(ggr_current_shift),0),
-      'ggr_last_24_hours', coalesce(sum(ggr_last_24_hours),0), 'ggr_month_to_date', coalesce(sum(ggr_month_to_date),0),
-      'stakes_today', coalesce(sum(stakes_today),0), 'player_winnings_today', coalesce(sum(player_winnings_today),0),
-      'settled_bets_today', coalesce(sum(settled_bets_today),0),
-      'status', max(financial_data_status), 'mode', max(financial_data_mode),
-      'is_simulated', bool_or(contains_synthetic_data), 'capability_status', max(financial_data_status),
-      'snapshot_at', max(financial_snapshot_at),
-      'by_casino', (select jsonb_object_agg(casino_id::text, jsonb_build_object('ggr_today',ggr_today,'stakes_today',stakes_today,'winnings_today',player_winnings_today,'status',financial_data_status)) from projection_financial_posture)
-    ) into v_fin from projection_financial_posture;
-    return v_fin || jsonb_build_object('source','fallback_certified_view','fallback',true,'freshness','Current','reconciles',true,
-      'fallback_reason','ENABLE_FINANCIAL_ROLLUP=false');
-  end if;
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_admin_financial_section(p_as_of timestamp with time zone) OWNER TO postgres;
-
---
--- Name: sbiq_admin_overview_snapshot(boolean); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_admin_overview_snapshot(p_include_financial boolean DEFAULT false) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  prod constant text := 'safebet-demo-live-simulator-v2';
-  now_ts timestamptz := now();
-  day_warn numeric := sbiq_demo_limit('SIM_EVENTS_PER_DAY_WARNING');
-  day_hard numeric := sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP');
-  late_min int := coalesce(sbiq_demo_limit('LATE_TICK_MINUTES')::int, 8);
-  v_platform jsonb; v_risk jsonb; v_gov jsonb; v_sim jsonb; v_alerts jsonb; v_casinos jsonb;
-  v_financial jsonb := null; v_run record; sim_enabled boolean; events_today int;
-  chains_total int := 7; chains_ok int; open_ct int; crit_ct int; warn_ct int;
-  reg_stale boolean;
-begin
-  -- Refresh the registered cache only if empty or stale (>6h) — static population.
-  select bool_or(refreshed_at < now_ts - interval '6 hours') or count(*)=0 into reg_stale
-    from sbiq_admin_registered_counts;
-  if reg_stale is not false then perform public.sbiq_admin_refresh_registered(); end if;
-
-  -- projection_casino_state ONCE (certified per-casino metrics).
-  drop table if exists _ov;
-  create temporary table _ov on commit drop as
-    select cs.*, rc.registered, c.name casino_name, c.province, c.license_number, c.is_active
-    from projection_casino_state cs
-    join casinos c on c.id = cs.casino_id
-    left join sbiq_admin_registered_counts rc on rc.casino_id = cs.casino_id;
-
-  -- Simulator summary (cheap; producer index makes events_today fast).
-  select value='true' from sbiq_demo_sim_flags where key='ENABLE_DEMO_LIVE_SIMULATOR' into sim_enabled;
-  events_today := (select count(*) from casino_event_log where producer=prod and occurred_at >= date_trunc('day', now_ts));
-  select max(finished_at) filter (where outcome='ok') last_ok into v_run from sbiq_demo_sim_run_log;
-
-  -- Governance: audit chains (bounded), alerts, partitions, projection freshness.
-  chains_ok := (select count(*) from (values
-    ('a1b2c3d4-0000-0000-0000-000000000001'),('cc000001-0000-0000-0000-000000000001'),
-    ('cc000002-0000-0000-0000-000000000002'),('cc000003-0000-0000-0000-000000000003'),
-    ('cc000004-0000-0000-0000-000000000004'),('cc000005-0000-0000-0000-000000000005'),('platform')) v(s)
-    where (sbiq_verify_audit_chain(s)->>'status')='verified');
-  open_ct := (select count(*) from sbiq_demo_sim_alerts where not resolved);
-  crit_ct := (select count(*) from sbiq_demo_sim_alerts where not resolved and severity='critical');
-  warn_ct := (select count(*) from sbiq_demo_sim_alerts where not resolved and severity='warning');
-
-  v_platform := (select jsonb_build_object(
-    'status', case when chains_ok=chains_total and bool_and(active_players=players_active_now+players_idle+players_stale) then 'Healthy' else 'Attention' end,
-    'casinos_monitored', count(*),
-    'regulators', 1,
-    'platform_users', (select count(*) from public.users),
-    'registered_players', coalesce(sum(registered),0),
-    'observed_players', coalesce(sum(active_players),0),
-    'active_now', coalesce(sum(players_active_now),0),
-    'idle', coalesce(sum(players_idle),0),
-    'stale', coalesce(sum(players_stale),0),
-    'open_sessions', coalesce(sum(open_sessions),0),
-    'registered_endpoints', coalesce(sum(registered_machines),0),
-    'endpoints_in_play', coalesce(sum(machines_in_play),0),
-    'endpoints_stale', coalesce(sum(machines_stale),0)
-  ) from _ov);
-
-  v_risk := (select jsonb_build_object(
-    'critical', coalesce(sum(risk_critical),0), 'high', coalesce(sum(risk_high),0),
-    'medium', coalesce(sum(risk_medium),0), 'low', coalesce(sum(risk_low),0),
-    'unclassified', coalesce(sum(risk_unclassified),0),
-    'reconciles', bool_and(active_players = risk_critical+risk_high+risk_medium+risk_low+coalesce(risk_unclassified,0))
-  ) from _ov);
-
-  v_gov := jsonb_build_object(
-    'audit_chains_total', chains_total, 'audit_chains_verified', chains_ok,
-    'open_integrity_alerts', open_ct,
-    'projection_status', 'Current',
-    'partition_status', case when (public.sbiq_demo_partition_readiness(false)->>'ok')::boolean then 'Ready' else 'Attention' end);
-
-  v_sim := jsonb_build_object(
-    'status', case when sim_enabled is not true then 'Disabled'
-                   when v_run.last_ok is null then 'Unknown'
-                   when v_run.last_ok < now_ts - make_interval(mins=>late_min) then 'Warning'
-                   else 'Healthy' end,
-    'enabled', coalesce(sim_enabled,false), 'last_successful_tick', v_run.last_ok,
-    'events_today', events_today, 'daily_warning_limit', day_warn, 'daily_hard_limit', day_hard);
-
-  v_alerts := jsonb_build_object('open', open_ct, 'critical', crit_ct, 'warning', warn_ct);
-
-  v_casinos := (select coalesce(jsonb_agg(row_to_json(x) order by x.casino_name),'[]'::jsonb) from (
-    select casino_id, casino_name, province, license_number, is_active,
-      registered as registered_players, active_players as observed_players,
-      players_active_now as active_now, players_idle as idle, players_stale as stale,
-      open_sessions, active_machines as allocated_endpoints, machines_in_play as endpoints_in_play,
-      case when players_active_now=0 then 'Attention'
-           when active_players is distinct from (players_active_now+players_idle+players_stale) then 'Attention'
-           else 'Healthy' end as health
-    from _ov) x);
-
-  -- Financial is OPTIONAL (projection_financial_posture ~5s over 130k events).
-  if p_include_financial then
-    v_financial := (select jsonb_build_object(
-      'currency', max(financial_currency), 'timezone', max(financial_timezone),
-      'ggr_today', coalesce(sum(ggr_today),0), 'stakes_today', coalesce(sum(stakes_today),0),
-      'player_winnings_today', coalesce(sum(player_winnings_today),0),
-      'status', max(financial_data_status), 'mode', max(financial_data_mode),
-      'is_simulated', bool_or(contains_synthetic_data),
-      'snapshot_at', max(financial_snapshot_at),
-      'by_casino', (select jsonb_object_agg(casino_id::text, ggr_today) from projection_financial_posture)
-    ) from projection_financial_posture);
-  end if;
-
-  return jsonb_build_object(
-    'schema_version', 'admin-overview-v1', 'as_of', now_ts,
-    'environment', jsonb_build_object('name','demo','non_production',true,'synthetic_data',true),
-    'platform', v_platform, 'risk', v_risk, 'governance', v_gov, 'simulator', v_sim,
-    'alerts', v_alerts, 'casinos', v_casinos, 'financial', v_financial);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_admin_overview_snapshot(p_include_financial boolean) OWNER TO postgres;
-
---
--- Name: sbiq_admin_refresh_registered(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_admin_refresh_registered() RETURNS integer
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare n int; t0 timestamptz := clock_timestamp(); as_of timestamptz := now();
-begin
-  insert into sbiq_admin_registered_counts(casino_id, registered, refreshed_at, source_as_of, last_refresh_duration_ms, last_refresh_status)
-  select casino_id, count(*), now(), as_of, 0, 'ok' from projection_player_state group by casino_id
-  on conflict (casino_id) do update set registered=excluded.registered, refreshed_at=now(),
-    source_as_of=as_of, last_refresh_status='ok', last_refresh_error=null;
-  get diagnostics n = row_count;
-  update sbiq_admin_registered_counts set last_refresh_duration_ms = extract(ms from clock_timestamp()-t0)::int
-    where casino_id is not null;
-  return n;
-exception when others then
-  update sbiq_admin_registered_counts set last_refresh_status='error', last_refresh_error=sqlstate
-    where casino_id is not null;
-  return -1;
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_admin_refresh_registered() OWNER TO postgres;
-
---
--- Name: sbiq_admin_refresh_registered_manual(uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_admin_refresh_registered_manual(p_account uuid DEFAULT NULL::uuid, p_correlation uuid DEFAULT NULL::uuid) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare last_at timestamptz; n int;
-begin
-  if not pg_try_advisory_xact_lock(hashtext('sbiq_admin_refresh_registered_manual')) then
-    return jsonb_build_object('ok', false, 'reason','locked');
-  end if;
-  select max(created_at) into last_at from sbiq_admin_registered_refresh_log where decision='accepted';
-  if last_at is not null and last_at > now() - interval '30 seconds' then
-    insert into sbiq_admin_registered_refresh_log(account_id,correlation_id,decision) values (p_account,p_correlation,'rate_limited');
-    return jsonb_build_object('ok', true, 'reason','rate_limited', 'refreshed_at', (select max(refreshed_at) from sbiq_admin_registered_counts));
-  end if;
-  n := public.sbiq_admin_refresh_registered();
-  insert into sbiq_admin_registered_refresh_log(account_id,correlation_id,decision) values (p_account,p_correlation,'accepted');
-  return jsonb_build_object('ok', true, 'reason','accepted', 'casinos', n, 'status', (select public.sbiq_admin_registered_status()));
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_admin_refresh_registered_manual(p_account uuid, p_correlation uuid) OWNER TO postgres;
-
---
--- Name: sbiq_admin_registered_status(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_admin_registered_status() RETURNS jsonb
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-  select jsonb_build_object(
-    'registered_count_total', coalesce(sum(registered),0),
-    'registered_count_by_casino', (select jsonb_object_agg(casino_id::text, registered) from sbiq_admin_registered_counts),
-    'refreshed_at', max(refreshed_at), 'source_as_of', max(source_as_of),
-    'age_seconds', round(extract(epoch from now()-max(refreshed_at)))::int,
-    'stale_after_seconds', 21600,
-    'is_stale', (max(refreshed_at) < now() - interval '6 hours'),
-    'last_refresh_duration_ms', max(last_refresh_duration_ms),
-    'last_refresh_status', max(last_refresh_status),
-    'last_refresh_error_category', max(last_refresh_error))
-  from sbiq_admin_registered_counts;
-$$;
-
-
-ALTER FUNCTION public.sbiq_admin_registered_status() OWNER TO postgres;
-
---
 -- Name: sbiq_archive_event_partitions_before(date); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -5223,723 +4965,6 @@ $$;
 ALTER FUNCTION public.sbiq_customer_success() OWNER TO postgres;
 
 --
--- Name: sbiq_demo_activate_showcase(text, uuid, text, integer, uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_activate_showcase(p_scope text, p_casino uuid, p_profile text DEFAULT 'showcase'::text, p_minutes integer DEFAULT 30, p_account uuid DEFAULT NULL::uuid, p_correlation uuid DEFAULT NULL::uuid) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  is_reg boolean := (p_casino is null);
-  cool_min int; max_min int; init_min int; per_hour int; act_count int; win_count int;
-  v_id bigint; v_activated timestamptz; v_exp timestamptz; v_cap timestamptz;
-begin
-  if (select value from sbiq_demo_sim_flags where key='ENABLE_DEMO_SHOWCASE_MODE') is distinct from 'true' then
-    insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes)
-      values (p_scope,p_casino,p_profile,p_account,p_correlation,'disabled',p_minutes);
-    return jsonb_build_object('ok', false, 'reason', 'showcase_disabled');
-  end if;
-
-  if is_reg then
-    init_min := coalesce(p_minutes, sbiq_demo_limit('REGULATOR_SHOWCASE_MINUTES'))::int;
-    cool_min := sbiq_demo_limit('REGULATOR_SHOWCASE_COOLDOWN_MINUTES')::int;
-    max_min  := sbiq_demo_limit('REGULATOR_SHOWCASE_MAX_MINUTES')::int;
-    per_hour := sbiq_demo_limit('MAX_REGULATOR_ACTIVATIONS_PER_HOUR')::int;
-  else
-    init_min := coalesce(p_minutes, sbiq_demo_limit('CASINO_SHOWCASE_MINUTES'))::int;
-    cool_min := sbiq_demo_limit('CASINO_SHOWCASE_COOLDOWN_MINUTES')::int;
-    max_min  := sbiq_demo_limit('CASINO_SHOWCASE_MAX_MINUTES')::int;
-    per_hour := sbiq_demo_limit('MAX_SHOWCASE_ACTIVATIONS_PER_HOUR')::int;
-  end if;
-
-  -- Existing active window for this scope?
-  select id, activated_at, expires_at into v_id, v_activated, v_exp
-    from sbiq_demo_showcase_windows where status='active' and scope=p_scope
-    order by activated_at desc limit 1;
-
-  if v_id is not null then
-    -- Idempotent / cooldown: recent activation must not keep extending the window.
-    if v_activated > now() - make_interval(mins => cool_min) then
-      insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes,effective_expiry)
-        values (p_scope,p_casino,p_profile,p_account,p_correlation,'cooldown',init_min,v_exp);
-      return jsonb_build_object('ok', true, 'reason', 'cooldown', 'window_id', v_id, 'expires_at', v_exp);
-    end if;
-    -- Extend, but never beyond max_min from ORIGINAL activation.
-    v_cap := v_activated + make_interval(mins => max_min);
-    v_exp := least(greatest(v_exp, now() + make_interval(mins => init_min)), v_cap);
-    update sbiq_demo_showcase_windows set expires_at = v_exp where id = v_id;
-    insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes,effective_expiry)
-      values (p_scope,p_casino,p_profile,p_account,p_correlation,'extended',init_min,v_exp);
-    return jsonb_build_object('ok', true, 'reason', 'extended', 'window_id', v_id, 'expires_at', v_exp);
-  end if;
-
-  -- No active window: enforce per-hour activation rate and max concurrent windows.
-  act_count := (select count(*) from sbiq_demo_showcase_activations sda
-    where sda.scope=p_scope and sda.decision in ('accepted','extended') and sda.created_at > now()-interval '1 hour');
-  if act_count >= per_hour then
-    insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes)
-      values (p_scope,p_casino,p_profile,p_account,p_correlation,'rate_limited',init_min);
-    perform sbiq_demo_raise_alert('SIMULATOR_SHOWCASE_RATE_LIMIT','warning',p_scope,p_casino,
-      jsonb_build_object('activations_last_hour',act_count,'limit',per_hour), p_correlation);
-    return jsonb_build_object('ok', true, 'reason', 'rate_limited');
-  end if;
-
-  win_count := (select count(*) from sbiq_demo_showcase_windows where status='active' and expires_at>now());
-  if win_count >= sbiq_demo_limit('MAX_ACTIVE_SHOWCASE_WINDOWS')::int then
-    insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes)
-      values (p_scope,p_casino,p_profile,p_account,p_correlation,'max_windows',init_min);
-    return jsonb_build_object('ok', true, 'reason', 'max_windows');
-  end if;
-
-  v_exp := now() + make_interval(mins => init_min);
-  insert into sbiq_demo_showcase_windows(scope, casino_id, profile, expires_at, correlation_id, triggered_by)
-    values (p_scope, p_casino, p_profile, v_exp, p_correlation, p_account) returning id into v_id;
-  insert into sbiq_demo_showcase_activations(scope,casino_id,profile,account_id,correlation_id,decision,requested_minutes,effective_expiry)
-    values (p_scope,p_casino,p_profile,p_account,p_correlation,'accepted',init_min,v_exp);
-  return jsonb_build_object('ok', true, 'reason', 'accepted', 'window_id', v_id, 'expires_at', v_exp);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_activate_showcase(p_scope text, p_casino uuid, p_profile text, p_minutes integer, p_account uuid, p_correlation uuid) OWNER TO postgres;
-
---
--- Name: sbiq_demo_audit_cleanup(text); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_audit_cleanup(p_scope text) RETURNS integer
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare n int;
-begin
-  perform set_config('sbiq.audit_breakglass','on', true);
-  delete from audit_events where chain_scope = p_scope; get diagnostics n = row_count;
-  delete from audit_chain_head where chain_scope = p_scope;
-  delete from audit_chain_checkpoint where chain_scope = p_scope;
-  delete from audit_verification_run where chain_scope = p_scope;
-  delete from platform_integrity_alert where chain_scope = p_scope;
-  return n;
-end $$;
-
-
-ALTER FUNCTION public.sbiq_demo_audit_cleanup(p_scope text) OWNER TO postgres;
-
---
--- Name: sbiq_demo_audit_insert(uuid); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_audit_insert(p_casino uuid) RETURNS bigint
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public', 'extensions'
-    AS $$
-declare v_seq bigint;
-begin
-  insert into audit_events (event_id, event_type, event_category, action, casino_id, resource_type, resource_id, severity, outcome, metadata)
-  values ('conc-'||gen_random_uuid()::text, 'CONCURRENCY_TEST', 'test', 'insert', p_casino, 'test', 't', 'info', 'success', jsonb_build_object('t', clock_timestamp()))
-  returning chain_sequence into v_seq;
-  return v_seq;
-end $$;
-
-
-ALTER FUNCTION public.sbiq_demo_audit_insert(p_casino uuid) OWNER TO postgres;
-
---
--- Name: sbiq_demo_broken_chain(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_broken_chain() RETURNS jsonb
-    LANGUAGE plpgsql
-    AS $$
-declare i int; v_prev text := repeat('0',64); v_hash text; r record; v_seq int; ok boolean; first_fail int;
-        valid_status text; broken_status text; alert_would_fire boolean; checkpoint_would_advance boolean;
-begin
-  create temp table _demo(seq bigint, prev text, hash text, event_id text, outcome text, created timestamptz, metadata jsonb) on commit drop;
-  -- 1. Build a valid isolated 5-event chain using the REAL hash function.
-  for i in 1..5 loop
-    v_hash := sbiq_audit_event_hash('v1','demo-scope',i,v_prev,'evt-'||i,'DEMO','system','','','','','success', '2026-01-01T00:00:00.000Z'::timestamptz, '', jsonb_build_object('i',i));
-    insert into _demo values (i, v_prev, v_hash, 'evt-'||i, 'success', '2026-01-01T00:00:00.000Z'::timestamptz, jsonb_build_object('i',i));
-    v_prev := v_hash;
-  end loop;
-  -- 2. Verify VALID chain.
-  v_prev := repeat('0',64); v_seq := 0; ok := true;
-  for r in select * from _demo order by seq loop
-    v_seq := v_seq+1;
-    if r.hash <> sbiq_audit_event_hash('v1','demo-scope',r.seq,r.prev,r.event_id,'DEMO','system','','','','',r.outcome, r.created, '', r.metadata) then ok:=false; exit; end if;
-    v_prev := r.hash;
-  end loop;
-  valid_status := case when ok then 'verified' else 'broken' end;
-  -- 3. TAMPER a material field on sequence 3 (outcome success→failure) WITHOUT recomputing its hash.
-  update _demo set outcome='failure' where seq=3;
-  -- 4. Re-verify → detect broken + first failing sequence.
-  v_prev := repeat('0',64); v_seq := 0; ok := true; first_fail := null;
-  for r in select * from _demo order by seq loop
-    v_seq := v_seq+1;
-    if r.prev <> v_prev then ok:=false; first_fail:=r.seq; exit; end if;
-    if r.hash <> sbiq_audit_event_hash('v1','demo-scope',r.seq,r.prev,r.event_id,'DEMO','system','','','','',r.outcome, r.created, '', r.metadata) then ok:=false; first_fail:=r.seq; exit; end if;
-    v_prev := r.hash;
-  end loop;
-  broken_status := case when ok then 'verified' else 'broken' end;
-  -- 5. Policy: on broken → alert fires, checkpoint does NOT advance, no auto-repair.
-  alert_would_fire := (broken_status='broken');
-  checkpoint_would_advance := (broken_status='verified');
-  return jsonb_build_object(
-    'valid_chain_status', valid_status,
-    'tampered_field', 'seq 3 outcome success→failure (hash not recomputed)',
-    'reverify_status', broken_status,
-    'first_failing_sequence', first_fail,
-    'integrity_alert_would_fire', alert_would_fire,
-    'checkpoint_advances', checkpoint_would_advance,
-    'hash_auto_rewritten', false,
-    'fixture', 'isolated temp table (on commit drop) — real audit history untouched');
-end $$;
-
-
-ALTER FUNCTION public.sbiq_demo_broken_chain() OWNER TO postgres;
-
---
--- Name: sbiq_demo_limit(text); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_limit(p_key text) RETURNS numeric
-    LANGUAGE sql STABLE
-    SET search_path TO 'public'
-    AS $$ select value from public.sbiq_demo_sim_limits where key=p_key $$;
-
-
-ALTER FUNCTION public.sbiq_demo_limit(p_key text) OWNER TO postgres;
-
---
--- Name: sbiq_demo_live_tick(integer); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_live_tick(p_cron_minutes integer DEFAULT 5) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  prod constant text := 'safebet-demo-live-simulator-v2';
-  win_min int := 30;                     -- active freshness window (idle_after) — NOT changed here
-  now_ts timestamptz := now(); t0 timestamptz := clock_timestamp();
-  rec record; showcase boolean; target int; observed int; current int; churn int; need int;
-  v_players jsonb; v_ok boolean; total_refreshed int := 0; per jsonb := '{}'::jsonb;
-  run_id bigint; events_today int; reduced boolean := false; tick_budget int;
-  per_casino_cap int; max_now int := 0;
-begin
-  insert into sbiq_demo_sim_run_log(started_at, mode) values (now_ts,'starting') returning id into run_id;
-
-  if (select value from sbiq_demo_sim_flags where key='ENABLE_DEMO_LIVE_SIMULATOR') is distinct from 'true' then
-    update sbiq_demo_sim_run_log set finished_at=now(), duration_ms=extract(ms from clock_timestamp()-t0)::int,
-      mode='disabled', outcome='disabled' where id=run_id;
-    return jsonb_build_object('ok', false, 'reason', 'disabled');
-  end if;
-  if not pg_try_advisory_xact_lock(hashtext('sbiq_demo_live_tick')) then
-    update sbiq_demo_sim_run_log set finished_at=now(), duration_ms=extract(ms from clock_timestamp()-t0)::int,
-      mode='locked', outcome='locked' where id=run_id;
-    return jsonb_build_object('ok', false, 'reason', 'locked');
-  end if;
-
-  -- Housekeeping every tick: keep partitions ready, expire/resolve windows.
-  perform public.sbiq_demo_partition_readiness(true);
-  perform public.sbiq_demo_showcase_maintenance();
-
-  -- ── Volume governance (server-side, authoritative producer count) ──────────
-  events_today := (select count(*) from casino_event_log
-    where producer=prod and occurred_at >= date_trunc('day', now_ts));
-
-  if events_today >= sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP') then
-    perform sbiq_demo_raise_alert('SIMULATOR_VOLUME_LIMIT_REACHED','critical','simulator',null,
-      jsonb_build_object('events_today',events_today,'hardstop',sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP'),
-        'next_reset', date_trunc('day', now_ts)+interval '1 day'));
-    update sbiq_demo_sim_run_log set finished_at=now(), duration_ms=extract(ms from clock_timestamp()-t0)::int,
-      mode='hardstop', outcome='ok', events_generated=0 where id=run_id;   -- cron stays alive; audit untouched
-    return jsonb_build_object('ok', true, 'mode','hardstop', 'events_today', events_today);
-  elsif events_today >= sbiq_demo_limit('SIM_EVENTS_PER_DAY_WARNING') then
-    reduced := true;                                   -- baseline-only, no new showcase volume
-    perform sbiq_demo_raise_alert('SIMULATOR_VOLUME_WARNING','warning','simulator',null,
-      jsonb_build_object('events_today',events_today,'warning',sbiq_demo_limit('SIM_EVENTS_PER_DAY_WARNING')));
-  end if;
-
-  tick_budget := sbiq_demo_limit('MAX_SIM_EVENTS_PER_TICK')::int;
-  per_casino_cap := sbiq_demo_limit('MAX_SIM_EVENTS_PER_CASINO_PER_TICK')::int;
-
-  <<gen>> begin
-  for rec in
-    select c.id casino_id, cfg.baseline_active_target bt, cfg.showcase_active_target st, cfg.bet_min bmin, cfg.bet_max bmax
-    from casinos c join sbiq_demo_sim_config cfg on cfg.casino_id=c.id order by c.name
-  loop
-    exit gen when tick_budget <= 0;
-    showcase := (not reduced) and exists(select 1 from sbiq_demo_showcase_windows w
-      where w.status='active' and w.expires_at>now_ts and (w.casino_id=rec.casino_id or w.scope='jurisdiction:ZA'));
-    target := case when showcase then rec.st else rec.bt end;
-    target := round(target * (0.85 + random()*0.30));
-    observed := (select count(*) from projection_player_state p where p.casino_id=rec.casino_id and p.status='active');
-    current := (select count(*) from projection_player_state p where p.casino_id=rec.casino_id
-                and p.status='active' and p.last_event_at >= now_ts - make_interval(mins => win_min));
-    max_now := greatest(max_now, current);
-    if observed = 0 then continue; end if;
-    target := least(target, round(observed * case when showcase then 0.40 else 0.20 end));
-    target := greatest(target, least(10, observed));
-    churn := greatest(2, round(target * 0.15));
-    need := greatest(2, target - current + churn);
-    need := least(need, per_casino_cap, tick_budget);       -- per-casino + remaining tick budget
-
-    -- Showcase active but this casino is at zero active-now: surface it.
-    if showcase and current = 0 then
-      perform sbiq_demo_raise_alert('SIMULATOR_CASINO_ZERO_DURING_SHOWCASE','warning','casino:'||rec.casino_id,
-        rec.casino_id, jsonb_build_object('observed',observed));
-    end if;
-
-    drop table if exists _tick_cohort;
-    create temporary table _tick_cohort as
-      select p.safebet_player_id spid, p.row_version rv, p.current_session_id csid, p.current_machine_id cmid,
-             p.risk_score rs, p.risk_flags rf, p.total_wagered tw, p.total_won two, p.bet_count bc,
-             p.session_count sc, p.intervention_count ic,
-             round((rec.bmin + random()*(rec.bmax-rec.bmin))::numeric, 2) bet
-      from projection_player_state p
-      where p.casino_id=rec.casino_id and p.status='active'
-      order by p.last_event_at asc nulls first limit need;
-
-    insert into public.casino_event_log
-      (event_id, correlation_id, trace_id, tenant_id, casino_id, jurisdiction, safebet_player_id, session_id, machine_id,
-       producer, schema_version, event_type, occurred_at, received_at, processed_at, replay_number, dedupe_key, payload)
-    select gen_random_uuid(), 'live-v2', gen_random_uuid(), rec.casino_id, rec.casino_id, 'ZA', spid, csid, cmid,
-           prod, 1, 'BET_PLACED', now_ts, now_ts, now_ts, 0,
-           'live-v2-'||spid||'-'||to_char(now_ts,'YYYYMMDD"T"HH24MISS'),
-           jsonb_build_object('producer',prod,'is_simulated',true,'bet_amount',bet,
-             'win_amount', round(bet * (0.60 + (abs(hashtext(spid)) % 7)::numeric * 0.04), 2))
-    from _tick_cohort on conflict (casino_id, dedupe_key, occurred_at) do nothing;
-
-    select jsonb_agg(jsonb_build_object(
-      'casino_id', rec.casino_id, 'safebet_player_id', spid, 'status','active',
-      'current_session_id', csid, 'current_machine_id', cmid, 'risk_score', rs, 'risk_flags', rf,
-      'total_wagered', tw + bet, 'total_won', two + round(bet*0.72,2), 'bet_count', bc + 1,
-      'session_count', sc, 'intervention_count', ic, 'last_event_at', now_ts,
-      'projection_version', 1, 'updated_at', now_ts, 'row_version', rv))
-    into v_players from _tick_cohort;
-    select ok into v_ok from public.sbiq_write_projection_states(rec.casino_id, coalesce(v_players,'[]'::jsonb), '[]'::jsonb, '[]'::jsonb);
-    drop table if exists _tick_cohort;
-
-    total_refreshed := total_refreshed + need;
-    tick_budget := tick_budget - need;
-    per := per || jsonb_build_object(rec.casino_id::text, jsonb_build_object('showcase',showcase,'target',target,'refreshed',need,'applied',v_ok));
-  end loop;
-  exception when others then
-    perform sbiq_demo_raise_alert('SIMULATOR_TICK_FAILED','critical','simulator',null,
-      jsonb_build_object('error_category', sqlstate));
-    update sbiq_demo_sim_run_log set finished_at=now(), duration_ms=extract(ms from clock_timestamp()-t0)::int,
-      mode='error', outcome='error', error_category=sqlstate, events_generated=total_refreshed where id=run_id;
-    return jsonb_build_object('ok', false, 'reason','error', 'error_category', sqlstate);
-  end gen;
-
-  update sbiq_demo_showcase_windows set last_cycle_at = now_ts where status='active';
-
-  -- All-casinos-zero guard (post-tick): certified active-now must be non-zero somewhere.
-  if (select coalesce(sum(players_active_now),0) from projection_casino_state) = 0 then
-    perform sbiq_demo_raise_alert('SIMULATOR_ALL_CASINOS_ZERO','critical','simulator',null,
-      jsonb_build_object('checked_at',now_ts));
-  end if;
-
-  update sbiq_demo_sim_run_log set finished_at=now(), duration_ms=extract(ms from clock_timestamp()-t0)::int,
-    mode = case when reduced then 'reduced' else 'normal' end, outcome='ok',
-    events_generated=total_refreshed, per_casino=per where id=run_id;
-  return jsonb_build_object('ok', true, 'mode', case when reduced then 'reduced' else 'normal' end,
-    'at', now_ts, 'refreshed_total', total_refreshed, 'events_today', events_today+total_refreshed, 'per_casino', per);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_live_tick(p_cron_minutes integer) OWNER TO postgres;
-
---
--- Name: sbiq_demo_partition_readiness(boolean); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_partition_readiness(p_ensure boolean DEFAULT true) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare m timestamptz; want text[]; got text[]; missing text[]; insecure text[]; part text; sec boolean;
-begin
-  want := array[ to_char(date_trunc('month',now()),'YYYY_MM'),
-                 to_char(date_trunc('month',now())+interval '1 month','YYYY_MM'),
-                 to_char(date_trunc('month',now())+interval '2 month','YYYY_MM') ];
-  if p_ensure then
-    for i in 0..2 loop
-      perform public.sbiq_ensure_event_partition(date_trunc('month',now())+make_interval(months=>i));
-    end loop;
-  end if;
-  missing := '{}'; insecure := '{}';
-  foreach part in array want loop
-    select is_secure into sec from sbiq_event_log_partition_security
-      where partition = 'casino_event_log_'||part;
-    if sec is null then missing := missing || part;
-    elsif not sec then insecure := insecure || part; end if;
-  end loop;
-  if array_length(missing,1) > 0 then
-    perform sbiq_demo_raise_alert('SIMULATOR_PARTITION_MISSING','critical','event_log',null,
-      jsonb_build_object('missing',missing));
-  end if;
-  if array_length(insecure,1) > 0 then
-    perform sbiq_demo_raise_alert('SIMULATOR_PARTITION_INSECURE','critical','event_log',null,
-      jsonb_build_object('insecure',insecure));
-  end if;
-  return jsonb_build_object('ok', coalesce(array_length(missing,1),0)=0 and coalesce(array_length(insecure,1),0)=0,
-    'required',want,'missing',missing,'insecure',insecure);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_partition_readiness(p_ensure boolean) OWNER TO postgres;
-
---
--- Name: sbiq_demo_raise_alert(text, text, text, uuid, jsonb, uuid); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid DEFAULT NULL::uuid) RETURNS void
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-begin
-  if exists (select 1 from sbiq_demo_sim_alerts
-             where category=p_category and coalesce(scope,'')=coalesce(p_scope,'') and not resolved) then
-    update sbiq_demo_sim_alerts set details=p_details, created_at=now()
-      where category=p_category and coalesce(scope,'')=coalesce(p_scope,'') and not resolved;
-  else
-    insert into sbiq_demo_sim_alerts(category,severity,scope,casino_id,jurisdiction,correlation_id,details)
-    values (p_category,p_severity,p_scope,p_casino,'ZA',p_correlation,coalesce(p_details,'{}'::jsonb));
-  end if;
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid) OWNER TO postgres;
-
---
--- Name: sbiq_demo_scale_cleanup(text); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_scale_cleanup(p_seed_version text DEFAULT NULL::text) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare v_events bigint; v_players bigint; v_sessions bigint; v_machines bigint; v_ids bigint;
-begin
-  if p_seed_version is null then
-    delete from public.projection_session_state where session_id like 'SC-SES-%'; get diagnostics v_sessions = row_count;
-    delete from public.projection_machine_state where machine_id like 'SC-MC-%'; get diagnostics v_machines = row_count;
-    delete from public.projection_player_state where risk_flags @> '["synthetic-scale"]'::jsonb; get diagnostics v_players = row_count;
-    alter table public.casino_event_log disable trigger trg_casino_event_log_immutable;
-    delete from public.casino_event_log where producer like 'safebet-demo-scale-%'; get diagnostics v_events = row_count;
-    alter table public.casino_event_log enable trigger trg_casino_event_log_immutable;
-    delete from public.safebet_identity_map where casino_ref_hash like 'scale-%'; get diagnostics v_ids = row_count;
-  else
-    delete from public.projection_session_state where session_id like 'SC-SES-'||p_seed_version||'-%'; get diagnostics v_sessions = row_count;
-    delete from public.projection_machine_state where machine_id like 'SC-MC-'||p_seed_version||'-%'; get diagnostics v_machines = row_count;
-    delete from public.projection_player_state where risk_flags @> ('["seed:'||p_seed_version||'"]')::jsonb; get diagnostics v_players = row_count;
-    alter table public.casino_event_log disable trigger trg_casino_event_log_immutable;
-    delete from public.casino_event_log where payload->>'seed_version' = p_seed_version and producer like 'safebet-demo-scale-%'; get diagnostics v_events = row_count;
-    alter table public.casino_event_log enable trigger trg_casino_event_log_immutable;
-    delete from public.safebet_identity_map where casino_ref_hash like 'scale-'||p_seed_version||'-%'; get diagnostics v_ids = row_count;
-  end if;
-  return jsonb_build_object('seed',p_seed_version,'events_removed',v_events,'players_removed',v_players,'sessions_removed',v_sessions,'machines_removed',v_machines,'identities_removed',v_ids);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_scale_cleanup(p_seed_version text) OWNER TO postgres;
-
---
--- Name: sbiq_demo_scale_seed_batch(uuid, text, integer, integer, integer, integer, text, integer); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text DEFAULT 'v1'::text, p_start integer DEFAULT 0, p_count integer DEFAULT 100, p_active_pct integer DEFAULT 8, p_bets_per_active integer DEFAULT 5, p_producer text DEFAULT 'safebet-demo-scale-simulator-v1'::text, p_history_days integer DEFAULT 0) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  prod text := p_producer; sv text := p_seed_version; cfull text := replace(p_casino::text,'-','');
-  now_ts timestamptz := now(); v_players jsonb; v_sessions jsonb; v_machines jsonb; v_ok boolean;
-begin
-  perform public.sbiq_ensure_event_partition(now_ts);
-  drop table if exists _scale_batch;
-  create temporary table _scale_batch as
-  with base as (
-    select g, 'SB-PLR-'||upper(substr(md5(sv||':'||p_casino::text||':'||g), 1, 24)) as spid,
-      (abs(hashtext(sv||':'||p_casino::text||':'||g||':risk')) % 1000) as b,
-      (abs(hashtext(sv||':'||p_casino::text||':'||g||':act'))  % 100)  as a,
-      (abs(hashtext(sv||':'||p_casino::text||':'||g||':amt'))  % 250)  as amt,
-      (abs(hashtext(sv||':'||p_casino::text||':'||g||':day'))  % greatest(p_history_days,1)) as dayoff
-    from generate_series(p_start, p_start+p_count-1) g)
-  select g, spid,
-    case when b < 8 then 80 + (b % 20) when b < 70 then 60 + (b % 20)
-         when b < 320 then 40 + (b % 20) else 1 + (b % 39) end as risk_score,
-    (a < p_active_pct) as is_active,
-    case when a < p_active_pct then now_ts - ((a) || ' minutes')::interval
-         when a < 40 then now_ts - ((2 + a) || ' hours')::interval
-         else now_ts - ((3 + (a % 20)) || ' days')::interval end as last_at,
-    (50 + amt)::numeric as stake_unit,
-    'SC-SES-'||sv||'-'||cfull||'-'||g as session_id, 'SC-MC-'||sv||'-'||cfull||'-'||g as machine_id,
-    dayoff
-  from base;
-  insert into public.safebet_identity_map (casino_id, casino_ref_hash, safebet_player_id)
-  select p_casino, 'scale-'||sv||'-'||g, spid from _scale_batch on conflict (casino_id, casino_ref_hash) do nothing;
-  insert into public.casino_event_log
-    (event_id, correlation_id, trace_id, tenant_id, casino_id, jurisdiction, safebet_player_id, session_id, machine_id, producer, schema_version, event_type, occurred_at, received_at, processed_at, replay_number, dedupe_key, payload)
-  select gen_random_uuid(), 'scale-'||sv||'-'||g, gen_random_uuid(), p_casino, p_casino, 'ZA', spid, null, null, prod, 1, 'CARD_INSERT', last_at, last_at, last_at, 0, 'scale-'||sv||'-'||g||'-reg', jsonb_build_object('producer',prod,'is_simulated',true,'seed_version',sv)
-  from _scale_batch on conflict (casino_id, dedupe_key, occurred_at) do nothing;
-  insert into public.casino_event_log
-    (event_id, correlation_id, trace_id, tenant_id, casino_id, jurisdiction, safebet_player_id, session_id, machine_id, producer, schema_version, event_type, occurred_at, received_at, processed_at, replay_number, dedupe_key, payload)
-  select gen_random_uuid(), 'scale-'||sv||'-'||g, gen_random_uuid(), p_casino, p_casino, 'ZA', spid, session_id, machine_id, prod, 1, ev.t, last_at, last_at, last_at, 0, 'scale-'||sv||'-'||g||'-'||ev.tag, jsonb_build_object('producer',prod,'is_simulated',true,'seed_version',sv)
-  from _scale_batch b cross join lateral (values ('SESSION_START','ses'),('MACHINE_ALLOCATED','mc')) ev(t,tag) where b.is_active on conflict (casino_id, dedupe_key, occurred_at) do nothing;
-  -- BET_PLACED: active players bet "today"; when p_history_days>0 also spread historical bets across the window.
-  insert into public.casino_event_log
-    (event_id, correlation_id, trace_id, tenant_id, casino_id, jurisdiction, safebet_player_id, session_id, machine_id, producer, schema_version, event_type, occurred_at, received_at, processed_at, replay_number, dedupe_key, payload)
-  select gen_random_uuid(), 'scale-'||sv||'-'||g, gen_random_uuid(), p_casino, p_casino, 'ZA', spid, session_id, machine_id, prod, 1, 'BET_PLACED',
-         case when p_history_days>0 and n>p_bets_per_active
-              then now_ts - ((1 + (dayoff + n) % p_history_days) || ' days')::interval - ((g % 600) || ' minutes')::interval
-              else now_ts - (n || ' minutes')::interval end,
-         now_ts, now_ts, 0, 'scale-'||sv||'-'||g||'-bet-'||n,
-         jsonb_build_object('producer',prod,'is_simulated',true,'seed_version',sv,'bet_amount', stake_unit, 'win_amount', round(stake_unit * (0.60 + ((g+n) % 7)::numeric * 0.04), 2))
-  from _scale_batch b cross join generate_series(1, p_bets_per_active + case when p_history_days>0 then p_bets_per_active else 0 end) n
-  where b.is_active on conflict (casino_id, dedupe_key, occurred_at) do nothing;
-  select jsonb_agg(jsonb_build_object('casino_id', p_casino, 'safebet_player_id', spid, 'status', case when is_active then 'active' else 'idle' end,
-    'current_session_id', case when is_active then session_id end, 'current_machine_id', case when is_active then machine_id end,
-    'risk_score', risk_score, 'risk_flags', ('["synthetic-scale","seed:'||sv||'"]')::jsonb,
-    'total_wagered', case when is_active then stake_unit * p_bets_per_active else 0 end, 'total_won', case when is_active then round(stake_unit * p_bets_per_active * 0.72, 2) else 0 end,
-    'bet_count', case when is_active then p_bets_per_active else 0 end, 'session_count', case when is_active then 1 else 0 end,
-    'intervention_count', 0, 'last_event_at', last_at, 'projection_version', 1, 'updated_at', now_ts, 'row_version', 0)) into v_players from _scale_batch;
-  select jsonb_agg(jsonb_build_object('session_id', session_id, 'casino_id', p_casino, 'safebet_player_id', spid, 'machine_id', machine_id,
-    'status', 'active', 'game_type', 'slots', 'started_at', last_at, 'total_wagered', stake_unit * p_bets_per_active, 'total_won', round(stake_unit * p_bets_per_active * 0.72, 2),
-    'bet_count', p_bets_per_active, 'risk_score', risk_score, 'last_event_at', last_at, 'projection_version', 1, 'updated_at', now_ts, 'row_version', 0)) into v_sessions from _scale_batch where is_active;
-  select jsonb_agg(jsonb_build_object('casino_id', p_casino, 'machine_id', machine_id, 'machine_type', 'slots', 'status', 'active', 'current_player_id', spid, 'current_session_id', session_id,
-    'current_risk_score', risk_score, 'session_wagered', stake_unit * p_bets_per_active, 'last_event_at', last_at, 'projection_version', 1, 'updated_at', now_ts, 'row_version', 0)) into v_machines from _scale_batch where is_active;
-  select ok into v_ok from public.sbiq_write_projection_states(p_casino, coalesce(v_players,'[]'::jsonb), coalesce(v_sessions,'[]'::jsonb), coalesce(v_machines,'[]'::jsonb));
-  drop table if exists _scale_batch;
-  return jsonb_build_object('casino',p_casino,'seed_version',sv,'range',jsonb_build_array(p_start,p_start+p_count-1),'players',p_count,'projection_applied',v_ok,'producer',prod);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text, p_start integer, p_count integer, p_active_pct integer, p_bets_per_active integer, p_producer text, p_history_days integer) OWNER TO postgres;
-
---
--- Name: sbiq_demo_showcase_maintenance(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_showcase_maintenance() RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare v_expired int; v_superseded int; v_active int; v_purged int;
-begin
-  update sbiq_demo_showcase_windows set status='expired'
-    where status='active' and expires_at < now();
-  get diagnostics v_expired = row_count;
-
-  -- Overlapping active windows for the same scope: keep the latest expiry, close the rest.
-  with ranked as (
-    select id, row_number() over (partition by scope order by expires_at desc, activated_at desc) rn
-    from sbiq_demo_showcase_windows where status='active' and expires_at>now())
-  update sbiq_demo_showcase_windows w set status='superseded'
-    from ranked r where w.id=r.id and r.rn>1;
-  get diagnostics v_superseded = row_count;
-
-  -- Retention: purge administrative window metadata older than 90 days (evidence
-  -- of activation is preserved in sbiq_demo_showcase_activations for its own window).
-  delete from sbiq_demo_showcase_windows
-    where status in ('expired','superseded') and activated_at < now()-interval '90 days';
-  get diagnostics v_purged = row_count;
-  delete from sbiq_demo_showcase_activations where created_at < now()-interval '90 days';
-
-  v_active := (select count(*) from sbiq_demo_showcase_windows where status='active' and expires_at>now());
-  return jsonb_build_object('ok',true,'expired',v_expired,'superseded',v_superseded,'purged',v_purged,'active',v_active);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_showcase_maintenance() OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_health_snapshot(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_sim_health_snapshot() RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare
-  prod constant text := 'safebet-demo-live-simulator-v2';
-  win_min int := 30;
-  now_ts timestamptz := now();
-  v_overall jsonb; v_usage jsonb; v_storage jsonb; v_casinos jsonb; v_readiness jsonb;
-  v_alerts jsonb; v_flags record; v_run record; v_glob record; v_win record;
-  day_warn numeric := sbiq_demo_limit('SIM_EVENTS_PER_DAY_WARNING');
-  day_hard numeric := sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP');
-  alloc_mb numeric := sbiq_demo_limit('STORAGE_INTERNAL_ALLOC_MB');
-  late_min int := sbiq_demo_limit('LATE_TICK_MINUTES')::int;
-  db_bytes bigint; ev_bytes bigint; audit_bytes bigint; growth_mb numeric;
-  storage_pct numeric; days_left numeric; open_ct int; max_sev int; recon_ok boolean;
-begin
-  -- Per-casino player freshness ONCE — aggregate only the status='active' cohort
-  -- (~10k rows) using each casino's certified session policy (idle/stale minutes),
-  -- exactly as projection_casino_state does, but without scanning all 102k players.
-  drop table if exists _pcs; drop table if exists _ev;
-  create temporary table _pcs on commit drop as
-  with pol as (
-    select c.id casino_id, sp.idle_after_minutes ia, sp.stale_after_minutes sa
-    from casinos c, lateral sbiq_session_policy(c.id) sp)
-  select p.casino_id,
-    count(*) active_players,
-    count(*) filter (where p.last_event_at >= now_ts - make_interval(mins => pol.ia)) players_active_now,
-    count(*) filter (where p.last_event_at <  now_ts - make_interval(mins => pol.ia)
-                       and p.last_event_at >= now_ts - make_interval(mins => pol.sa)) players_idle,
-    count(*) filter (where p.last_event_at is null
-                       or  p.last_event_at <  now_ts - make_interval(mins => pol.sa)) players_stale
-  from projection_player_state p join pol on pol.casino_id = p.casino_id
-  where p.status = 'active'
-  group by p.casino_id;
-  -- simulator events ONCE (month-bounded, grouped by casino)
-  create temporary table _ev on commit drop as
-    select casino_id,
-      count(*) m_month,
-      count(*) filter (where occurred_at >= date_trunc('day', now_ts)) m_today,
-      count(*) filter (where occurred_at >= now_ts - interval '1 hour') m_1h,
-      count(*) filter (where occurred_at >= now_ts - interval '15 minutes') m_15m,
-      count(*) filter (where occurred_at >= now_ts - interval '5 minutes') m_5m,
-      max(occurred_at) last_tick
-    from casino_event_log
-    where producer = prod and occurred_at >= date_trunc('month', now_ts)
-    group by casino_id;
-
-  select coalesce(sum(m_month),0) mo, coalesce(sum(m_today),0) td,
-         coalesce(sum(m_1h),0) h1, coalesce(sum(m_15m),0) m15
-    into v_glob from _ev;
-
-  select round(avg(events_generated) filter (where outcome='ok' and started_at>now_ts-interval '6 hours')) avg_tick,
-         max(events_generated) filter (where started_at>now_ts-interval '24 hours') peak_tick,
-         count(*) filter (where outcome<>'ok' and started_at>now_ts-interval '24 hours') failures,
-         max(finished_at) filter (where outcome='ok') last_ok,
-         max(started_at) filter (where outcome<>'ok') last_fail,
-         round(coalesce(sum(events_generated) filter (where started_at>now_ts-interval '24 hours'),0)) events_24h
-    into v_run from sbiq_demo_sim_run_log;
-
-  select (select value='true' from sbiq_demo_sim_flags where key='ENABLE_DEMO_LIVE_SIMULATOR') simulator_enabled,
-         (select value='true' from sbiq_demo_sim_flags where key='ENABLE_DEMO_SHOWCASE_MODE') showcase_enabled
-    into v_flags;
-
-  select (select count(*) from sbiq_demo_showcase_windows where status='active' and expires_at>now_ts) active_windows,
-         (select count(*) from sbiq_demo_showcase_activations where decision in ('accepted','extended') and created_at>now_ts-interval '1 hour') activations_1h
-    into v_win;
-
-  -- storage from catalog (fast); daily growth from run log (no event-log scan)
-  db_bytes := pg_database_size(current_database());
-  select coalesce(sum(pg_total_relation_size(c.oid)),0) into ev_bytes
-    from pg_inherits i join pg_class c on c.oid=i.inhrelid join pg_class p on p.oid=i.inhparent
-    where p.relname='casino_event_log';
-  audit_bytes := pg_total_relation_size('audit_events');
-  growth_mb := round((coalesce(v_run.events_24h,0) * 180.0 / 1048576.0)::numeric, 1);
-  storage_pct := round((100.0 * db_bytes/1048576.0 / nullif(alloc_mb,0))::numeric, 1);
-  days_left := case when growth_mb > 0 then round(((alloc_mb - db_bytes/1048576.0) / nullif(growth_mb,0))::numeric) end;
-
-  open_ct := (select count(*) from sbiq_demo_sim_alerts where not resolved);
-  max_sev := coalesce((select max(case severity when 'critical' then 3 when 'warning' then 2 else 1 end)
-                       from sbiq_demo_sim_alerts where not resolved), 0);
-  recon_ok := (select bool_and(active_players = players_active_now + players_idle + players_stale) from _pcs);
-  v_readiness := public.sbiq_demo_partition_readiness(false);
-
-  -- ── usage ──
-  v_usage := jsonb_build_object(
-    'events_15m', v_glob.m15, 'events_1h', v_glob.h1, 'events_today', v_glob.td, 'events_month', v_glob.mo,
-    'events_by_casino_1h', (select jsonb_object_agg(casino_id::text, m_1h) from _ev where m_1h>0),
-    'avg_events_per_tick', v_run.avg_tick, 'peak_events_per_tick', v_run.peak_tick,
-    'est_daily_events', v_glob.h1 * 24, 'day_warning_limit', day_warn, 'day_hardstop_limit', day_hard,
-    'pct_of_daily_hardstop', round((100.0*v_glob.td/nullif(day_hard,0))::numeric,1),
-    'failures_24h', v_run.failures, 'last_successful_tick', v_run.last_ok, 'last_failed_tick', v_run.last_fail);
-
-  -- ── storage ──
-  v_storage := jsonb_build_object(
-    'db_size', pg_size_pretty(db_bytes), 'db_bytes', db_bytes,
-    'event_log_size', pg_size_pretty(ev_bytes), 'audit_size', pg_size_pretty(audit_bytes),
-    'est_daily_growth_mb', growth_mb, 'est_monthly_growth_mb', round(growth_mb*30,1),
-    'internal_alloc_mb', alloc_mb, 'pct_of_internal_alloc', storage_pct, 'est_days_to_alloc', days_left);
-
-  -- ── overall (classification identical to sbiq_demo_sim_health_overall) ──
-  v_overall := jsonb_build_object(
-    'simulator_enabled', v_flags.simulator_enabled, 'showcase_enabled', v_flags.showcase_enabled,
-    'cron_active', exists(select 1 from cron.job where jobname='sbiq-demo-live-tick' and active),
-    'last_successful_tick', v_run.last_ok, 'last_failed_tick', v_run.last_fail,
-    'tick_late', (v_run.last_ok < now_ts - make_interval(mins => late_min)),
-    'events_today', v_glob.td, 'day_hardstop_limit', day_hard, 'day_warning_limit', day_warn,
-    'pct_of_daily_hardstop', round((100.0*v_glob.td/nullif(day_hard,0))::numeric,1), 'events_month', v_glob.mo,
-    'active_windows', v_win.active_windows, 'activations_1h', v_win.activations_1h,
-    'reconciles_all', recon_ok, 'open_alerts', open_ct,
-    'storage_days_left', days_left, 'storage_pct', storage_pct,
-    'overall_health', case
-      when v_flags.simulator_enabled is not true then 'Disabled'
-      when v_run.last_ok is null then 'Unknown'
-      when max_sev=3 or not recon_ok or v_run.last_ok < now_ts-make_interval(mins=>late_min)
-        or round((100.0*v_glob.td/nullif(day_hard,0))::numeric,1) >= 100 then 'Critical'
-      when max_sev=2 or v_glob.td >= day_warn or storage_pct >= sbiq_demo_limit('STORAGE_WARN_PCT') then 'Warning'
-      else 'Healthy' end);
-
-  -- ── per-casino (uses _pcs + _ev; showcase from windows) ──
-  select coalesce(jsonb_agg(row_to_json(x) order by x.casino_name), '[]'::jsonb) into v_casinos from (
-    select c.id casino_id, c.name casino_name,
-      case when exists(select 1 from sbiq_demo_showcase_windows w where w.status='active' and w.expires_at>now_ts
-                       and (w.casino_id=c.id or w.scope='jurisdiction:ZA')) then 'showcase' else 'baseline' end profile,
-      cfg.baseline_active_target, cfg.showcase_active_target,
-      p.active_players observed, p.players_active_now active_now, p.players_idle idle, p.players_stale stale,
-      coalesce(e.m_5m,0) events_last_5m, e.last_tick last_sim_tick,
-      (select max(expires_at) from sbiq_demo_showcase_windows w where w.status='active' and (w.casino_id=c.id or w.scope='jurisdiction:ZA')) showcase_expiry,
-      (p.active_players = p.players_active_now + p.players_idle + p.players_stale) reconciles,
-      case when p.players_active_now = 0 then 'critical'
-           when p.active_players is distinct from (p.players_active_now+p.players_idle+p.players_stale) then 'warning'
-           else 'healthy' end status
-    from casinos c
-      left join sbiq_demo_sim_config cfg on cfg.casino_id=c.id
-      left join _pcs p on p.casino_id=c.id
-      left join _ev e on e.casino_id=c.id
-  ) x;
-
-  v_alerts := (select coalesce(jsonb_agg(jsonb_build_object(
-      'category',category,'severity',severity,'scope',scope,'details',details,'created_at',created_at)
-      order by created_at desc), '[]'::jsonb)
-    from (select * from sbiq_demo_sim_alerts where not resolved order by created_at desc limit 50) a);
-
-  return jsonb_build_object(
-    'overall', v_overall, 'usage', v_usage, 'storage', v_storage, 'casinos', v_casinos,
-    'readiness', v_readiness, 'alerts', v_alerts,
-    'emergency', jsonb_build_object('simulator_enabled', v_flags.simulator_enabled, 'showcase_enabled', v_flags.showcase_enabled),
-    'as_of', now_ts);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_sim_health_snapshot() OWNER TO postgres;
-
---
--- Name: sbiq_demo_tick_watchdog(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.sbiq_demo_tick_watchdog() RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-declare last_ok timestamptz; late boolean;
-begin
-  if (select value from sbiq_demo_sim_flags where key='ENABLE_DEMO_LIVE_SIMULATOR') is distinct from 'true' then
-    return jsonb_build_object('ok', true, 'skipped','disabled');
-  end if;
-  select max(finished_at) into last_ok from sbiq_demo_sim_run_log where outcome='ok';
-  late := last_ok is null or last_ok < now() - make_interval(mins => sbiq_demo_limit('LATE_TICK_MINUTES')::int);
-  if late then
-    perform sbiq_demo_raise_alert('SIMULATOR_TICK_LATE','critical','simulator',null,
-      jsonb_build_object('last_successful_tick', last_ok, 'threshold_min', sbiq_demo_limit('LATE_TICK_MINUTES')));
-  else
-    update sbiq_demo_sim_alerts set resolved=true, resolved_at=now(), resolution_notes='tick recovered'
-      where category in ('SIMULATOR_TICK_LATE','SIMULATOR_TICK_FAILED') and not resolved;
-  end if;
-  return jsonb_build_object('ok', true, 'late', late, 'last_successful_tick', last_ok);
-end; $$;
-
-
-ALTER FUNCTION public.sbiq_demo_tick_watchdog() OWNER TO postgres;
-
---
 -- Name: sbiq_ensure_event_partition(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -6056,6 +5081,28 @@ end; $$;
 ALTER FUNCTION public.sbiq_financial_rollup_backfill(p_months integer) OWNER TO postgres;
 
 --
+-- Name: sbiq_financial_rollup_raise_alert(text, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text DEFAULT 'financial_rollup'::text, p_details jsonb DEFAULT '{}'::jsonb) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+begin
+  if exists (select 1 from sbiq_financial_rollup_ops_alerts
+             where category=p_category and coalesce(scope,'')=coalesce(p_scope,'') and not resolved) then
+    update sbiq_financial_rollup_ops_alerts set details=coalesce(p_details,'{}'::jsonb), severity=p_severity, created_at=now()
+      where category=p_category and coalesce(scope,'')=coalesce(p_scope,'') and not resolved;
+  else
+    insert into sbiq_financial_rollup_ops_alerts(category,severity,scope,details)
+      values (p_category,p_severity,p_scope,coalesce(p_details,'{}'::jsonb));
+  end if;
+end; $$;
+
+
+ALTER FUNCTION public.sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb) OWNER TO postgres;
+
+--
 -- Name: sbiq_financial_rollup_refresh(integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -6069,7 +5116,7 @@ declare
   cp_recv timestamptz; cp_id uuid; new_max_recv timestamptz; new_max_id uuid;
   v_buckets int := 0; v_events int := 0; cur_hour timestamptz := date_trunc('hour', now());
 begin
-  if (select value from sbiq_demo_sim_flags where key='ENABLE_FINANCIAL_ROLLUP') is distinct from 'true' then
+  if not coalesce((select enabled from sbiq_financial_rollup_ops_state where id=1), false) then
     return jsonb_build_object('ok', true, 'skipped', 'disabled');
   end if;
   if not pg_try_advisory_xact_lock(hashtext('sbiq_financial_rollup_refresh')) then
@@ -6078,7 +5125,6 @@ begin
   insert into sbiq_financial_rollup_run_log(mode) values ('incremental') returning id into run_id;
   select last_received_at, last_event_id into cp_recv, cp_id from sbiq_financial_rollup_checkpoint where id=1;
 
-  -- Dirty buckets = distinct occurred_at hours of events appended since the cursor.
   create temporary table _dirty on commit drop as
     select distinct casino_id, date_trunc('hour', occurred_at) bucket_start
     from casino_event_log
@@ -6087,18 +5133,13 @@ begin
            or received_at > cp_recv
            or (received_at = cp_recv and (cp_id is null or event_id > cp_id)))
     limit greatest(1, p_max_buckets);
-  -- Always repair the current (incomplete) hour too.
   insert into _dirty select c.id, cur_hour from casinos c
     on conflict do nothing;
 
-  -- Rebuild each dirty bucket from the authoritative log.
   perform public.sbiq_fin_rollup_upsert_range(min(bucket_start), max(bucket_start)+interval '1 hour') from _dirty
     where exists (select 1 from _dirty);
-  -- (range upsert recomputes ALL hours in [min,max]; for a sparse dirty set this
-  --  is still correct and bounded by p_max_buckets worth of span in normal operation.)
   select count(*) into v_buckets from _dirty;
 
-  -- Advance the cursor to the newest appended event we have now covered.
   select received_at, event_id into new_max_recv, new_max_id
     from casino_event_log
     where event_type in ('BET_PLACED','JACKPOT') and payload->>'bet_amount' is not null
@@ -6135,7 +5176,7 @@ CREATE FUNCTION public.sbiq_financial_rollup_status() RETURNS jsonb
     SET search_path TO 'public'
     AS $$
   select jsonb_build_object(
-    'enabled', (select value='true' from sbiq_demo_sim_flags where key='ENABLE_FINANCIAL_ROLLUP'),
+    'enabled', coalesce((select enabled from sbiq_financial_rollup_ops_state where id=1), false),
     'cron_active', exists(select 1 from cron.job where jobname='sbiq-financial-rollup-refresh' and active),
     'last_success', cp.last_success_at, 'last_failed', cp.last_failed_at,
     'lag_seconds', round(extract(epoch from now()-coalesce(cp.last_success_at, now())))::int,
@@ -6147,7 +5188,7 @@ CREATE FUNCTION public.sbiq_financial_rollup_status() RETURNS jsonb
     'freshness', case when cp.last_success_at is null then 'Unknown'
                       when cp.last_success_at < now()-interval '15 minutes' then 'Stale'
                       when cp.last_success_at < now()-interval '5 minutes' then 'Delayed' else 'Current' end,
-    'open_rollup_alerts', (select count(*) from sbiq_demo_sim_alerts where not resolved and category like 'FINANCIAL_ROLLUP%'))
+    'open_rollup_alerts', (select count(*) from sbiq_financial_rollup_ops_alerts where not resolved and category like 'FINANCIAL_ROLLUP%'))
   from sbiq_financial_rollup_checkpoint cp where cp.id=1;
 $$;
 
@@ -6162,22 +5203,22 @@ CREATE FUNCTION public.sbiq_financial_rollup_watchdog() RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
-declare last_ok timestamptz; last_fail timestamptz; lag_s numeric; late boolean;
+declare last_ok timestamptz; last_fail timestamptz; late boolean;
 begin
-  if (select value from sbiq_demo_sim_flags where key='ENABLE_FINANCIAL_ROLLUP') is distinct from 'true' then
+  if not coalesce((select enabled from sbiq_financial_rollup_ops_state where id=1), false) then
     return jsonb_build_object('ok', true, 'skipped','disabled');
   end if;
   select last_success_at, last_failed_at into last_ok, last_fail from sbiq_financial_rollup_checkpoint where id=1;
   late := last_ok is null or last_ok < now() - interval '10 minutes';
   if late then
-    perform sbiq_demo_raise_alert('FINANCIAL_ROLLUP_LATE','warning','financial_rollup',null,
+    perform sbiq_financial_rollup_raise_alert('FINANCIAL_ROLLUP_LATE','warning','financial_rollup',
       jsonb_build_object('last_success', last_ok));
   else
-    update sbiq_demo_sim_alerts set resolved=true, resolved_at=now(), resolution_notes='rollup recovered'
+    update sbiq_financial_rollup_ops_alerts set resolved=true, resolved_at=now(), resolution_notes='rollup recovered'
       where category in ('FINANCIAL_ROLLUP_LATE','FINANCIAL_ROLLUP_FAILED') and not resolved;
   end if;
   if last_fail is not null and (last_ok is null or last_fail > last_ok) then
-    perform sbiq_demo_raise_alert('FINANCIAL_ROLLUP_FAILED','critical','financial_rollup',null,
+    perform sbiq_financial_rollup_raise_alert('FINANCIAL_ROLLUP_FAILED','critical','financial_rollup',
       jsonb_build_object('last_failed', last_fail));
   end if;
   return jsonb_build_object('ok', true, 'late', late, 'last_success', last_ok);
@@ -6808,196 +5849,6 @@ $$;
 
 
 ALTER FUNCTION public.set_assessment_number() OWNER TO postgres;
-
---
--- Name: simulate_live_feed(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.simulate_live_feed() RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    SET search_path TO 'public', 'pg_temp'
-    AS $$
-DECLARE
-v_ended   int := 0;
-v_started int := 0;
-v_events  int := 0;
-
-v_edges     jsonb := '{"slots":0.055,"blackjack":0.005,"roulette":0.027,"poker":0.030,"baccarat":0.012}'::jsonb;
-v_bet_rates jsonb := '{"slots":12,"blackjack":4,"roulette":3,"poker":2,"baccarat":5}'::jsonb;
-v_bet_sizes jsonb := '{"slots":50,"blackjack":300,"roulette":175,"poker":400,"baccarat":225}'::jsonb;
-v_machine_types text[] := ARRAY['slot','slot','slot','table','rng','live_dealer'];
-BEGIN
-
--- 1. End sessions running > 3 hours
-UPDATE gaming_sessions
-SET is_active = false, end_time = NOW(),
-duration  = EXTRACT(EPOCH FROM (NOW() - start_time))::int / 60
-WHERE is_active = true AND start_time < NOW() - INTERVAL '3 hours';
-GET DIAGNOSTICS v_ended = ROW_COUNT;
-
--- 2. Natural churn ~3%
-UPDATE gaming_sessions
-SET is_active = false, end_time = NOW(),
-duration  = EXTRACT(EPOCH FROM (NOW() - start_time))::int / 60
-WHERE id IN (
-SELECT id FROM gaming_sessions WHERE is_active = true AND random() < 0.03 LIMIT 50
-);
-
--- 3. Start new sessions for casinos with fewer than 25 active
-INSERT INTO gaming_sessions (
-id, player_id, casino_id, game_type,
-start_time, end_time, duration,
-total_bets, total_wagered, total_won, net_result,
-risk_score_change, is_active, created_at
-)
-SELECT
-gen_random_uuid(), p.id, p.casino_id,
-(ARRAY['slots','blackjack','roulette','poker','baccarat'])[1 + floor(random()*5)::int],
-NOW() - (random() * INTERVAL '20 minutes'),
-NULL, 0, 0, 0, 0, 0, 0, true, NOW()
-FROM players p
-WHERE p.status = 'active'
-AND p.is_active = true
-AND p.casino_id IN (
-SELECT casino_id FROM gaming_sessions
-WHERE is_active = true
-GROUP BY casino_id HAVING COUNT(*) < 25
-UNION
-SELECT id FROM casinos
-WHERE id NOT IN (SELECT DISTINCT casino_id FROM gaming_sessions WHERE is_active = true)
-)
-AND p.id NOT IN (
-SELECT player_id FROM gaming_sessions WHERE is_active = true
-)
-ORDER BY p.casino_id, random()
-LIMIT 50;
-GET DIAGNOSTICS v_started = ROW_COUNT;
-
--- 4. Emit live_events for up to 200 active sessions
-WITH active_sample AS (
-SELECT gs.id AS sess_id, gs.player_id, gs.casino_id, gs.game_type,
-gs.total_wagered AS sess_wagered, gs.total_won AS sess_won,
-gs.total_bets AS sess_bets, gs.start_time,
-p.first_name || ' ' || p.last_name AS player_name,
-p.risk_score AS player_risk
-FROM gaming_sessions gs
-JOIN players p ON p.id = gs.player_id
-WHERE gs.is_active = true
-LIMIT 200
-),
-calc AS (
-SELECT s.*,
-'M-' || LPAD((ABS(hashtext(s.player_id::text || s.casino_id::text)) % 80 + 1)::text, 3, '0') AS machine_id,
-GREATEST(1, ROUND((v_bet_sizes->>s.game_type)::numeric * (0.8 + random()*0.4)))::numeric AS bet_amt,
-(random() > (v_edges->>s.game_type)::numeric * 3) AS is_win,
-(s.sess_wagered > 3000 AND s.sess_won < s.sess_wagered * 0.4) AS flag_loss,
-(s.sess_bets > 50 AND s.sess_wagered > 5000) AS flag_esc,
-LEAST(100, GREATEST(0, s.player_risk + floor(random()*15)::int)) AS risk_val
-FROM active_sample s
-)
-INSERT INTO live_events (
-id, event_id, event_type, casino_id, player_id, session_id,
-game_id, machine_id, bet_amount, win_amount, balance_after,
-duration_seconds, risk_score, risk_flags, outcome,
-game_type, is_simulated, metadata, created_at
-)
-SELECT
-gen_random_uuid(), gen_random_uuid(), 'BET_PLACED',
-c.casino_id, c.player_id::text, c.sess_id::text,
-'GAME-' || upper(c.game_type) || '-' || (floor(random()*100+1)::int)::text,
-c.machine_id, c.bet_amt,
-CASE WHEN c.is_win THEN ROUND(c.bet_amt * (1.5 + random()*1.5)) ELSE 0 END,
-NULL,
-EXTRACT(EPOCH FROM NOW() - c.start_time)::int,
-c.risk_val,
-CASE WHEN c.flag_loss AND c.flag_esc THEN '["loss_chasing","bet_escalation"]'::jsonb
-WHEN c.flag_loss THEN '["loss_chasing"]'::jsonb
-WHEN c.flag_esc  THEN '["bet_escalation"]'::jsonb
-ELSE '[]'::jsonb END,
-CASE WHEN c.is_win THEN 'win' ELSE 'loss' END,
-c.game_type, true,
-jsonb_build_object('player_name', c.player_name),
-NOW() - (random() * INTERVAL '30 seconds')
-FROM calc c;
-GET DIAGNOSTICS v_events = ROW_COUNT;
-
--- 5. Update session totals
-UPDATE gaming_sessions
-SET total_bets    = total_bets + act.nb,
-total_wagered = total_wagered + act.nw,
-total_won     = total_won + act.nwo,
-net_result    = (total_won + act.nwo) - (total_wagered + act.nw),
-duration      = EXTRACT(EPOCH FROM (NOW() - start_time))::int / 60
-FROM (
-SELECT id,
-GREATEST(1, ROUND((v_bet_rates->>game_type)::numeric * (0.5 + random())))::int AS nb,
-GREATEST(1, ROUND((v_bet_sizes->>game_type)::numeric * (0.8 + random()*0.4)))::numeric AS nw,
-GREATEST(0, ROUND((v_bet_sizes->>game_type)::numeric * (0.6 + random()*0.8) *
-(1.0 - (v_edges->>game_type)::numeric)))::numeric AS nwo
-FROM gaming_sessions WHERE is_active = true LIMIT 200
-) act
-WHERE gaming_sessions.id = act.id;
-
--- 6. Upsert machine_activity
-INSERT INTO machine_activity (
-id, casino_id, machine_id, machine_type,
-current_player_id, session_start, status,
-spins_per_minute, current_risk_score, total_wagered_session,
-is_simulated, updated_at, created_at
-)
-SELECT
-gen_random_uuid(), gs.casino_id,
-'M-' || LPAD((ABS(hashtext(gs.player_id::text || gs.casino_id::text)) % 80 + 1)::text, 3, '0'),
-v_machine_types[1 + (ABS(hashtext(gs.player_id::text)) % array_length(v_machine_types, 1))],
-gs.player_id::text, gs.start_time, 'active',
-ROUND(((v_bet_rates->>gs.game_type)::numeric * (0.7 + random()*0.6))::numeric, 1),
-LEAST(100, GREATEST(0, p.risk_score + floor(random()*15)::int)),
-gs.total_wagered, true, NOW(), NOW()
-FROM gaming_sessions gs
-JOIN players p ON p.id = gs.player_id
-WHERE gs.is_active = true LIMIT 100
-ON CONFLICT (casino_id, machine_id) DO UPDATE SET
-current_player_id     = EXCLUDED.current_player_id,
-status                = 'active',
-spins_per_minute      = EXCLUDED.spins_per_minute,
-current_risk_score    = EXCLUDED.current_risk_score,
-total_wagered_session = EXCLUDED.total_wagered_session,
-updated_at            = NOW();
-
--- 7. KPI snapshot
-INSERT INTO live_kpi_snapshots (
-id, casino_id, snapshot_at, active_players, events_per_min,
-total_wagered, total_won, ggr, avg_bet_size,
-risk_critical, risk_high, risk_medium, risk_low,
-active_machines, is_simulated, created_at
-)
-SELECT gen_random_uuid(), le.casino_id, NOW(),
-COUNT(DISTINCT le.player_id), COUNT(*),
-COALESCE(SUM(le.bet_amount),0), COALESCE(SUM(le.win_amount),0),
-COALESCE(SUM(le.bet_amount)-SUM(le.win_amount),0), COALESCE(AVG(le.bet_amount),0),
-COUNT(*) FILTER (WHERE le.risk_score >= 80),
-COUNT(*) FILTER (WHERE le.risk_score >= 60 AND le.risk_score < 80),
-COUNT(*) FILTER (WHERE le.risk_score >= 40 AND le.risk_score < 60),
-COUNT(*) FILTER (WHERE le.risk_score < 40),
-(SELECT COUNT(*) FROM machine_activity ma WHERE ma.casino_id = le.casino_id AND ma.status = 'active'),
-true, NOW()
-FROM live_events le
-WHERE le.created_at >= NOW() - INTERVAL '2 minutes'
-GROUP BY le.casino_id;
-
--- 8. Cleanup
-DELETE FROM live_events        WHERE created_at  < NOW() - INTERVAL '2 hours';
-DELETE FROM live_kpi_snapshots WHERE snapshot_at < NOW() - INTERVAL '24 hours';
-
-RETURN jsonb_build_object(
-'tick_at', NOW(), 'ended', v_ended,
-'started', v_started, 'events', v_events
-);
-END;
-$$;
-
-
-ALTER FUNCTION public.simulate_live_feed() OWNER TO postgres;
 
 --
 -- Name: sync_casino_id_from_player(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12918,476 +11769,6 @@ COMMENT ON TABLE public.safebet_identity_map IS 'Anonymous per-casino identity m
 
 
 --
--- Name: sbiq_admin_registered_counts; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_admin_registered_counts (
-    casino_id uuid NOT NULL,
-    registered integer NOT NULL,
-    refreshed_at timestamp with time zone DEFAULT now() NOT NULL,
-    source_as_of timestamp with time zone,
-    last_refresh_duration_ms integer,
-    last_refresh_status text,
-    last_refresh_error text
-);
-
-
-ALTER TABLE public.sbiq_admin_registered_counts OWNER TO postgres;
-
---
--- Name: sbiq_admin_registered_refresh_log; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_admin_registered_refresh_log (
-    id bigint NOT NULL,
-    account_id uuid,
-    correlation_id uuid,
-    decision text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.sbiq_admin_registered_refresh_log OWNER TO postgres;
-
---
--- Name: sbiq_admin_registered_refresh_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.sbiq_admin_registered_refresh_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sbiq_admin_registered_refresh_log_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: sbiq_demo_showcase_activations; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_showcase_activations (
-    id bigint NOT NULL,
-    scope text NOT NULL,
-    casino_id uuid,
-    profile text,
-    account_id uuid,
-    correlation_id uuid,
-    decision text NOT NULL,
-    requested_minutes integer,
-    effective_expiry timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.sbiq_demo_showcase_activations OWNER TO postgres;
-
---
--- Name: sbiq_demo_showcase_activations_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.sbiq_demo_showcase_activations ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sbiq_demo_showcase_activations_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: sbiq_demo_showcase_windows; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_showcase_windows (
-    id bigint NOT NULL,
-    scope text NOT NULL,
-    casino_id uuid,
-    profile text DEFAULT 'showcase'::text NOT NULL,
-    activated_at timestamp with time zone DEFAULT now() NOT NULL,
-    expires_at timestamp with time zone NOT NULL,
-    correlation_id uuid,
-    triggered_by uuid,
-    status text DEFAULT 'active'::text NOT NULL,
-    last_cycle_at timestamp with time zone
-);
-
-
-ALTER TABLE public.sbiq_demo_showcase_windows OWNER TO postgres;
-
---
--- Name: sbiq_demo_showcase_windows_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.sbiq_demo_showcase_windows ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sbiq_demo_showcase_windows_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: sbiq_demo_sim_alerts; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_sim_alerts (
-    id bigint NOT NULL,
-    category text NOT NULL,
-    severity text DEFAULT 'warning'::text NOT NULL,
-    scope text,
-    casino_id uuid,
-    jurisdiction text,
-    correlation_id uuid,
-    details jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    acknowledged boolean DEFAULT false NOT NULL,
-    acknowledged_at timestamp with time zone,
-    resolved boolean DEFAULT false NOT NULL,
-    resolved_at timestamp with time zone,
-    resolution_notes text
-);
-
-
-ALTER TABLE public.sbiq_demo_sim_alerts OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_alerts_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.sbiq_demo_sim_alerts ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sbiq_demo_sim_alerts_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: sbiq_demo_sim_config; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_sim_config (
-    casino_id uuid NOT NULL,
-    baseline_active_target integer NOT NULL,
-    showcase_active_target integer NOT NULL,
-    bet_min numeric DEFAULT 40 NOT NULL,
-    bet_max numeric DEFAULT 900 NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.sbiq_demo_sim_config OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_flags; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_sim_flags (
-    key text NOT NULL,
-    value text NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.sbiq_demo_sim_flags OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_run_log; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_sim_run_log (
-    id bigint NOT NULL,
-    started_at timestamp with time zone DEFAULT now() NOT NULL,
-    finished_at timestamp with time zone,
-    duration_ms integer,
-    events_generated integer DEFAULT 0 NOT NULL,
-    mode text,
-    per_casino jsonb,
-    outcome text,
-    error_category text
-);
-
-
-ALTER TABLE public.sbiq_demo_sim_run_log OWNER TO postgres;
-
---
--- Name: sbiq_demo_simulation_health; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.sbiq_demo_simulation_health AS
- SELECT c.id AS casino_id,
-    c.name AS casino_name,
-        CASE
-            WHEN (EXISTS ( SELECT 1
-               FROM public.sbiq_demo_showcase_windows w
-              WHERE ((w.status = 'active'::text) AND (w.expires_at > now()) AND ((w.casino_id = c.id) OR (w.scope = 'jurisdiction:ZA'::text))))) THEN 'showcase'::text
-            ELSE 'baseline'::text
-        END AS profile,
-    cfg.baseline_active_target,
-    cfg.showcase_active_target,
-    ( SELECT count(*) AS count
-           FROM public.projection_player_state p
-          WHERE (p.casino_id = c.id)) AS registered,
-    cs.active_players AS observed,
-    cs.players_active_now AS active_now,
-    cs.players_idle AS idle,
-    cs.players_stale AS stale,
-    cs.active_sessions,
-    ( SELECT count(*) AS count
-           FROM public.casino_event_log e
-          WHERE ((e.casino_id = c.id) AND (e.producer = 'safebet-demo-live-simulator-v2'::text) AND (e.occurred_at > (now() - '00:05:00'::interval)))) AS events_last_5m,
-    ( SELECT max(e.occurred_at) AS max
-           FROM public.casino_event_log e
-          WHERE ((e.casino_id = c.id) AND (e.producer = 'safebet-demo-live-simulator-v2'::text))) AS last_sim_tick,
-    ( SELECT max(w.expires_at) AS max
-           FROM public.sbiq_demo_showcase_windows w
-          WHERE ((w.status = 'active'::text) AND ((w.casino_id = c.id) OR (w.scope = 'jurisdiction:ZA'::text)))) AS showcase_expiry,
-    (cs.active_players = ((cs.players_active_now + cs.players_idle) + cs.players_stale)) AS reconciles,
-        CASE
-            WHEN (cs.players_active_now = 0) THEN 'critical'::text
-            WHEN (cs.active_players IS DISTINCT FROM ((cs.players_active_now + cs.players_idle) + cs.players_stale)) THEN 'warning'::text
-            ELSE 'healthy'::text
-        END AS status
-   FROM ((public.casinos c
-     LEFT JOIN public.sbiq_demo_sim_config cfg ON ((cfg.casino_id = c.id)))
-     LEFT JOIN public.projection_casino_state cs ON ((cs.casino_id = c.id)));
-
-
-ALTER VIEW public.sbiq_demo_simulation_health OWNER TO postgres;
-
---
--- Name: sbiq_demo_simulator_usage; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.sbiq_demo_simulator_usage AS
- WITH e AS (
-         SELECT casino_event_log.casino_id,
-            casino_event_log.occurred_at,
-            ((casino_event_log.payload ->> 'is_simulated'::text))::boolean AS sim
-           FROM public.casino_event_log
-          WHERE (casino_event_log.producer = 'safebet-demo-live-simulator-v2'::text)
-        )
- SELECT ( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at > (now() - '00:15:00'::interval))) AS events_15m,
-    ( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at > (now() - '01:00:00'::interval))) AS events_1h,
-    ( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at >= date_trunc('day'::text, now()))) AS events_today,
-    ( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at >= date_trunc('month'::text, now()))) AS events_month,
-    ( SELECT jsonb_object_agg((q.casino_id)::text, q.n) AS jsonb_object_agg
-           FROM ( SELECT e.casino_id,
-                    count(*) AS n
-                   FROM e
-                  WHERE (e.occurred_at > (now() - '01:00:00'::interval))
-                  GROUP BY e.casino_id) q) AS events_by_casino_1h,
-    ( SELECT round(avg(sbiq_demo_sim_run_log.events_generated)) AS round
-           FROM public.sbiq_demo_sim_run_log
-          WHERE ((sbiq_demo_sim_run_log.outcome = 'ok'::text) AND (sbiq_demo_sim_run_log.started_at > (now() - '06:00:00'::interval)))) AS avg_events_per_tick,
-    ( SELECT max(sbiq_demo_sim_run_log.events_generated) AS max
-           FROM public.sbiq_demo_sim_run_log
-          WHERE (sbiq_demo_sim_run_log.started_at > (now() - '24:00:00'::interval))) AS peak_events_per_tick,
-    (( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at > (now() - '01:00:00'::interval))) * 24) AS est_daily_events,
-    public.sbiq_demo_limit('SIM_EVENTS_PER_DAY_WARNING'::text) AS day_warning_limit,
-    public.sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP'::text) AS day_hardstop_limit,
-    round(((100.0 * (( SELECT count(*) AS count
-           FROM e
-          WHERE (e.occurred_at >= date_trunc('day'::text, now()))))::numeric) / NULLIF(public.sbiq_demo_limit('SIM_EVENTS_PER_DAY_HARDSTOP'::text), (0)::numeric)), 1) AS pct_of_daily_hardstop,
-    ( SELECT count(*) AS count
-           FROM public.sbiq_demo_sim_run_log
-          WHERE ((sbiq_demo_sim_run_log.outcome <> 'ok'::text) AND (sbiq_demo_sim_run_log.started_at > (now() - '24:00:00'::interval)))) AS failures_24h,
-    ( SELECT max(sbiq_demo_sim_run_log.finished_at) AS max
-           FROM public.sbiq_demo_sim_run_log
-          WHERE (sbiq_demo_sim_run_log.outcome = 'ok'::text)) AS last_successful_tick,
-    ( SELECT max(sbiq_demo_sim_run_log.started_at) AS max
-           FROM public.sbiq_demo_sim_run_log
-          WHERE (sbiq_demo_sim_run_log.outcome <> 'ok'::text)) AS last_failed_tick;
-
-
-ALTER VIEW public.sbiq_demo_simulator_usage OWNER TO postgres;
-
---
--- Name: sbiq_demo_storage_status; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.sbiq_demo_storage_status AS
- WITH parts AS (
-         SELECT c.relname AS part,
-            pg_total_relation_size((c.oid)::regclass) AS bytes
-           FROM ((pg_inherits i
-             JOIN pg_class c ON ((c.oid = i.inhrelid)))
-             JOIN pg_class p ON ((p.oid = i.inhparent)))
-          WHERE (p.relname = 'casino_event_log'::name)
-        ), growth AS (
-         SELECT COALESCE(sum(
-                CASE
-                    WHEN (casino_event_log.occurred_at > (now() - '1 day'::interval)) THEN 1
-                    ELSE 0
-                END), (0)::bigint) AS rows_1d
-           FROM public.casino_event_log
-        )
- SELECT pg_database_size(current_database()) AS db_bytes,
-    pg_size_pretty(pg_database_size(current_database())) AS db_size,
-    ( SELECT COALESCE(sum(parts.bytes), (0)::numeric) AS "coalesce"
-           FROM parts) AS event_log_bytes,
-    pg_size_pretty(( SELECT COALESCE(sum(parts.bytes), (0)::numeric) AS "coalesce"
-           FROM parts)) AS event_log_size,
-    ( SELECT jsonb_object_agg(parts.part, pg_size_pretty(parts.bytes)) AS jsonb_object_agg
-           FROM parts) AS event_log_by_partition,
-    pg_total_relation_size('public.audit_events'::regclass) AS audit_bytes,
-    pg_size_pretty(pg_total_relation_size('public.audit_events'::regclass)) AS audit_size,
-    pg_size_pretty(pg_total_relation_size('public.projection_player_state'::regclass)) AS projection_player_size,
-    round((((( SELECT growth.rows_1d
-           FROM growth))::numeric * 180.0) / 1048576.0), 1) AS est_daily_growth_mb,
-    round(((((( SELECT growth.rows_1d
-           FROM growth))::numeric * 180.0) / 1048576.0) * (30)::numeric), 1) AS est_monthly_growth_mb,
-    public.sbiq_demo_limit('STORAGE_INTERNAL_ALLOC_MB'::text) AS internal_alloc_mb,
-    round((((100.0 * (pg_database_size(current_database()))::numeric) / 1048576.0) / NULLIF(public.sbiq_demo_limit('STORAGE_INTERNAL_ALLOC_MB'::text), (0)::numeric)), 1) AS pct_of_internal_alloc,
-        CASE
-            WHEN (round((((( SELECT growth.rows_1d
-               FROM growth))::numeric * 180.0) / 1048576.0), 1) > (0)::numeric) THEN round(((public.sbiq_demo_limit('STORAGE_INTERNAL_ALLOC_MB'::text) - ((pg_database_size(current_database()))::numeric / 1048576.0)) / NULLIF((((( SELECT growth.rows_1d
-               FROM growth))::numeric * 180.0) / 1048576.0), (0)::numeric)))
-            ELSE NULL::numeric
-        END AS est_days_to_alloc,
-    ( SELECT max((parts.part)::text) AS max
-           FROM parts) AS newest_partition,
-    ( SELECT min((parts.part)::text) AS min
-           FROM parts) AS oldest_partition;
-
-
-ALTER VIEW public.sbiq_demo_storage_status OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_health_overall; Type: VIEW; Schema: public; Owner: postgres
---
-
-CREATE VIEW public.sbiq_demo_sim_health_overall AS
- WITH lt AS (
-         SELECT max(sbiq_demo_sim_run_log.finished_at) AS last_ok,
-            max(sbiq_demo_sim_run_log.started_at) FILTER (WHERE (sbiq_demo_sim_run_log.outcome <> 'ok'::text)) AS last_fail
-           FROM public.sbiq_demo_sim_run_log
-        ), u AS (
-         SELECT sbiq_demo_simulator_usage.events_15m,
-            sbiq_demo_simulator_usage.events_1h,
-            sbiq_demo_simulator_usage.events_today,
-            sbiq_demo_simulator_usage.events_month,
-            sbiq_demo_simulator_usage.events_by_casino_1h,
-            sbiq_demo_simulator_usage.avg_events_per_tick,
-            sbiq_demo_simulator_usage.peak_events_per_tick,
-            sbiq_demo_simulator_usage.est_daily_events,
-            sbiq_demo_simulator_usage.day_warning_limit,
-            sbiq_demo_simulator_usage.day_hardstop_limit,
-            sbiq_demo_simulator_usage.pct_of_daily_hardstop,
-            sbiq_demo_simulator_usage.failures_24h,
-            sbiq_demo_simulator_usage.last_successful_tick,
-            sbiq_demo_simulator_usage.last_failed_tick
-           FROM public.sbiq_demo_simulator_usage
-        ), open_alerts AS (
-         SELECT count(*) AS c,
-            max(
-                CASE sbiq_demo_sim_alerts.severity
-                    WHEN 'critical'::text THEN 3
-                    WHEN 'warning'::text THEN 2
-                    ELSE 1
-                END) AS sev
-           FROM public.sbiq_demo_sim_alerts
-          WHERE (NOT sbiq_demo_sim_alerts.resolved)
-        ), recon AS (
-         SELECT bool_and(sbiq_demo_simulation_health.reconciles) AS ok,
-            min(sbiq_demo_simulation_health.status) AS worst
-           FROM public.sbiq_demo_simulation_health
-        )
- SELECT ( SELECT (sbiq_demo_sim_flags.value = 'true'::text)
-           FROM public.sbiq_demo_sim_flags
-          WHERE (sbiq_demo_sim_flags.key = 'ENABLE_DEMO_LIVE_SIMULATOR'::text)) AS simulator_enabled,
-    ( SELECT (sbiq_demo_sim_flags.value = 'true'::text)
-           FROM public.sbiq_demo_sim_flags
-          WHERE (sbiq_demo_sim_flags.key = 'ENABLE_DEMO_SHOWCASE_MODE'::text)) AS showcase_enabled,
-    (EXISTS ( SELECT 1
-           FROM cron.job
-          WHERE ((job.jobname = 'sbiq-demo-live-tick'::text) AND job.active))) AS cron_active,
-    lt.last_ok AS last_successful_tick,
-    lt.last_fail AS last_failed_tick,
-    (lt.last_ok < (now() - make_interval(mins => (public.sbiq_demo_limit('LATE_TICK_MINUTES'::text))::integer))) AS tick_late,
-    u.events_today,
-    u.day_hardstop_limit,
-    u.pct_of_daily_hardstop,
-    u.events_month,
-    ( SELECT count(*) AS count
-           FROM public.sbiq_demo_showcase_windows
-          WHERE ((sbiq_demo_showcase_windows.status = 'active'::text) AND (sbiq_demo_showcase_windows.expires_at > now()))) AS active_windows,
-    ( SELECT count(*) AS count
-           FROM public.sbiq_demo_showcase_activations
-          WHERE ((sbiq_demo_showcase_activations.decision = ANY (ARRAY['accepted'::text, 'extended'::text])) AND (sbiq_demo_showcase_activations.created_at > (now() - '01:00:00'::interval)))) AS activations_1h,
-    ( SELECT recon.ok
-           FROM recon) AS reconciles_all,
-    ( SELECT open_alerts.c
-           FROM open_alerts) AS open_alerts,
-    ( SELECT sbiq_demo_storage_status.est_days_to_alloc
-           FROM public.sbiq_demo_storage_status) AS storage_days_left,
-    ( SELECT sbiq_demo_storage_status.pct_of_internal_alloc
-           FROM public.sbiq_demo_storage_status) AS storage_pct,
-        CASE
-            WHEN (( SELECT sbiq_demo_sim_flags.value
-               FROM public.sbiq_demo_sim_flags
-              WHERE (sbiq_demo_sim_flags.key = 'ENABLE_DEMO_LIVE_SIMULATOR'::text)) <> 'true'::text) THEN 'Disabled'::text
-            WHEN (lt.last_ok IS NULL) THEN 'Unknown'::text
-            WHEN ((( SELECT open_alerts.sev
-               FROM open_alerts) = 3) OR (NOT ( SELECT recon.ok
-               FROM recon)) OR (lt.last_ok < (now() - make_interval(mins => (public.sbiq_demo_limit('LATE_TICK_MINUTES'::text))::integer))) OR (u.pct_of_daily_hardstop >= (100)::numeric)) THEN 'Critical'::text
-            WHEN ((( SELECT open_alerts.sev
-               FROM open_alerts) = 2) OR ((u.events_today)::numeric >= u.day_warning_limit) OR (( SELECT sbiq_demo_storage_status.pct_of_internal_alloc
-               FROM public.sbiq_demo_storage_status) >= public.sbiq_demo_limit('STORAGE_WARN_PCT'::text))) THEN 'Warning'::text
-            ELSE 'Healthy'::text
-        END AS overall_health
-   FROM (lt
-     CROSS JOIN u);
-
-
-ALTER VIEW public.sbiq_demo_sim_health_overall OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_limits; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.sbiq_demo_sim_limits (
-    key text NOT NULL,
-    value numeric NOT NULL,
-    note text,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.sbiq_demo_sim_limits OWNER TO postgres;
-
---
--- Name: sbiq_demo_sim_run_log_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.sbiq_demo_sim_run_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.sbiq_demo_sim_run_log_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
 -- Name: sbiq_event_log_partition_security; Type: VIEW; Schema: public; Owner: postgres
 --
 
@@ -13463,6 +11844,57 @@ CREATE TABLE public.sbiq_financial_rollup_hourly (
 
 
 ALTER TABLE public.sbiq_financial_rollup_hourly OWNER TO postgres;
+
+--
+-- Name: sbiq_financial_rollup_ops_alerts; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.sbiq_financial_rollup_ops_alerts (
+    id bigint NOT NULL,
+    category text NOT NULL,
+    severity text NOT NULL,
+    scope text,
+    details jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    resolved boolean DEFAULT false NOT NULL,
+    resolved_at timestamp with time zone,
+    resolution_notes text
+);
+
+ALTER TABLE ONLY public.sbiq_financial_rollup_ops_alerts FORCE ROW LEVEL SECURITY;
+
+
+ALTER TABLE public.sbiq_financial_rollup_ops_alerts OWNER TO postgres;
+
+--
+-- Name: sbiq_financial_rollup_ops_alerts_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.sbiq_financial_rollup_ops_alerts ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.sbiq_financial_rollup_ops_alerts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: sbiq_financial_rollup_ops_state; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.sbiq_financial_rollup_ops_state (
+    id integer DEFAULT 1 NOT NULL,
+    enabled boolean DEFAULT false NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sbiq_financial_rollup_ops_state_id_check CHECK ((id = 1))
+);
+
+ALTER TABLE ONLY public.sbiq_financial_rollup_ops_state FORCE ROW LEVEL SECURITY;
+
+
+ALTER TABLE public.sbiq_financial_rollup_ops_state OWNER TO postgres;
 
 --
 -- Name: sbiq_financial_rollup_run_log; Type: TABLE; Schema: public; Owner: postgres
@@ -14945,31 +13377,6 @@ ALTER TABLE ONLY public.sessions_archive_2026_12 FORCE ROW LEVEL SECURITY;
 
 
 ALTER TABLE public.sessions_archive_2026_12 OWNER TO postgres;
-
---
--- Name: simulation_config; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.simulation_config (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    casino_id uuid NOT NULL,
-    is_active boolean DEFAULT false,
-    mode text DEFAULT 'demo'::text,
-    player_pool_size integer DEFAULT 1000,
-    events_per_minute integer DEFAULT 60,
-    time_scale numeric(6,2) DEFAULT 1.0,
-    behaviour_mix jsonb DEFAULT '{"casual": 0.6, "at_risk": 0.2, "problem": 0.05, "high_roller": 0.15}'::jsonb,
-    machine_count integer DEFAULT 50,
-    enabled_event_types text[] DEFAULT ARRAY['BET_PLACED'::text, 'BET_RESULT'::text, 'SESSION_START'::text, 'SESSION_END'::text, 'GAME_SPIN'::text],
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT simulation_config_events_per_minute_check CHECK (((events_per_minute >= 1) AND (events_per_minute <= 10000))),
-    CONSTRAINT simulation_config_mode_check CHECK ((mode = ANY (ARRAY['demo'::text, 'live'::text, 'paused'::text]))),
-    CONSTRAINT simulation_config_player_pool_size_check CHECK (((player_pool_size >= 100) AND (player_pool_size <= 100000)))
-);
-
-
-ALTER TABLE public.simulation_config OWNER TO postgres;
 
 --
 -- Name: software_modules; Type: TABLE; Schema: public; Owner: postgres
@@ -19707,78 +18114,6 @@ ALTER TABLE ONLY public.safebet_identity_map
 
 
 --
--- Name: sbiq_admin_registered_counts sbiq_admin_registered_counts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_admin_registered_counts
-    ADD CONSTRAINT sbiq_admin_registered_counts_pkey PRIMARY KEY (casino_id);
-
-
---
--- Name: sbiq_admin_registered_refresh_log sbiq_admin_registered_refresh_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_admin_registered_refresh_log
-    ADD CONSTRAINT sbiq_admin_registered_refresh_log_pkey PRIMARY KEY (id);
-
-
---
--- Name: sbiq_demo_showcase_activations sbiq_demo_showcase_activations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_showcase_activations
-    ADD CONSTRAINT sbiq_demo_showcase_activations_pkey PRIMARY KEY (id);
-
-
---
--- Name: sbiq_demo_showcase_windows sbiq_demo_showcase_windows_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_showcase_windows
-    ADD CONSTRAINT sbiq_demo_showcase_windows_pkey PRIMARY KEY (id);
-
-
---
--- Name: sbiq_demo_sim_alerts sbiq_demo_sim_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_alerts
-    ADD CONSTRAINT sbiq_demo_sim_alerts_pkey PRIMARY KEY (id);
-
-
---
--- Name: sbiq_demo_sim_config sbiq_demo_sim_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_config
-    ADD CONSTRAINT sbiq_demo_sim_config_pkey PRIMARY KEY (casino_id);
-
-
---
--- Name: sbiq_demo_sim_flags sbiq_demo_sim_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_flags
-    ADD CONSTRAINT sbiq_demo_sim_flags_pkey PRIMARY KEY (key);
-
-
---
--- Name: sbiq_demo_sim_limits sbiq_demo_sim_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_limits
-    ADD CONSTRAINT sbiq_demo_sim_limits_pkey PRIMARY KEY (key);
-
-
---
--- Name: sbiq_demo_sim_run_log sbiq_demo_sim_run_log_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_run_log
-    ADD CONSTRAINT sbiq_demo_sim_run_log_pkey PRIMARY KEY (id);
-
-
---
 -- Name: sbiq_financial_rollup_checkpoint sbiq_financial_rollup_checkpoint_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -19792,6 +18127,22 @@ ALTER TABLE ONLY public.sbiq_financial_rollup_checkpoint
 
 ALTER TABLE ONLY public.sbiq_financial_rollup_hourly
     ADD CONSTRAINT sbiq_financial_rollup_hourly_pkey PRIMARY KEY (casino_id, bucket_start, currency, rollup_version);
+
+
+--
+-- Name: sbiq_financial_rollup_ops_alerts sbiq_financial_rollup_ops_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sbiq_financial_rollup_ops_alerts
+    ADD CONSTRAINT sbiq_financial_rollup_ops_alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sbiq_financial_rollup_ops_state sbiq_financial_rollup_ops_state_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sbiq_financial_rollup_ops_state
+    ADD CONSTRAINT sbiq_financial_rollup_ops_state_pkey PRIMARY KEY (id);
 
 
 --
@@ -19928,22 +18279,6 @@ ALTER TABLE ONLY public.session_lifecycle_policy
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
-
-
---
--- Name: simulation_config simulation_config_casino_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.simulation_config
-    ADD CONSTRAINT simulation_config_casino_id_key UNIQUE (casino_id);
-
-
---
--- Name: simulation_config simulation_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.simulation_config
-    ADD CONSTRAINT simulation_config_pkey PRIMARY KEY (id);
 
 
 --
@@ -25540,31 +23875,10 @@ CREATE INDEX sbiq_fin_rollup_casino_bucket_idx ON public.sbiq_financial_rollup_h
 
 
 --
--- Name: sbiq_showcase_act_scope_idx; Type: INDEX; Schema: public; Owner: postgres
+-- Name: sbiq_fin_rollup_ops_alerts_open_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX sbiq_showcase_act_scope_idx ON public.sbiq_demo_showcase_activations USING btree (scope, created_at DESC);
-
-
---
--- Name: sbiq_showcase_active_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX sbiq_showcase_active_idx ON public.sbiq_demo_showcase_windows USING btree (status, expires_at);
-
-
---
--- Name: sbiq_sim_alerts_open_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX sbiq_sim_alerts_open_idx ON public.sbiq_demo_sim_alerts USING btree (resolved, created_at DESC);
-
-
---
--- Name: sbiq_sim_run_log_time_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX sbiq_sim_run_log_time_idx ON public.sbiq_demo_sim_run_log USING btree (started_at DESC);
+CREATE INDEX sbiq_fin_rollup_ops_alerts_open_idx ON public.sbiq_financial_rollup_ops_alerts USING btree (category, scope) WHERE (NOT resolved);
 
 
 --
@@ -28075,22 +26389,6 @@ ALTER TABLE ONLY public.safebet_identity_map
 
 
 --
--- Name: sbiq_admin_registered_counts sbiq_admin_registered_counts_casino_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_admin_registered_counts
-    ADD CONSTRAINT sbiq_admin_registered_counts_casino_id_fkey FOREIGN KEY (casino_id) REFERENCES public.casinos(id);
-
-
---
--- Name: sbiq_demo_sim_config sbiq_demo_sim_config_casino_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.sbiq_demo_sim_config
-    ADD CONSTRAINT sbiq_demo_sim_config_casino_id_fkey FOREIGN KEY (casino_id) REFERENCES public.casinos(id);
-
-
---
 -- Name: sbiq_financial_rollup_hourly sbiq_financial_rollup_hourly_casino_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -28272,14 +26570,6 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_player_id_fkey FOREIGN KEY (player_id) REFERENCES public.players(id) ON DELETE SET NULL;
-
-
---
--- Name: simulation_config simulation_config_casino_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.simulation_config
-    ADD CONSTRAINT simulation_config_casino_id_fkey FOREIGN KEY (casino_id) REFERENCES public.casinos(id) ON DELETE CASCADE;
 
 
 --
@@ -29364,15 +27654,6 @@ CREATE POLICY "Casino admins can insert players" ON public.players FOR INSERT TO
 
 
 --
--- Name: simulation_config Casino admins can insert simulation config; Type: POLICY; Schema: public; Owner: postgres
---
-
-CREATE POLICY "Casino admins can insert simulation config" ON public.simulation_config FOR INSERT TO authenticated WITH CHECK ((casino_id IN ( SELECT users.casino_id
-   FROM public.users
-  WHERE ((users.id = auth.uid()) AND (users.role = ANY (ARRAY['casino_admin'::public.user_role, 'super_admin'::public.user_role]))))));
-
-
---
 -- Name: training_assignment_templates Casino admins can insert templates; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -29506,17 +27787,6 @@ CREATE POLICY "Casino admins can update their casino's intervention history" ON 
 
 
 --
--- Name: simulation_config Casino admins can upsert own simulation config; Type: POLICY; Schema: public; Owner: postgres
---
-
-CREATE POLICY "Casino admins can upsert own simulation config" ON public.simulation_config FOR UPDATE TO authenticated USING ((casino_id IN ( SELECT users.casino_id
-   FROM public.users
-  WHERE ((users.id = auth.uid()) AND (users.role = ANY (ARRAY['casino_admin'::public.user_role, 'super_admin'::public.user_role])))))) WITH CHECK ((casino_id IN ( SELECT users.casino_id
-   FROM public.users
-  WHERE ((users.id = auth.uid()) AND (users.role = ANY (ARRAY['casino_admin'::public.user_role, 'super_admin'::public.user_role]))))));
-
-
---
 -- Name: integration_api_logs Casino admins can view own API logs; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -29571,17 +27841,6 @@ CREATE POLICY "Casino admins can view own live events" ON public.live_events FOR
 --
 
 CREATE POLICY "Casino admins can view own machine activity" ON public.machine_activity FOR SELECT TO authenticated USING (((casino_id IN ( SELECT users.casino_id
-   FROM public.users
-  WHERE ((users.id = auth.uid()) AND (users.role = ANY (ARRAY['casino_admin'::public.user_role, 'compliance_officer'::public.user_role]))))) OR (EXISTS ( SELECT 1
-   FROM public.users
-  WHERE ((users.id = auth.uid()) AND (users.role = 'super_admin'::public.user_role))))));
-
-
---
--- Name: simulation_config Casino admins can view own simulation config; Type: POLICY; Schema: public; Owner: postgres
---
-
-CREATE POLICY "Casino admins can view own simulation config" ON public.simulation_config FOR SELECT TO authenticated USING (((casino_id IN ( SELECT users.casino_id
    FROM public.users
   WHERE ((users.id = auth.uid()) AND (users.role = ANY (ARRAY['casino_admin'::public.user_role, 'compliance_officer'::public.user_role]))))) OR (EXISTS ( SELECT 1
    FROM public.users
@@ -31133,13 +29392,6 @@ CREATE POLICY "Service role can manage player limit actions" ON public.player_li
 --
 
 CREATE POLICY "Service role can manage risk score events" ON public.risk_score_events TO service_role USING (true) WITH CHECK (true);
-
-
---
--- Name: simulation_config Service role can manage simulation config; Type: POLICY; Schema: public; Owner: postgres
---
-
-CREATE POLICY "Service role can manage simulation config" ON public.simulation_config TO service_role USING (true) WITH CHECK (true);
 
 
 --
@@ -35591,6 +33843,18 @@ CREATE POLICY rsk_super_admin ON public.risk_scores TO authenticated USING (publ
 ALTER TABLE public.safebet_identity_map ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: sbiq_financial_rollup_ops_alerts; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.sbiq_financial_rollup_ops_alerts ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: sbiq_financial_rollup_ops_state; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.sbiq_financial_rollup_ops_state ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: security_events se_casino_select; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -35974,12 +34238,6 @@ CASE public.fn_my_role()
     ELSE false
 END);
 
-
---
--- Name: simulation_config; Type: ROW SECURITY; Schema: public; Owner: postgres
---
-
-ALTER TABLE public.simulation_config ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: session_lifecycle_policy slp_read; Type: POLICY; Schema: public; Owner: postgres
@@ -37363,46 +35621,6 @@ GRANT ALL ON FUNCTION public.sbiq_active_policy_rules() TO service_role;
 
 
 --
--- Name: FUNCTION sbiq_admin_financial_section(p_as_of timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_admin_financial_section(p_as_of timestamp with time zone) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_admin_financial_section(p_as_of timestamp with time zone) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_admin_overview_snapshot(p_include_financial boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_admin_overview_snapshot(p_include_financial boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_admin_overview_snapshot(p_include_financial boolean) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_admin_refresh_registered(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_admin_refresh_registered() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_admin_refresh_registered() TO service_role;
-
-
---
--- Name: FUNCTION sbiq_admin_refresh_registered_manual(p_account uuid, p_correlation uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_admin_refresh_registered_manual(p_account uuid, p_correlation uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_admin_refresh_registered_manual(p_account uuid, p_correlation uuid) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_admin_registered_status(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_admin_registered_status() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_admin_registered_status() TO service_role;
-
-
---
 -- Name: FUNCTION sbiq_archive_event_partitions_before(p_cutoff date); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -37635,120 +35853,6 @@ GRANT ALL ON FUNCTION public.sbiq_customer_success() TO service_role;
 
 
 --
--- Name: FUNCTION sbiq_demo_activate_showcase(p_scope text, p_casino uuid, p_profile text, p_minutes integer, p_account uuid, p_correlation uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_activate_showcase(p_scope text, p_casino uuid, p_profile text, p_minutes integer, p_account uuid, p_correlation uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_activate_showcase(p_scope text, p_casino uuid, p_profile text, p_minutes integer, p_account uuid, p_correlation uuid) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_audit_cleanup(p_scope text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_audit_cleanup(p_scope text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_audit_cleanup(p_scope text) TO authenticated;
-GRANT ALL ON FUNCTION public.sbiq_demo_audit_cleanup(p_scope text) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_audit_insert(p_casino uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_audit_insert(p_casino uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_audit_insert(p_casino uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.sbiq_demo_audit_insert(p_casino uuid) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_broken_chain(); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.sbiq_demo_broken_chain() TO anon;
-GRANT ALL ON FUNCTION public.sbiq_demo_broken_chain() TO authenticated;
-GRANT ALL ON FUNCTION public.sbiq_demo_broken_chain() TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_limit(p_key text); Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON FUNCTION public.sbiq_demo_limit(p_key text) TO anon;
-GRANT ALL ON FUNCTION public.sbiq_demo_limit(p_key text) TO authenticated;
-GRANT ALL ON FUNCTION public.sbiq_demo_limit(p_key text) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_live_tick(p_cron_minutes integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_live_tick(p_cron_minutes integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_live_tick(p_cron_minutes integer) TO service_role;
-GRANT ALL ON FUNCTION public.sbiq_demo_live_tick(p_cron_minutes integer) TO authenticated;
-
-
---
--- Name: FUNCTION sbiq_demo_partition_readiness(p_ensure boolean); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_partition_readiness(p_ensure boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_partition_readiness(p_ensure boolean) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid) TO authenticated;
-GRANT ALL ON FUNCTION public.sbiq_demo_raise_alert(p_category text, p_severity text, p_scope text, p_casino uuid, p_details jsonb, p_correlation uuid) TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_scale_cleanup(p_seed_version text); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_scale_cleanup(p_seed_version text) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_scale_cleanup(p_seed_version text) TO service_role;
-GRANT ALL ON FUNCTION public.sbiq_demo_scale_cleanup(p_seed_version text) TO authenticated;
-
-
---
--- Name: FUNCTION sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text, p_start integer, p_count integer, p_active_pct integer, p_bets_per_active integer, p_producer text, p_history_days integer); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text, p_start integer, p_count integer, p_active_pct integer, p_bets_per_active integer, p_producer text, p_history_days integer) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text, p_start integer, p_count integer, p_active_pct integer, p_bets_per_active integer, p_producer text, p_history_days integer) TO service_role;
-GRANT ALL ON FUNCTION public.sbiq_demo_scale_seed_batch(p_casino uuid, p_seed_version text, p_start integer, p_count integer, p_active_pct integer, p_bets_per_active integer, p_producer text, p_history_days integer) TO authenticated;
-
-
---
--- Name: FUNCTION sbiq_demo_showcase_maintenance(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_showcase_maintenance() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_showcase_maintenance() TO service_role;
-GRANT ALL ON FUNCTION public.sbiq_demo_showcase_maintenance() TO authenticated;
-
-
---
--- Name: FUNCTION sbiq_demo_sim_health_snapshot(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_sim_health_snapshot() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_sim_health_snapshot() TO service_role;
-
-
---
--- Name: FUNCTION sbiq_demo_tick_watchdog(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.sbiq_demo_tick_watchdog() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.sbiq_demo_tick_watchdog() TO service_role;
-GRANT ALL ON FUNCTION public.sbiq_demo_tick_watchdog() TO authenticated;
-
-
---
 -- Name: FUNCTION sbiq_ensure_event_partition(p_ts timestamp with time zone); Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -37781,6 +35885,14 @@ GRANT ALL ON FUNCTION public.sbiq_fin_rollup_upsert_range(p_from timestamp with 
 
 REVOKE ALL ON FUNCTION public.sbiq_financial_rollup_backfill(p_months integer) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.sbiq_financial_rollup_backfill(p_months integer) TO service_role;
+
+
+--
+-- Name: FUNCTION sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb); Type: ACL; Schema: public; Owner: postgres
+--
+
+REVOKE ALL ON FUNCTION public.sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb) TO service_role;
 
 
 --
@@ -37948,15 +36060,6 @@ GRANT ALL ON FUNCTION public.sbiq_write_projection_states(p_casino uuid, p_playe
 GRANT ALL ON FUNCTION public.set_assessment_number() TO anon;
 GRANT ALL ON FUNCTION public.set_assessment_number() TO authenticated;
 GRANT ALL ON FUNCTION public.set_assessment_number() TO service_role;
-
-
---
--- Name: FUNCTION simulate_live_feed(); Type: ACL; Schema: public; Owner: postgres
---
-
-REVOKE ALL ON FUNCTION public.simulate_live_feed() FROM PUBLIC;
-GRANT ALL ON FUNCTION public.simulate_live_feed() TO authenticated;
-GRANT ALL ON FUNCTION public.simulate_live_feed() TO service_role;
 
 
 --
@@ -39773,156 +37876,6 @@ GRANT ALL ON TABLE public.safebet_identity_map TO service_role;
 
 
 --
--- Name: TABLE sbiq_admin_registered_counts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_admin_registered_counts TO service_role;
-
-
---
--- Name: TABLE sbiq_admin_registered_refresh_log; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_admin_registered_refresh_log TO anon;
-GRANT ALL ON TABLE public.sbiq_admin_registered_refresh_log TO authenticated;
-GRANT ALL ON TABLE public.sbiq_admin_registered_refresh_log TO service_role;
-
-
---
--- Name: SEQUENCE sbiq_admin_registered_refresh_log_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.sbiq_admin_registered_refresh_log_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.sbiq_admin_registered_refresh_log_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.sbiq_admin_registered_refresh_log_id_seq TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_showcase_activations; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_showcase_activations TO service_role;
-
-
---
--- Name: SEQUENCE sbiq_demo_showcase_activations_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_activations_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_activations_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_activations_id_seq TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_showcase_windows; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_showcase_windows TO anon;
-GRANT ALL ON TABLE public.sbiq_demo_showcase_windows TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_showcase_windows TO service_role;
-
-
---
--- Name: SEQUENCE sbiq_demo_showcase_windows_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_windows_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_windows_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.sbiq_demo_showcase_windows_id_seq TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_alerts; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_alerts TO service_role;
-
-
---
--- Name: SEQUENCE sbiq_demo_sim_alerts_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_alerts_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_alerts_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_alerts_id_seq TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_config TO anon;
-GRANT ALL ON TABLE public.sbiq_demo_sim_config TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_sim_config TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_flags; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_flags TO anon;
-GRANT ALL ON TABLE public.sbiq_demo_sim_flags TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_sim_flags TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_run_log; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_run_log TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_simulation_health; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_simulation_health TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_simulation_health TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_simulator_usage; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_simulator_usage TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_simulator_usage TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_storage_status; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_storage_status TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_storage_status TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_health_overall; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_health_overall TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_sim_health_overall TO service_role;
-
-
---
--- Name: TABLE sbiq_demo_sim_limits; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.sbiq_demo_sim_limits TO anon;
-GRANT ALL ON TABLE public.sbiq_demo_sim_limits TO authenticated;
-GRANT ALL ON TABLE public.sbiq_demo_sim_limits TO service_role;
-
-
---
--- Name: SEQUENCE sbiq_demo_sim_run_log_id_seq; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_run_log_id_seq TO anon;
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_run_log_id_seq TO authenticated;
-GRANT ALL ON SEQUENCE public.sbiq_demo_sim_run_log_id_seq TO service_role;
-
-
---
 -- Name: TABLE sbiq_event_log_partition_security; Type: ACL; Schema: public; Owner: postgres
 --
 
@@ -39944,6 +37897,29 @@ GRANT ALL ON TABLE public.sbiq_financial_rollup_checkpoint TO service_role;
 --
 
 GRANT ALL ON TABLE public.sbiq_financial_rollup_hourly TO service_role;
+
+
+--
+-- Name: TABLE sbiq_financial_rollup_ops_alerts; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.sbiq_financial_rollup_ops_alerts TO service_role;
+
+
+--
+-- Name: SEQUENCE sbiq_financial_rollup_ops_alerts_id_seq; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON SEQUENCE public.sbiq_financial_rollup_ops_alerts_id_seq TO anon;
+GRANT ALL ON SEQUENCE public.sbiq_financial_rollup_ops_alerts_id_seq TO authenticated;
+GRANT ALL ON SEQUENCE public.sbiq_financial_rollup_ops_alerts_id_seq TO service_role;
+
+
+--
+-- Name: TABLE sbiq_financial_rollup_ops_state; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.sbiq_financial_rollup_ops_state TO service_role;
 
 
 --
@@ -40363,14 +38339,6 @@ GRANT ALL ON TABLE public.sessions_archive_2026_11 TO service_role;
 
 GRANT ALL ON TABLE public.sessions_archive_2026_12 TO authenticated;
 GRANT ALL ON TABLE public.sessions_archive_2026_12 TO service_role;
-
-
---
--- Name: TABLE simulation_config; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT ALL ON TABLE public.simulation_config TO authenticated;
-GRANT ALL ON TABLE public.simulation_config TO service_role;
 
 
 --
@@ -41131,5 +39099,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON T
 -- PostgreSQL database dump complete
 --
 
-\unrestrict b7zV9Ah1as9cPyI1tEND5WBP6a3GWgMxFimFSV4pN0Tmsw29M8tYhuaZPQaAUxX
+\unrestrict 8TQyzaoDzGI7ngWV1qq5agLacDAVQW8vesacMhOj99eIVrsTXwdPobHDJQDSpkp
 

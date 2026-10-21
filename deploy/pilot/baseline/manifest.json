@@ -1,65 +1,47 @@
 {
   "artifact": "pilot_app_schema_baseline.sql",
-  "purpose": "Authoritative application-owned (public schema) baseline for bootstrapping a new isolated Pilot Supabase project (M1B). Not migration replay; not Demo business data.",
+  "status": "CURATED (M1A-R2.2) — Demo simulation/showcase/demo-admin subsystem excluded",
+  "purpose": "Final authoritative application-owned (public) schema baseline to bootstrap a new isolated Pilot Supabase project (M1B). Not migration replay; not Demo business data; Demo-only subsystem removed.",
   "authorities": {
-    "repository_authority_sha": "8ae2ea0b20603570af968ff8ea63979665edb640",
-    "live_runtime_deployment_sha": "e1ace600f42961109d0cc0777e59179a0cc8631d",
-    "live_runtime_deployment_label": "demo-node20-202610151445-e1ace60",
-    "schema_authority": "live IQ Demo public schema (read-only pg_dump --schema-only)",
-    "ci_only_delta": "repository_authority differs from runtime only by PR #131 CI/test tooling"
+    "repository_authority_sha": "91161a0df0fe3e39b7fc55d9cd8a5bbcd16c20ef",
+    "deployed_runtime_sha": "e1ace600f42961109d0cc0777e59179a0cc8631d",
+    "deployed_runtime_label": "demo-node20-202610151445-e1ace60",
+    "schema_authority": "live IQ Demo public schema post-decoupling (read-only pg_dump --schema-only)"
   },
-  "source": {
-    "demo_postgres_server_version": "17.6",
-    "pg_dump_version": "17.11",
-    "extraction": "pg_dump --schema-only --schema=public --no-publications --no-subscriptions (owner + grants retained); post-processed to drop the single 'CREATE SCHEMA public;' statement"
+  "provenance_chain": {
+    "pre_decoupling_full_demo_fingerprint": "0bd7547d427b2146ac915b0a6834ba7c9995084f8b992d1e098fd3db1d06d280",
+    "pr133_decoupling_migration_sha": "b414bb45486c97a35b9b8d25b7755f33daf02e30add77a54d67629d753e529b3",
+    "post_decoupling_full_demo_fingerprint": "9d7b6c5ac957bbeb51467cae368c1e276bc9b3eaba197735048cbfbb43bd9601",
+    "historical_uncurated_baseline_sha": "fd6484cb6369e46cb9c0a65bc23ef184208953349b1a5e64c85206272add8710",
+    "curation_manifest_sha256": "4f0db01fe530373e575e93f55df78ef0692b674f67efc7fb2744901e5f5f12ae"
   },
-  "baseline_file": {
-    "bytes": 1485809,
-    "lines": 41135,
-    "sha256_lf_point_in_time": "fd6484cb6369e46cb9c0a65bc23ef184208953349b1a5e64c85206272add8710",
-    "note": "File SHA is point-in-time: pg_dump 17.11 emits a random per-dump \\restrict token, so the file bytes are not reproducible. Provenance/drift is anchored on the deterministic structural fingerprint below."
+  "curated_baseline": {
+    "bytes": 1386404,
+    "lines": 39103,
+    "sha256_lf_point_in_time": "530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182",
+    "note": "File SHA is point-in-time (pg_dump 17.11 random \\restrict token). Reproducibility/provenance is anchored on the structural fingerprint below."
   },
-  "structural_fingerprint": {
-    "sha256": "0bd7547d427b2146ac915b0a6834ba7c9995084f8b992d1e098fd3db1d06d280",
-    "algorithm": "deploy/pilot/baseline/fingerprint.sql — canonical, OID/timestamp/row-count-free structural digest over public tables/columns/constraints/indexes/functions(owner+secdef+search_path)/triggers/policies/RLS+FORCE/views/matviews/grants; SHA-256 of the ordered blob",
+  "curated_structural_fingerprint": {
+    "sha256": "5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49",
+    "algorithm": "deploy/pilot/baseline/fingerprint.sql (OID/timestamp/row-count-free)",
     "reproducible": true,
-    "identical_across": ["IQ Demo public", "disposable DB #1", "disposable DB #2"]
+    "identical_across": ["curated DB #1", "curated DB #2", "post-decoupling source DB after curation.sql"],
+    "note": "By design this differs from the full Demo fingerprint; the difference is exactly the curation set (see curation-manifest)."
   },
   "included_schemas": ["public"],
-  "excluded_schemas": ["guardian", "auth", "storage", "realtime", "graphql", "graphql_public", "vault", "cron", "net", "extensions", "supabase_migrations", "pg_catalog", "information_schema"],
-  "extensions_required": {
-    "application_required": ["pgcrypto", "uuid-ossp", "plpgsql"],
-    "platform_required": ["pg_cron"],
-    "platform_or_optional": ["pg_net", "pg_stat_statements", "supabase_vault"],
-    "note": "Extension implementation objects are NOT dumped; the target platform (or the disposable test harness) supplies them."
+  "excluded_schemas": ["guardian", "auth", "storage", "realtime", "graphql", "graphql_public", "vault", "cron", "net", "extensions", "supabase_migrations"],
+  "excluded_application_subsystem": "Demo simulation/showcase/demo-admin — 4 views + 19 functions + 10 tables (+5 owned sequences); see curation-manifest.json/md",
+  "extensions_required": {"application_required": ["pgcrypto", "uuid-ossp", "plpgsql"], "platform": ["pg_cron"], "platform_or_optional": ["pg_net", "pg_stat_statements", "supabase_vault"]},
+  "retained_highlights": {
+    "certified_financial": ["projection_financial_posture", "sbiq_certified_financial_posture_v2", "sbiq_financial_rollup_hourly", "financial_source_capability", "financial_shift_policy"],
+    "generic_financial_rollup_ops": ["sbiq_financial_rollup_ops_state(enabled=false)", "sbiq_financial_rollup_ops_alerts", "sbiq_financial_rollup_raise_alert", "sbiq_financial_rollup_refresh", "sbiq_financial_rollup_watchdog", "sbiq_financial_rollup_status"],
+    "b1_b13_1": "all governed operator-workflow objects (B4.1 alerts, B6 links, B8/B9/B10/B11 follow-up, B12 reads, B13.1 player communications + 3 DEFINER RPCs)",
+    "audit_chain": ["audit_events", "trg_audit_chain", "trg_audit_events_immutable", "sbiq_verify_audit_chain(text)", "sbiq_verify_audit_chain_range(text,bigint,bigint)"],
+    "machine_session": ["machine_activity", "projection_machine_state", "gaming_sessions", "self_exclusions", "casino_event_log"]
   },
-  "object_counts": {
-    "tables": 331, "partitioned_parents": 4, "views": 25, "materialized_views": 5,
-    "functions": 169, "security_definer_functions": 146, "triggers": 55,
-    "policies": 677, "rls_enabled": 319, "force_rls": 117
-  },
-  "security": {
-    "b13_1_table_force_rls": true,
-    "b13_1_table_policies": 0,
-    "b13_1_security_definer_rpcs": 3,
-    "b13_1_delivery_mode_check": "CHECK ((delivery_mode = 'SANDBOX'::text))",
-    "audit_chain_functions_present": true,
-    "audit_chain_present_evidence": "identical Demo-vs-baseline structural fingerprint (all 169 functions incl. sbiq_verify_audit_chain/_range + compute_audit_chain_hash + triggers trg_audit_chain/trg_audit_events_immutable)"
-  },
-  "b_series_present": "B1-B13.1 database objects present (verified by identical Demo-vs-baseline fingerprint)",
-  "certified_financial_present": ["projection_financial_posture", "sbiq_certified_financial_posture_v2", "sbiq_financial_rollup_hourly", "sbiq_financial_rollup_checkpoint", "sbiq_financial_rollup_run_log", "financial_source_capability", "financial_shift_policy"],
-  "machine_posture_present": ["machine_activity", "projection_machine_state"],
-  "business_data": "NONE (schema-only; zero-business-data assertion passed on fresh apply)",
-  "intentional_exclusions": [
-    "guardian schema (out of IQ pilot scope)",
-    "Supabase-managed schemas (auth/storage/realtime/vault/graphql) and their data",
-    "cron job rows + cron schema implementation",
-    "supabase_migrations ledger history",
-    "database/platform roles (supplied by platform; test harness stubs only)",
-    "extension implementation objects",
-    "all business/evidence rows and simulator data",
-    "the single 'CREATE SCHEMA public;' statement (target already has public)"
-  ],
-  "provenance_model": "Git-reviewed baseline SQL + this manifest + structural fingerprint + controlled deployment evidence. The Supabase migration ledger is deliberately NOT treated as baseline provenance (the 291 local files != 329 Demo ledger rows is not reconciled or replayed). No new DB provenance table is recommended for M1B.",
-  "verification_run": "GitHub Actions 'SafeBet IQ — Pilot M1A-R2 baseline extraction' run 39063709266 (green): extract -> 2x disposable apply (platform-prep + baseline, 0 errors) -> identical structural fingerprint -> fingerprint == Demo -> zero-business-data -> B13.1/security spot-check"
+  "business_data": "NONE (schema-only; zero-business-data assertion passed). Only static config row: sbiq_financial_rollup_ops_state(id=1, enabled=false).",
+  "security": {"b13_1_force_rls": true, "b13_1_delivery_mode_check": "SANDBOX only", "ops_tables_force_rls": true, "ops_tables_grants": "service_role SELECT-only", "audit_immutability": true, "audit_tamper_detection": true},
+  "provenance_model": "Git-reviewed curated baseline + this manifest + curation manifest + structural fingerprint + CI verification evidence. Supabase migration ledger deliberately NOT authoritative (329 Demo rows not copied; 291 local files not replayed; no baseline marker; no provenance DB table).",
+  "verification_run": "GitHub Actions 'SafeBet IQ — Pilot M1A-R2.2 curated baseline' run 39631763987 (green): full post-decoupling extract -> curation.sql DROP RESTRICT -> re-dump -> 2x fresh apply (identical fingerprint) -> zero-data + demo-absence + generic-ops + B13.1 -> audit tamper -> financial-ops smoke -> source→Pilot difference proof -> Demo-identifier/secret scan clean",
+  "m1b_hardening_requirement": "Pilot must not enable demo env / expose demo super-admin + demo-auth routes (/api/admin/overview, /api/admin/simulation-health, /api/admin/overview/refresh-registered-counts, /api/demo-auth/login)."
 }
