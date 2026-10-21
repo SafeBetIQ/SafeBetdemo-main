@@ -138,13 +138,15 @@ jobs:
           a=$(sha256sum fp1.txt|cut -d' ' -f1); b=$(sha256sum fp2.txt|cut -d' ' -f1)
           echo "curated fp1=$a fp2=$b"
           [ "$a" = "$b" ] || { echo "FAIL: curated baseline not reproducible"; diff <(sort fp1.txt) <(sort fp2.txt)|head; exit 1; }
-          # retained-only fingerprint of the FULL source == curated fingerprint (difference == exactly the curation set)
-          grep -vniE "$CAND" demo_full.fp.txt | tr -d '\r' > demo_retained.fp.txt
-          cr=$(grep -vniE "$CAND" fp1.txt | sha256sum | cut -d' ' -f1)       # curated already has no candidates; filter is a no-op
-          dr=$(sha256sum demo_retained.fp.txt | cut -d' ' -f1)
-          echo "demo_retained=$dr curated_retained=$cr"
-          [ "$dr" = "$cr" ] || { echo "FAIL: source→Pilot difference not exactly the curation set"; diff <(grep -vniE "$CAND" demo_full.fp.txt|sort) <(grep -vniE "$CAND" fp1.txt|sort)|head -60; exit 1; }
-          echo "OK: curated reproducible AND equals full-source minus the curation set"
+          # The source DB AFTER curation (full-source MINUS curation.sql) must fingerprint-equal the
+          # fresh re-apply of the re-dumped curated baseline. This proves (i) the re-dump round-trips
+          # faithfully and (ii) the ONLY difference from the full source is exactly the curation set.
+          psql "$LOCAL/pilot_source_test" -f "$BASE/fingerprint.sql" | tr -d '\r' > src_curated.fp.txt
+          sc=$(sha256sum src_curated.fp.txt|cut -d' ' -f1)
+          echo "full_source_fp(provenance)=$(sha256sum demo_full.fp.txt|cut -d' ' -f1)"
+          echo "source_after_curation_fp=$sc  curated_baseline_fp=$a"
+          [ "$sc" = "$a" ] || { echo "FAIL: curated re-dump != source-after-curation"; diff <(sort src_curated.fp.txt) <(sort fp1.txt)|head -60; exit 1; }
+          echo "OK: curated reproducible AND == full-source minus exactly the curation set"
 
       - name: Audit-chain tamper detection (gated, curated DB#1)
         working-directory: SafeBetdemo-main
