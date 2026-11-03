@@ -1,0 +1,172 @@
+name: SafeBet IQ — Pilot M1B rehearsal gate (isolated, no secrets)
+# M1B-P1F. Proves the COMPLETE Pilot database hardening on a DISPOSABLE PostgreSQL 17 with
+# Supabase-default emulation. Contains ONLY the rehearsal — there is NO live Pilot apply job, NO
+# Pilot project ref, NO PILOT_DB_URL, NO Supabase/AWS/cloud credential, NO GitHub environment.
+# Fail-closed on any SHA / fingerprint / manifest / grant / no-data / no-Demo mismatch.
+#
+# This is the push/PR/dispatch-runnable companion to the manual, owner-authorised apply workflow
+# (pilot-m1b-baseline-apply.yml). It never connects to any real project.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/iq-pilot-m1a-baseline]
+  pull_request:
+    branches: [feat/iq-pilot-m1a-baseline]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-m1b-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AUTHORISED_SHA: 530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182
+  AUTHORISED_DERIVATIVE_SHA: c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067
+  AUTHORISED_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  AUTHORISED_MANIFEST_SHA: c65de5ee78a3133a848ec2db821e2c3f4a9564ec8654f867519ef89ecce0de0f
+  BASE: deploy/pilot/baseline
+  DERIVATIVE: deploy/pilot/baseline/generated/pilot_app_schema_supabase.sql
+
+jobs:
+  rehearsal:
+    name: Isolated PostgreSQL 17 rehearsal (no secrets)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      LOCAL: postgres://postgres:postgres@localhost:5432
+    steps:
+      - name: Checkout (M1B-P1F hardening artifacts)
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: 0 · No secret is required by this workflow (self-check)
+        run: |
+          set -euo pipefail
+          # This workflow file must reference no secrets and no GitHub environment.
+          grep -q 'secrets\.' .github/workflows/pilot-m1b-rehearsal.yml && { echo "::error::workflow references a secret"; exit 1; } || true
+          grep -qE '^\s*environment:' .github/workflows/pilot-m1b-rehearsal.yml && { echo "::error::workflow binds a GitHub environment"; exit 1; } || true
+          echo "no secrets / no environment — credential-free rehearsal"
+
+      - name: Install PostgreSQL 17 client (PGDG)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          P=/usr/lib/postgresql/17/bin/psql; "$P" --version
+          "$P" --version | grep -Eq ' 17\.([6-9]|[1-9][0-9])' || { echo "::error::psql >= 17.6 required (\\restrict support)"; exit 1; }
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: 1-4 · Canonical SHA + deterministic derivative + exact 12-statement allowlist
+        run: |
+          set -euo pipefail
+          a=$(sha256sum "$BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1); echo "canonical_sha=$a"
+          [ "$a" = "$AUTHORISED_SHA" ] || { echo "::error::canonical baseline SHA mismatch"; exit 1; }
+          node "$BASE/generate-supabase-derivative.mjs" --check          # determinism + canonical pin
+          d=$(sha256sum "$DERIVATIVE" | cut -d' ' -f1); echo "derivative_sha=$d"
+          [ "$d" = "$AUTHORISED_DERIVATIVE_SHA" ] || { echo "::error::Supabase derivative SHA mismatch"; exit 1; }
+          cc=$(grep -c '^ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin' "$BASE/pilot_app_schema_baseline.sql" || true)
+          dc=$(grep -c '^ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin' "$DERIVATIVE" || true)
+          cl=$(wc -l < "$BASE/pilot_app_schema_baseline.sql"); dl=$(wc -l < "$DERIVATIVE")
+          echo "canonical supabase_admin stmts=$cc derivative=$dc line_delta=$((cl-dl))"
+          [ "$cc" = "12" ] && [ "$dc" = "0" ] && [ "$((cl-dl))" = "12" ] || { echo "::error::not exactly 12 supabase_admin statements removed"; exit 1; }
+
+      - name: 5 · Fresh disposable DB + Supabase-default emulation (no supabase_admin membership)
+        run: |
+          set -euo pipefail
+          psql "$LOCAL/postgres" -X -v ON_ERROR_STOP=1 -c "create database pilot_rehearsal_test;"
+          psql "$LOCAL/pilot_rehearsal_test" -X -q -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_rehearsal_test" -X -q -v ON_ERROR_STOP=1 -f "$BASE/rehearsal/supabase-defaults-emulation.sql"
+
+      - name: 6-7 · Preflight → hardening preamble → apply derivative → fingerprint (pre-hardening) → post-apply
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_preflight.sql" > rehearsal_preflight.txt
+          psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_pre_apply_security.sql"
+          [ "$(sha256sum "$DERIVATIVE" | cut -d' ' -f1)" = "$AUTHORISED_DERIVATIVE_SHA" ] || exit 1
+          psql "$DB" -X -q -1 -v ON_ERROR_STOP=1 -f "$DERIVATIVE"           # single transaction, ON_ERROR_STOP
+          # Structural fingerprint captured BEFORE any Pilot privilege hardening.
+          psql "$DB" -f "$BASE/fingerprint.sql" | tr -d '\r' > rehearsal.fp.txt
+          fp=$(sha256sum rehearsal.fp.txt | cut -d' ' -f1); echo "fingerprint=$fp"
+          [ "$fp" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::structural fingerprint != authorised"; exit 1; }
+          psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_post_apply_grants.sql"
+
+      - name: 8-9 · Privilege verification + byte-exact manifest SHA
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_privilege_verify.sql" > rehearsal.priv.txt
+          diff -u "$BASE/pilot_privilege_manifest.txt" rehearsal.priv.txt | head -100 || { echo "::error::privilege state differs from reviewed manifest"; exit 1; }
+          got=$(sha256sum rehearsal.priv.txt | cut -d' ' -f1); echo "manifest_sha=$got"
+          [ "$got" = "$AUTHORISED_MANIFEST_SHA" ] || { echo "::error::privilege manifest SHA mismatch"; exit 1; }
+          (cd "$BASE" && sha256sum -c pilot_privilege_manifest.sha256)
+
+      - name: 10 · Grant/exposure counts (PUBLIC=0, anon-secdef=0, unintended anon grants=0, opt-in defaults)
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 <<'SQL' > counts.txt
+          select 'public_execute|' || count(*) from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+            where p.pronamespace = 'public'::regnamespace and a.grantee = 0 and a.privilege_type = 'EXECUTE';
+          select 'anon_secdef|' || count(*) from pg_proc p
+            where p.pronamespace = 'public'::regnamespace and p.prosecdef and has_function_privilege('anon', p.oid, 'EXECUTE');
+          select 'anon_tables_no_rls|' || count(*) from pg_class c
+            where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') and not c.relrowsecurity
+              and has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE');
+          select 'postgres_default_autogrants|' || count(*) from pg_default_acl d, aclexplode(d.defaclacl) a
+            where d.defaclrole = 'postgres'::regrole and (d.defaclnamespace = 0 or d.defaclnamespace = 'public'::regnamespace)
+              and (a.grantee = 0 or pg_get_userbyid(a.grantee) in ('anon','authenticated','service_role'));
+          SQL
+          cat counts.txt
+          grep -qx 'public_execute|0' counts.txt           || { echo "::error::PUBLIC EXECUTE != 0"; exit 1; }
+          grep -qx 'anon_secdef|0' counts.txt               || { echo "::error::anon-executable SECURITY DEFINER != 0"; exit 1; }
+          grep -qx 'anon_tables_no_rls|0' counts.txt        || { echo "::error::unintended anon table grants present"; exit 1; }
+          grep -qx 'postgres_default_autogrants|0' counts.txt || { echo "::error::postgres default privileges still auto-grant to non-owner roles"; exit 1; }
+
+      - name: 11-12 · No application rows, no Demo subsystem/seed
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare r record; n bigint; bad text := '';
+          begin
+            for r in select c.oid::regclass t from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') loop
+              execute format('select count(*) from %s', r.t) into n;
+              if n > 0 then bad := bad || r.t::text || '=' || n || ' '; end if;
+            end loop;
+            if bad <> '' then raise exception 'FORBIDDEN DATA PRESENT: %', bad; end if;
+            select count(*) into n from pg_class c where c.relnamespace = 'public'::regnamespace
+              and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase' or c.relname in ('simulation_config','sbiq_admin_registered_counts','sbiq_admin_registered_refresh_log'));
+            if n > 0 then raise exception 'Demo simulation relations present: %', n; end if;
+            select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace
+              and (p.proname ~ '^sbiq_demo' or p.proname ~ 'showcase' or p.proname = 'simulate_live_feed'
+                   or p.proname ~ '^sbiq_admin_(financial_section|overview_snapshot|refresh_registered|registered_status)');
+            if n > 0 then raise exception 'Demo simulation functions present: %', n; end if;
+          end $$;
+          SQL
+          echo "no rows; no Demo subsystem"
+
+      - name: 13 · Rehearsal summary (no secrets printed)
+        if: always()
+        run: |
+          {
+            echo "## SafeBet IQ — Pilot M1B rehearsal (isolated, no secrets)"
+            echo "- postgres: $(psql --version | awk '{print $3}') · target: localhost disposable DB only"
+            echo "- canonical SHA: ${AUTHORISED_SHA}"
+            echo "- derivative SHA: ${AUTHORISED_DERIVATIVE_SHA}"
+            [ -f rehearsal.fp.txt ] && echo "- structural fingerprint: $(sha256sum rehearsal.fp.txt | cut -d' ' -f1)"
+            [ -f rehearsal.priv.txt ] && echo "- privilege manifest SHA: $(sha256sum rehearsal.priv.txt | cut -d' ' -f1)"
+            [ -f counts.txt ] && { echo "### Grant/exposure counts"; echo '```'; cat counts.txt; echo '```'; }
+          } >> "$GITHUB_STEP_SUMMARY"
