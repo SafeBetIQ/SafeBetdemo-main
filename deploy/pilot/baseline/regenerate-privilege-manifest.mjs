@@ -70,20 +70,23 @@ export function transformManifest(input) {
       out.push(l);
       continue;
     }
-    if (l.startsWith('defacl|')) {
-      // Correction 4: postgres schema table (r) / sequence (S) defaults revert to owner-only and are
-      // deleted by Postgres (acl == acldefault). The schema function (f) default persists as owner-only
-      // EXECUTE (built-in includes PUBLIC, so owner-only differs and the row remains). Global f default
-      // stays postgres=EXECUTE.
-      const p = l.split('|'); // defacl|postgres|<scope>|<objtype>|<grants>
-      const scope = p[2], objtype = p[3];
-      if (scope === 'public' && (objtype === 'r' || objtype === 'S')) continue; // row deleted
-      if (scope === 'public' && objtype === 'f') { out.push('defacl|postgres|public|f|postgres=EXECUTE'); continue; }
-      out.push(l); // GLOBAL f stays
-      continue;
-    }
+    if (l.startsWith('defacl|')) continue; // replaced by the fixed owner-only set below
     out.push(l);
   }
+
+  // Correction 4 — post-hardening postgres default privileges (empirically confirmed by the live
+  // postgres:17 rehearsal). Revoking anon/authenticated/service_role (and PUBLIC EXECUTE) leaves each
+  // default ACL with ONLY the owner (postgres) entry, which Postgres RETAINS as an explicit row (it is
+  // not the built-in default, which for functions includes PUBLIC and for tables/sequences would be an
+  // absent row — the explicit owner grant from the baseline keeps the row present). No anon/
+  // authenticated/service_role/PUBLIC grantee remains, so verify A7 holds. This owner-only set is fixed
+  // and known, so it is emitted verbatim (deterministic regardless of the input manifest's defacl rows).
+  for (const d of [
+    'defacl|postgres|GLOBAL|f|postgres=EXECUTE',
+    'defacl|postgres|public|S|postgres=SELECT,UPDATE,USAGE',
+    'defacl|postgres|public|f|postgres=EXECUTE',
+    'defacl|postgres|public|r|postgres=DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE',
+  ]) out.push(d);
 
   out.sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)));
   return out.join('\n') + '\n';

@@ -1,5 +1,7 @@
 defacl|postgres|GLOBAL|f|postgres=EXECUTE
+defacl|postgres|public|S|postgres=SELECT,UPDATE,USAGE
 defacl|postgres|public|f|postgres=EXECUTE
+defacl|postgres|public|r|postgres=DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
 eff|admin_cleanup_gaming_sessions()|anon=false|authenticated=true|service_role=true
 eff|app_visible_casinos()|anon=false|authenticated=true|service_role=true
 eff|archive_old_records(p_months_old integer)|anon=false|authenticated=true|service_role=true

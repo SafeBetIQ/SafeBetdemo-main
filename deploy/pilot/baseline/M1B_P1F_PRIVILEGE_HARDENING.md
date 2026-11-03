@@ -28,7 +28,7 @@ derivative applies cleanly under `psql ON_ERROR_STOP` and still yields fingerpri
 apply uses the **derivative**; Supabase-owned `supabase_admin` defaults are never touched; `postgres`
 membership is never requested. `pilot_preflight.sql` A7 only **detects & reports** supabase_admin defaults.
 
-## 3. Intended privilege state (reviewed manifest `pilot_privilege_manifest.txt`, SHA `c65de5ee…`)
+## 3. Intended privilege state (reviewed manifest `pilot_privilege_manifest.txt`, SHA `ea03c077…`)
 | | anon | authenticated | service_role | PUBLIC |
 |---|---|---|---|---|
 | Relations (361 total) | no table without RLS | per baseline | per baseline | **0** |
