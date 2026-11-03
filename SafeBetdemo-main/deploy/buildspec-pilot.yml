@@ -1,0 +1,119 @@
+# SafeBet IQ — pilot.safebetiq.com reproducible Linux Node 20 build (AWS CodeBuild) — M1B-P1F
+# ─────────────────────────────────────────────────────────────────────────────
+# PILOT-ONLY buildspec. The Demo buildspec (deploy/buildspec.yml) is intentionally untouched.
+# Produces the Elastic Beanstalk artifact for the `safebet-iq-pilot` environment, built under
+# Node.js 20 to match the EB Node 20 platform (same packaging as Demo).
+#
+# Pilot environment model (fail closed):
+#   NEXT_PUBLIC_ENV=pilot, NEXT_PUBLIC_SAFEBET_ENV=pilot
+#     → demo quick-login route 404 (requires 'demo'), demo super-admin routes 404,
+#       DemoOperatorSelector hidden, casino-simulator burst producer disabled.
+#   SAFEBET_OPERATING_MODE / NEXT_PUBLIC_SAFEBET_OPERATING_MODE = production
+#     → the ONLY operational profile with simulatorEnabled=false and demoDataAllowed=false.
+#       'pilot' is NOT a supported mode: lib/operations/mode.ts normalises unknown values to the
+#       'demonstration' default (simulator ON), so it must never be used here.
+#   ENABLE_DEMO_QUICK_LOGIN=false (and the route is dead anyway unless NEXT_PUBLIC_ENV=demo).
+#   SAFEBET_IDENTITY_PROVIDER / NEXT_PUBLIC_SAFEBET_IDENTITY_PROVIDER: deliberately UNSET →
+#     the current IQ default 'sha256-v2' (ADR-001), identical to Demo. No Cognito.
+#
+# Public build inputs (NEXT_PUBLIC_* only; NEVER the service-role key) are supplied at start-build:
+#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY  (the NEW Pilot project's values)
+#   SAFEBET_GIT_COMMIT (must equal the authorised commit), SAFEBET_EB_VERSION
+# pre_build re-asserts every Pilot value, so a start-build override cannot turn this into Demo.
+
+version: 0.2
+
+env:
+  variables:
+    NEXT_PUBLIC_ENV: "pilot"
+    NEXT_PUBLIC_SAFEBET_ENV: "pilot"
+    NEXT_PUBLIC_SAFEBET_OPERATING_MODE: "production"
+    SAFEBET_OPERATING_MODE: "production"
+    ENABLE_DEMO_QUICK_LOGIN: "false"
+    # TWO SEPARATE AUTHORITIES (M1B-P1F Correction 6):
+    #   SAFEBET_SCHEMA_SOURCE_COMMIT = provenance of the curated schema baseline (530941a5…). This is
+    #     NOT the application deployment authority. The Pilot application MUST NOT be deployed from it,
+    #     because that commit predates the M1B-P1F hardening.
+    #   Pilot APPLICATION deployment authority = the reviewed M1B-P1F commit, supplied at start-build as
+    #     SAFEBET_GIT_COMMIT. Deliberately NOT hard-coded: that commit does not exist until this work is
+    #     committed and reviewed. The guard pins the build to it and rejects the schema-source commit.
+    SAFEBET_SCHEMA_SOURCE_COMMIT: "379141e45c7f6f9db1888ebaebfa45fbf86a993e"
+    SAFEBET_FORBIDDEN_REFS: "ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll"
+    NODE_OPTIONS: "--max-old-space-size=4096"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "== build env ==" && node --version && npm --version && uname -a
+  pre_build:
+    commands:
+      - |
+        set -eu
+        fail() { echo "PILOT BUILD GUARD: $1" >&2; exit 1; }
+        [ "${NEXT_PUBLIC_ENV:-}" = "pilot" ] || fail "NEXT_PUBLIC_ENV must be 'pilot'"
+        [ "${NEXT_PUBLIC_SAFEBET_ENV:-}" = "pilot" ] || fail "NEXT_PUBLIC_SAFEBET_ENV must be 'pilot'"
+        [ "${SAFEBET_OPERATING_MODE:-}" = "production" ] || fail "SAFEBET_OPERATING_MODE must be 'production' (simulator off)"
+        [ "${NEXT_PUBLIC_SAFEBET_OPERATING_MODE:-}" = "production" ] || fail "NEXT_PUBLIC_SAFEBET_OPERATING_MODE must be 'production'"
+        case "${ENABLE_DEMO_QUICK_LOGIN:-false}" in false|"") ;; *) fail "ENABLE_DEMO_QUICK_LOGIN must be unset/false";; esac
+        [ -z "${SAFEBET_IDENTITY_PROVIDER:-}" ] && [ -z "${NEXT_PUBLIC_SAFEBET_IDENTITY_PROVIDER:-}" ] || fail "identity provider must stay unset (IQ default sha256-v2)"
+        [ -n "${NEXT_PUBLIC_SUPABASE_URL:-}" ] || fail "NEXT_PUBLIC_SUPABASE_URL (Pilot project) required"
+        [ -n "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" ] || fail "NEXT_PUBLIC_SUPABASE_ANON_KEY (Pilot project) required"
+        for r in $SAFEBET_FORBIDDEN_REFS; do
+          case "$NEXT_PUBLIC_SUPABASE_URL" in *"$r"*) fail "NEXT_PUBLIC_SUPABASE_URL targets a forbidden project (Production/Guardian/Demo)";; esac
+        done
+        # Application deployment authority: the reviewed M1B-P1F commit, supplied at start-build.
+        # It must be a real 40-hex commit and must NOT be the schema-baseline source commit (which
+        # lacks the M1B-P1F hardening), nor a forbidden-project ref.
+        [ -n "${SAFEBET_GIT_COMMIT:-}" ] || fail "SAFEBET_GIT_COMMIT (reviewed Pilot application commit) required"
+        echo "${SAFEBET_GIT_COMMIT}" | grep -Eq '^[0-9a-f]{40}$' || fail "SAFEBET_GIT_COMMIT must be a 40-hex commit"
+        [ "${SAFEBET_GIT_COMMIT}" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "SAFEBET_GIT_COMMIT is the schema-baseline SOURCE commit (lacks M1B-P1F hardening) — deploy the reviewed hardening commit, not 379141e"
+        if [ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]; then
+          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" = "${SAFEBET_GIT_COMMIT}" ] || fail "source version != supplied application commit"
+          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "source version is the schema-source commit, not an approved Pilot application deployment commit"
+        fi
+        [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ] || fail "the service-role key must never be a build input"
+        echo "pilot build guard OK"
+      - rm -rf .next node_modules
+      - npm ci
+  build:
+    commands:
+      - echo "== typecheck + next build under Node $(node --version) (pilot) =="
+      - npm run build            # tsc --noEmit && next build
+      - test -f .next/BUILD_ID && test -d .next/server && test -d .next/static
+      - echo "BUILD_ID=$(cat .next/BUILD_ID)"
+  post_build:
+    commands:
+      - echo "== regression suite (advisory, captured) =="
+      - node --test "tests/**/*.test.mjs" 2>&1 | tail -60 || echo "TESTS_EXIT_NONZERO"
+      - echo "== stage clean EB bundle =="
+      - mkdir -p deploy_stage
+      - cp -r .next public package.json package-lock.json next.config.js Procfile .ebextensions .platform deploy_stage/
+      - rm -rf deploy_stage/.next/cache
+      - rm -f deploy_stage/.ebextensions/02_build.config   # prebuilt: no on-instance build
+      # Generate runtime version.json read by /api/version (safe provenance only)
+      - |
+        cat > deploy_stage/version.json <<JSON
+        {
+          "service": "safebet-iq",
+          "environment": "${NEXT_PUBLIC_ENV}",
+          "environmentClass": "non-production",
+          "dataClass": "pilot-no-operator-data",
+          "gitCommit": "${SAFEBET_GIT_COMMIT:-unknown}",
+          "buildId": "$(cat .next/BUILD_ID)",
+          "deploymentVersion": "${SAFEBET_EB_VERSION:-unknown}",
+          "builtWithNode": "$(node --version | sed 's/^v//')",
+          "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        JSON
+      - cat deploy_stage/version.json
+      - |
+        grep -q '"environment": "pilot"' deploy_stage/version.json || { echo "version.json is not pilot" >&2; exit 1; }
+      - test -f deploy_stage/.next/BUILD_ID
+      - test ! -e deploy_stage/.ebextensions/02_build.config && echo "on-instance build config excluded OK"
+
+artifacts:
+  base-directory: deploy_stage
+  files:
+    - '**/*'

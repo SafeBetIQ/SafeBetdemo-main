@@ -1,0 +1,76 @@
+{
+  "artifact": "SafeBet IQ Pilot Supabase deployment derivative (M1B-P1F)",
+  "generator": "deploy/pilot/baseline/generate-supabase-derivative.mjs",
+  "canonical": {
+    "path": "deploy/pilot/baseline/pilot_app_schema_baseline.sql",
+    "sha256": "530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182",
+    "lines": 39104,
+    "unchanged": true
+  },
+  "derivative": {
+    "path": "deploy/pilot/baseline/generated/pilot_app_schema_supabase.sql",
+    "sha256": "c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067",
+    "lines": 39092,
+    "bytes": 1384963
+  },
+  "structuralFingerprintExpected": "5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49",
+  "removedStatementCount": 12,
+  "removedStatements": [
+    {
+      "line": 39052,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres;"
+    },
+    {
+      "line": 39053,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO anon;"
+    },
+    {
+      "line": 39054,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO authenticated;"
+    },
+    {
+      "line": 39055,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;"
+    },
+    {
+      "line": 39072,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres;"
+    },
+    {
+      "line": 39073,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon;"
+    },
+    {
+      "line": 39074,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO authenticated;"
+    },
+    {
+      "line": 39075,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON FUNCTIONS TO service_role;"
+    },
+    {
+      "line": 39092,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO postgres;"
+    },
+    {
+      "line": 39093,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO anon;"
+    },
+    {
+      "line": 39094,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO authenticated;"
+    },
+    {
+      "line": 39095,
+      "statement": "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON TABLES TO service_role;"
+    }
+  ],
+  "rationale": "Hosted Supabase: supabase_admin is an internal reserved role; postgres is not a member and cannot alter its default privileges. These 12 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin statements are removed so the derivative applies cleanly under psql ON_ERROR_STOP. The derivative changes no schema object, so the structural fingerprint is unchanged (default privileges are not part of the fingerprint).",
+  "assertions": {
+    "canonicalShaMatches": true,
+    "removedExactly12": true,
+    "removedEqualsAllowlist": true,
+    "reconstructionReproducesCanonical": true,
+    "onlySupabaseAdminDefaultsRemoved": true
+  }
+}

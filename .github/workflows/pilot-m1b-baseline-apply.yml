@@ -1,0 +1,327 @@
+name: SafeBet IQ — Pilot M1B baseline apply (manual, owner-authorised)
+# M1B-P1F. Applies the curated, SHA-pinned Pilot schema baseline to a NEW, EMPTY Pilot Supabase
+# project — never to Production, Demo or Guardian. Manual dispatch only. Fail-closed throughout.
+#
+#   guard      → inputs must equal the hard-coded authorised values; forbidden refs rejected
+#   rehearsal  → disposable Postgres 17 with Supabase-default emulation (NO supabase_admin membership
+#                required): preflight → hardening preamble → canonical SHA + deterministic Supabase
+#                derivative → apply derivative → structural fingerprint → post-apply hardening →
+#                privilege verify → no rows → no Demo subsystem
+#   apply      → GitHub Environment "pilot" (required reviewers recommended), PILOT_DB_URL secret:
+#                 1 env=pilot  2 project ref  3 preflight  4 hardening preamble
+#                 5 canonical SHA + Supabase derivative (determinism)  6 apply derivative
+#                 7 structural fingerprint (certified schema anchor, BEFORE Pilot hardening)
+#                 8 post-apply privilege hardening  9 privilege/security verification
+#                 10 no data  11 no Demo seed/simulation  12 redacted evidence summary
+# Any mismatch stops the run. No step prints the connection string, password or any secret.
+#
+# AUTHORITIES (Correction 6): AUTHORISED_COMMIT below is the SCHEMA BASELINE SOURCE authority (the
+# commit the curated baseline was dumped from). It is used ONLY to check out the baseline SQL for this
+# DB apply. It is NOT the Pilot application deployment authority — the application is built/deployed
+# from a separate reviewed commit by deploy/buildspec-pilot.yml, which rejects this schema-source commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment — must be exactly: pilot'
+        required: true
+        type: string
+      expected_project_ref:
+        description: 'NEW Pilot Supabase project ref (20 lowercase letters); must equal vars.PILOT_PROJECT_REF'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Curated canonical baseline SHA-256 (must equal the authorised value)'
+        required: true
+        type: string
+      expected_fingerprint:
+        description: 'Structural fingerprint (must equal the authorised value)'
+        required: true
+        type: string
+      authority_commit:
+        description: 'Schema baseline SOURCE commit (must equal the authorised value; not the app deploy commit)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-m1b-baseline-apply
+  cancel-in-progress: false
+
+env:
+  AUTHORISED_ENVIRONMENT: pilot
+  # Schema baseline SOURCE authority (NOT the application deployment authority — see header).
+  AUTHORISED_COMMIT: 379141e45c7f6f9db1888ebaebfa45fbf86a993e
+  AUTHORISED_SHA: 530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182
+  AUTHORISED_DERIVATIVE_SHA: c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067
+  AUTHORISED_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  # Hard-rejected project refs (Production, Guardian, Demo).
+  FORBIDDEN_REFS: 'ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll'
+  BASE: deploy/pilot/baseline
+  AUTH_BASE: authority/deploy/pilot/baseline
+  DERIVATIVE: deploy/pilot/baseline/generated/pilot_app_schema_supabase.sql
+
+jobs:
+  guard:
+    name: 1-2 · Validate environment, project ref and pinned values
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate inputs (fail closed)
+        env:
+          IN_ENV: ${{ inputs.environment }}
+          IN_REF: ${{ inputs.expected_project_ref }}
+          IN_SHA: ${{ inputs.expected_sha }}
+          IN_FP: ${{ inputs.expected_fingerprint }}
+          IN_COMMIT: ${{ inputs.authority_commit }}
+        run: |
+          set -euo pipefail
+          [ "$IN_ENV" = "$AUTHORISED_ENVIRONMENT" ] || { echo "::error::environment must be exactly 'pilot'"; exit 1; }
+          [[ "$IN_REF" =~ ^[a-z]{20}$ ]] || { echo "::error::expected_project_ref must be a 20-letter Supabase project ref"; exit 1; }
+          for f in $FORBIDDEN_REFS; do
+            [ "$IN_REF" != "$f" ] || { echo "::error::expected_project_ref is a FORBIDDEN project (Production/Guardian/Demo)"; exit 1; }
+          done
+          [ "$IN_SHA" = "$AUTHORISED_SHA" ] || { echo "::error::expected_sha does not equal the authorised canonical baseline SHA"; exit 1; }
+          [ "$IN_FP" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::expected_fingerprint does not equal the authorised fingerprint"; exit 1; }
+          [ "$IN_COMMIT" = "$AUTHORISED_COMMIT" ] || { echo "::error::authority_commit does not equal the authorised schema-source commit"; exit 1; }
+          echo "inputs OK (environment=pilot, ref=$IN_REF)"
+
+  rehearsal:
+    name: Disposable rehearsal (Postgres 17 + Supabase default emulation)
+    needs: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      LOCAL: postgres://postgres:postgres@localhost:5432
+    steps:
+      - name: Checkout hardening artifacts (this workflow's commit)
+        uses: actions/checkout@v4
+      - name: Checkout authorised schema-source commit (read-only copy)
+        uses: actions/checkout@v4
+        with: { ref: '${{ env.AUTHORISED_COMMIT }}', path: authority }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Install PostgreSQL 17 client (PGDG)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          P=/usr/lib/postgresql/17/bin/psql; "$P" --version
+          "$P" --version | grep -Eq ' 17\.([6-9]|[1-9][0-9])' || { echo "::error::psql >= 17.6 required (\\restrict support)"; exit 1; }
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Canonical SHA pinned + deterministic Supabase derivative (no hand-edit)
+        run: |
+          set -euo pipefail
+          a=$(sha256sum "$AUTH_BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1)
+          b=$(sha256sum "$BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1)
+          echo "authority_sha=$a working_sha=$b"
+          [ "$a" = "$AUTHORISED_SHA" ] && [ "$b" = "$AUTHORISED_SHA" ] || { echo "::error::canonical baseline SHA mismatch"; exit 1; }
+          node "$BASE/generate-supabase-derivative.mjs" --check
+          d=$(sha256sum "$DERIVATIVE" | cut -d' ' -f1); echo "derivative_sha=$d"
+          [ "$d" = "$AUTHORISED_DERIVATIVE_SHA" ] || { echo "::error::Supabase derivative SHA mismatch"; exit 1; }
+      - name: Fresh disposable DB with Supabase-default emulation (no supabase_admin membership)
+        run: |
+          set -euo pipefail
+          psql "$LOCAL/postgres" -X -v ON_ERROR_STOP=1 -c "create database pilot_rehearsal_test;"
+          psql "$LOCAL/pilot_rehearsal_test" -X -q -v ON_ERROR_STOP=1 -f "$AUTH_BASE/platform-prep.sql"
+          psql "$LOCAL/pilot_rehearsal_test" -X -q -v ON_ERROR_STOP=1 -f "$BASE/rehearsal/supabase-defaults-emulation.sql"
+      - name: Preflight → hardening preamble → apply derivative → fingerprint → post-apply → verify
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_preflight.sql" > rehearsal_preflight.txt
+          psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_pre_apply_security.sql"
+          [ "$(sha256sum "$DERIVATIVE" | cut -d' ' -f1)" = "$AUTHORISED_DERIVATIVE_SHA" ] || exit 1
+          psql "$DB" -X -q -1 -v ON_ERROR_STOP=1 -f "$DERIVATIVE"
+          # Structural fingerprint BEFORE any Pilot privilege hardening (certified-schema anchor).
+          psql "$DB" -f "$AUTH_BASE/fingerprint.sql" | tr -d '\r' > rehearsal.fp.txt
+          fp=$(sha256sum rehearsal.fp.txt | cut -d' ' -f1); echo "rehearsal_fingerprint=$fp"
+          [ "$fp" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::rehearsal fingerprint != authorised fingerprint"; exit 1; }
+          # Pilot privilege hardening, then verify against the reviewed manifest.
+          psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_post_apply_grants.sql"
+      - name: Privilege verification must match the reviewed manifest exactly
+        run: |
+          set -euo pipefail
+          psql "$LOCAL/pilot_rehearsal_test" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_privilege_verify.sql" > rehearsal.priv.txt
+          diff -u "$BASE/pilot_privilege_manifest.txt" rehearsal.priv.txt | head -100 || { echo "::error::privilege state differs from reviewed manifest"; exit 1; }
+          (cd "$BASE" && sha256sum -c pilot_privilege_manifest.sha256)
+          [ "$(sha256sum rehearsal.priv.txt | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$BASE/pilot_privilege_manifest.sha256")" ] || exit 1
+          echo "privilege state == reviewed manifest"
+      - name: Rehearsal must contain no rows and no Demo subsystem
+        run: |
+          set -euo pipefail
+          DB="$LOCAL/pilot_rehearsal_test"
+          psql "$DB" -X -q -At -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare r record; n bigint; bad text := '';
+          begin
+            for r in select c.oid::regclass t from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') loop
+              execute format('select count(*) from %s', r.t) into n;
+              if n > 0 then bad := bad || r.t::text || '=' || n || ' '; end if;
+            end loop;
+            if bad <> '' then raise exception 'FORBIDDEN DATA PRESENT: %', bad; end if;
+            select count(*) into n from pg_class c where c.relnamespace = 'public'::regnamespace
+              and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase' or c.relname in ('simulation_config','sbiq_admin_registered_counts','sbiq_admin_registered_refresh_log'));
+            if n > 0 then raise exception 'Demo simulation relations present: %', n; end if;
+          end $$;
+          SQL
+          echo "rehearsal: no rows, no Demo subsystem"
+
+  apply:
+    name: 3-12 · Apply to the NEW Pilot project
+    needs: [guard, rehearsal]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: pilot
+    env:
+      PILOT_DB_URL: ${{ secrets.PILOT_DB_URL }}
+      PINNED_REF: ${{ vars.PILOT_PROJECT_REF }}
+      IN_REF: ${{ inputs.expected_project_ref }}
+      PGSSLMODE: require
+      PGCONNECT_TIMEOUT: '15'
+    steps:
+      - name: Checkout hardening artifacts (this workflow's commit)
+        uses: actions/checkout@v4
+      - name: Checkout authorised schema-source commit (read-only copy)
+        uses: actions/checkout@v4
+        with: { ref: '${{ env.AUTHORISED_COMMIT }}', path: authority }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Install PostgreSQL 17 client (PGDG)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          P=/usr/lib/postgresql/17/bin/psql; "$P" --version | grep -Eq ' 17\.([6-9]|[1-9][0-9])' || { echo "::error::psql >= 17.6 required"; exit 1; }
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: 1 · Environment must be pilot
+        env: { IN_ENV: '${{ inputs.environment }}' }
+        run: '[ "$IN_ENV" = "$AUTHORISED_ENVIRONMENT" ] || { echo "::error::not pilot"; exit 1; }'
+
+      - name: 2 · Project ref — pinned, supplied and connection target must all agree
+        run: |
+          set -euo pipefail
+          [ -n "${PILOT_DB_URL:-}" ] || { echo "::error::PILOT_DB_URL secret missing in environment 'pilot'"; exit 1; }
+          [ -n "${PINNED_REF:-}" ] || { echo "::error::vars.PILOT_PROJECT_REF not set in environment 'pilot'"; exit 1; }
+          [ "$IN_REF" = "$PINNED_REF" ] || { echo "::error::supplied ref != environment-pinned PILOT_PROJECT_REF"; exit 1; }
+          for f in $FORBIDDEN_REFS; do
+            case "$PILOT_DB_URL" in *"$f"*) echo "::error::PILOT_DB_URL targets a FORBIDDEN project"; exit 1;; esac
+            [ "$PINNED_REF" != "$f" ] || { echo "::error::pinned ref is FORBIDDEN"; exit 1; }
+          done
+          # Host db.<ref>.supabase.co or pooler user postgres.<ref> — the supplied ref, nothing else.
+          refs=$(printf '%s' "$PILOT_DB_URL" | grep -oE '(db\.|postgres\.)[a-z]{20}([.:@]|$)' | sed -E 's/^(db|postgres)\.//; s/[.:@]$//' | sort -u)
+          [ -n "$refs" ] || { echo "::error::cannot identify a Supabase project ref in PILOT_DB_URL"; exit 1; }
+          [ "$refs" = "$IN_REF" ] || { echo "::error::PILOT_DB_URL does not target the supplied Pilot ref (or targets several)"; exit 1; }
+          case "$PILOT_DB_URL" in *sslmode=disable*|*sslmode=allow*|*sslmode=prefer*) echo "::error::SSL must be required"; exit 1;; esac
+          echo "project ref OK: $IN_REF"
+
+      - name: 3 · Empty-project / default-privilege preflight (read-only)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_preflight.sql" > preflight.txt
+          grep -qx 'ssl|true' preflight.txt || { echo "::error::connection is not SSL"; exit 1; }
+          grep -qx 'public_relations|0' preflight.txt || { echo "::error::public schema not empty"; exit 1; }
+          echo "preflight OK"
+
+      - name: 4 · Pilot privilege-hardening preamble
+        run: psql "$PILOT_DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_pre_apply_security.sql"
+
+      - name: 5 · Verify canonical baseline SHA + deterministic Supabase derivative
+        run: |
+          set -euo pipefail
+          a=$(sha256sum "$AUTH_BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1)
+          b=$(sha256sum "$BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1)
+          echo "canonical_sha=$a"
+          [ "$a" = "$AUTHORISED_SHA" ] && [ "$b" = "$AUTHORISED_SHA" ] || { echo "::error::canonical baseline SHA mismatch — refusing"; exit 1; }
+          node "$BASE/generate-supabase-derivative.mjs" --check
+          d=$(sha256sum "$DERIVATIVE" | cut -d' ' -f1); echo "derivative_sha=$d"
+          [ "$d" = "$AUTHORISED_DERIVATIVE_SHA" ] || { echo "::error::Supabase derivative SHA mismatch — refusing"; exit 1; }
+
+      - name: 6 · Apply Supabase derivative (single transaction)
+        run: |
+          set -euo pipefail
+          [ "$(sha256sum "$DERIVATIVE" | cut -d' ' -f1)" = "$AUTHORISED_DERIVATIVE_SHA" ] || exit 1
+          psql "$PILOT_DB_URL" -X -q -1 -v ON_ERROR_STOP=1 -f "$DERIVATIVE"
+
+      - name: 7 · Structural fingerprint must equal the authorised value (before Pilot hardening)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -f "$AUTH_BASE/fingerprint.sql" | tr -d '\r' > pilot.fp.txt
+          fp=$(sha256sum pilot.fp.txt | cut -d' ' -f1); echo "pilot_fingerprint=$fp"
+          [ "$fp" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::Pilot fingerprint != authorised fingerprint"; exit 1; }
+
+      - name: 8 · Pilot post-apply privilege hardening
+        run: psql "$PILOT_DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_post_apply_grants.sql"
+
+      - name: 9 · Privilege / security verification (must equal reviewed manifest)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_privilege_verify.sql" > pilot.priv.txt
+          diff -u "$BASE/pilot_privilege_manifest.txt" pilot.priv.txt | head -100 || { echo "::error::Pilot privilege state differs from reviewed manifest"; exit 1; }
+          [ "$(sha256sum pilot.priv.txt | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$BASE/pilot_privilege_manifest.sha256")" ] || exit 1
+
+      - name: 10 · No data in any public table
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<'SQL' > rowcheck.txt
+          do $$ declare r record; n bigint; bad text := '';
+          begin
+            for r in select c.oid::regclass t from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') loop
+              execute format('select count(*) from %s', r.t) into n;
+              if n > 0 then bad := bad || r.t::text || '=' || n || ' '; end if;
+            end loop;
+            if bad <> '' then raise exception 'FORBIDDEN DATA PRESENT: %', bad; end if;
+          end $$;
+          select 'rows_in_public_tables|0';
+          SQL
+          cat rowcheck.txt
+
+      - name: 11 · No Demo seed / simulation subsystem
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare n int;
+          begin
+            select count(*) into n from pg_class c where c.relnamespace = 'public'::regnamespace
+              and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase' or c.relname in ('simulation_config','sbiq_admin_registered_counts','sbiq_admin_registered_refresh_log'));
+            if n > 0 then raise exception 'Demo simulation relations present: %', n; end if;
+            select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace
+              and (p.proname ~ '^sbiq_demo' or p.proname ~ 'showcase' or p.proname = 'simulate_live_feed'
+                   or p.proname ~ '^sbiq_admin_(financial_section|overview_snapshot|refresh_registered|registered_status)');
+            if n > 0 then raise exception 'Demo simulation functions present: %', n; end if;
+            if to_regclass('cron.job') is not null and exists (select 1 from cron.job) then
+              raise exception 'pg_cron jobs present in a fresh Pilot';
+            end if;
+          end $$;
+          SQL
+          echo "no Demo seed/simulation objects"
+
+      - name: 12 · Redacted evidence summary
+        if: always()
+        run: |
+          {
+            echo "## SafeBet IQ — Pilot M1B baseline apply"
+            echo "- environment: pilot · project ref: ${IN_REF}"
+            echo "- schema-source commit: ${AUTHORISED_COMMIT} · workflow commit: ${GITHUB_SHA}"
+            echo "- canonical baseline SHA: ${AUTHORISED_SHA}"
+            echo "- Supabase derivative SHA: ${AUTHORISED_DERIVATIVE_SHA}"
+            [ -f pilot.fp.txt ] && echo "- structural fingerprint: $(sha256sum pilot.fp.txt | cut -d' ' -f1)"
+            [ -f pilot.priv.txt ] && echo "- privilege state hash: $(sha256sum pilot.priv.txt | cut -d' ' -f1)"
+            [ -f rowcheck.txt ] && echo "- data: $(cat rowcheck.txt)"
+            echo "### Preflight (catalog metadata only — no secrets)"
+            [ -f preflight.txt ] && { echo '```'; grep -vE '^(defacl|role)\|' preflight.txt; echo '```'; }
+          } >> "$GITHUB_STEP_SUMMARY"

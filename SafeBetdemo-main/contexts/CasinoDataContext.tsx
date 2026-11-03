@@ -18,6 +18,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { supabase, readAccessTokenFast } from '@/lib/supabase';
+import { casinoSimulatorEnabled } from '@/lib/environmentGates';
 import { useAuth } from './AuthContext';
 import {
   shapeEventRow, shapeMachineRow,
@@ -114,6 +115,11 @@ const DEFAULT_KPI: LiveKpi = {
 };
 
 const GATEWAY_REFRESH_MS = 10_000;   // shaped-view refresh cadence
+// Synthetic event generation (casino-simulator bursts) is Demo-only; Pilot and
+// production render real gateway/realtime data only. Literal env reference so
+// Next.js inlines it at build time.
+const SIMULATOR_ENABLED = casinoSimulatorEnabled(process.env.NEXT_PUBLIC_ENV);
+
 const BURST_INTERVAL_MS = 10_000;    // producer trigger cadence (unchanged)
 
 const BET_EVENT_TYPES = ['BET_PLACED', 'JACKPOT', 'DEPOSIT', 'WITHDRAWAL'];
@@ -281,7 +287,8 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
   // ─── Producer trigger (the casino-simulator is the event source) ──────────
 
   const triggerBurst = useCallback(async (count = 30) => {
-    if (!casinoId) return;
+    // Demo-only synthetic event producer: never runs in Pilot / production (fail closed).
+    if (!SIMULATOR_ENABLED || !casinoId) return;
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
@@ -314,14 +321,16 @@ export function CasinoDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!casinoId) return;
 
-    setData(prev => ({ ...prev, isSimulating: true }));
+    setData(prev => ({ ...prev, isSimulating: SIMULATOR_ENABLED }));
     refreshFromGateway(casinoId);
     subscribeRealtime(casinoId);
-    triggerBurst(40);
 
-    burstTimerRef.current = setInterval(() => {
-      triggerBurst(Math.floor(Math.random() * 15) + 18);
-    }, BURST_INTERVAL_MS);
+    if (SIMULATOR_ENABLED) {
+      triggerBurst(40);
+      burstTimerRef.current = setInterval(() => {
+        triggerBurst(Math.floor(Math.random() * 15) + 18);
+      }, BURST_INTERVAL_MS);
+    }
 
     refreshTimerRef.current = setInterval(() => {
       refreshFromGateway(casinoId);

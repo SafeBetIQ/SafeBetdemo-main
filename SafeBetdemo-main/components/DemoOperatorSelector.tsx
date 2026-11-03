@@ -8,20 +8,23 @@
 // scope, audits, and returns the session the localStorage Supabase client needs
 // to establish the authenticated session. The password is never displayed,
 // populated, or returned to the browser. Rendered only in the non-production
-// demo environment; absent from production builds. No Super Admin option.
+// demo environment (NEXT_PUBLIC_ENV === 'demo'); absent from Pilot and production
+// builds. No Super Admin option.
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { DEMO_OPERATORS, DEMO_REGULATOR_SLUG } from '@/lib/demoOperators';
+import { demoOperatorSelectorEnabled } from '@/lib/environmentGates';
 
 export function DemoOperatorSelector() {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  if (process.env.NEXT_PUBLIC_ENV === 'production') return null;
+  // Demo-only: hidden in Pilot, production and any other environment (fail closed).
+  if (!demoOperatorSelectorEnabled(process.env.NEXT_PUBLIC_ENV)) return null;
 
   async function enter(slug: string, label: string) {
     setError('');

@@ -1,0 +1,1421 @@
+defacl|postgres|GLOBAL|f|postgres=EXECUTE
+defacl|postgres|public|f|postgres=EXECUTE
+eff|admin_cleanup_gaming_sessions()|anon=false|authenticated=true|service_role=true
+eff|app_visible_casinos()|anon=false|authenticated=true|service_role=true
+eff|archive_old_records(p_months_old integer)|anon=false|authenticated=true|service_role=true
+eff|assign_default_modules_to_casino()|anon=true|authenticated=true|service_role=true
+eff|auto_generate_player_id()|anon=false|authenticated=true|service_role=true
+eff|award_training_credits()|anon=false|authenticated=true|service_role=true
+eff|calculate_rpi_roi(p_casino_id uuid, p_month date)|anon=false|authenticated=true|service_role=true
+eff|calculate_rpi_roi(p_casino_id uuid, p_start_date timestamp with time zone, p_end_date timestamp with time zone)|anon=false|authenticated=true|service_role=true
+eff|call_risk_engine()|anon=false|authenticated=true|service_role=true
+eff|can_user_manage_staff(staff_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|can_user_view_staff(staff_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|casino_event_log_immutable()|anon=true|authenticated=true|service_role=true
+eff|casino_has_module(p_casino_id uuid, p_module_slug text)|anon=false|authenticated=true|service_role=true
+eff|check_distributed_rate_limit(p_key text, p_limit integer, p_window_seconds integer)|anon=false|authenticated=true|service_role=true
+eff|check_player_self_exclusion(p_email text, p_phone text, p_id_number text)|anon=false|authenticated=false|service_role=true
+eff|check_rate_limit_sliding(p_token_id text, p_endpoint text, p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|cleanup_rate_limit_entries()|anon=false|authenticated=false|service_role=true
+eff|clear_force_password_reset()|anon=false|authenticated=false|service_role=true
+eff|compute_audit_chain_hash()|anon=false|authenticated=true|service_role=true
+eff|compute_compliance_audit_chain_hash()|anon=false|authenticated=true|service_role=true
+eff|consume_secret_retrieval_token(p_token_id uuid)|anon=false|authenticated=false|service_role=true
+eff|create_monthly_partition(p_table_name text, p_year integer, p_month integer)|anon=false|authenticated=true|service_role=true
+eff|debug_current_user_role()|anon=false|authenticated=true|service_role=true
+eff|detect_binge_sessions(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|detect_cross_casino_chasing(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|detect_late_night_activity(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|detect_loss_chasing(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|detect_rapid_deposits(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|ensure_future_partitions(p_months_ahead integer)|anon=false|authenticated=true|service_role=true
+eff|fn_audit_logs_immutable()|anon=false|authenticated=true|service_role=true
+eff|fn_contact_submission_guard()|anon=false|authenticated=false|service_role=true
+eff|fn_my_casino_id()|anon=false|authenticated=true|service_role=true
+eff|fn_my_province()|anon=false|authenticated=true|service_role=true
+eff|fn_my_role()|anon=false|authenticated=true|service_role=true
+eff|fn_purge_raw_payloads()|anon=false|authenticated=true|service_role=true
+eff|fn_retrieval_tokens_immutable()|anon=false|authenticated=true|service_role=true
+eff|fn_security_events_immutable()|anon=false|authenticated=false|service_role=true
+eff|fn_set_updated_at()|anon=false|authenticated=true|service_role=true
+eff|generate_alerts_for_grpi(p_grpi_id uuid)|anon=false|authenticated=false|service_role=true
+eff|generate_certificate_on_pass()|anon=false|authenticated=true|service_role=true
+eff|generate_grpi(p_email text, p_phone text, p_id_number text)|anon=false|authenticated=false|service_role=true
+eff|generate_player_id_for_casino(p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|get_alerts_by_pattern()|anon=false|authenticated=false|service_role=true
+eff|get_assessment_stats(p_casino_id uuid)|anon=false|authenticated=false|service_role=true
+eff|get_auth_casino_id()|anon=false|authenticated=true|service_role=true
+eff|get_bie_grpi_profiles(p_limit integer, p_offset integer)|anon=false|authenticated=false|service_role=true
+eff|get_casino_modules(p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|get_casino_training_stats()|anon=false|authenticated=true|service_role=true
+eff|get_cross_operator_metrics()|anon=false|authenticated=false|service_role=true
+eff|get_current_user_role()|anon=false|authenticated=true|service_role=true
+eff|get_current_user_role_v2()|anon=false|authenticated=true|service_role=true
+eff|get_grpi_compliance_queue(p_limit integer)|anon=false|authenticated=false|service_role=true
+eff|get_grpi_cross_casino_alerts(p_limit integer)|anon=false|authenticated=false|service_role=true
+eff|get_grpi_dashboard_rows(p_limit integer, p_offset integer)|anon=false|authenticated=false|service_role=true
+eff|get_grpi_summary()|anon=false|authenticated=false|service_role=true
+eff|get_my_role()|anon=false|authenticated=true|service_role=true
+eff|get_operator_feature_slugs(p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|get_performance_stats()|anon=false|authenticated=true|service_role=true
+eff|get_player_audit_count(p_player_id uuid, p_since_minutes integer)|anon=false|authenticated=false|service_role=true
+eff|get_player_cross_casino_profile(p_global_identity_id uuid)|anon=false|authenticated=false|service_role=true
+eff|get_player_recent_audit_events(p_player_id uuid, p_limit integer)|anon=false|authenticated=false|service_role=true
+eff|get_rate_limit_analytics(p_casino_id uuid, p_hours_back integer)|anon=false|authenticated=true|service_role=true
+eff|get_rate_limit_tier(p_casino_id uuid, p_endpoint text)|anon=false|authenticated=true|service_role=true
+eff|get_recent_logins(p_casino_id uuid, p_limit integer)|anon=false|authenticated=true|service_role=true
+eff|get_risk_engine_url()|anon=false|authenticated=true|service_role=true
+eff|get_severity_distribution()|anon=false|authenticated=false|service_role=true
+eff|get_staff_casino_id(p_auth_uid uuid)|anon=false|authenticated=true|service_role=true
+eff|get_user_by_email_fast(p_email text)|anon=false|authenticated=true|service_role=true
+eff|get_user_casino_id()|anon=false|authenticated=true|service_role=true
+eff|get_user_context()|anon=false|authenticated=true|service_role=true
+eff|get_user_province()|anon=false|authenticated=true|service_role=true
+eff|grpi_set_updated_at()|anon=true|authenticated=true|service_role=true
+eff|handle_new_auth_user()|anon=false|authenticated=true|service_role=true
+eff|hash_identity(p_value text)|anon=false|authenticated=false|service_role=true
+eff|is_admin()|anon=false|authenticated=true|service_role=true
+eff|is_casino_admin()|anon=false|authenticated=true|service_role=true
+eff|is_provincial_regulator()|anon=false|authenticated=true|service_role=true
+eff|is_regulator()|anon=false|authenticated=true|service_role=true
+eff|is_staff_for_casino(p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|is_super_admin()|anon=false|authenticated=true|service_role=true
+eff|issue_secret_retrieval_token(p_secret_name text)|anon=false|authenticated=false|service_role=true
+eff|link_player_to_grpi(p_player_id uuid, p_casino_id uuid, p_email text, p_phone text, p_id_number text)|anon=false|authenticated=false|service_role=true
+eff|log_auth_event(p_user_email text, p_outcome text, p_user_agent text, p_metadata jsonb, p_user_id uuid, p_user_role text)|anon=false|authenticated=false|service_role=true
+eff|log_security_event(p_casino_id uuid, p_event_type text, p_severity text, p_source text, p_resource text, p_details jsonb)|anon=false|authenticated=true|service_role=true
+eff|mask_email(email text)|anon=false|authenticated=true|service_role=true
+eff|mask_phone(phone text)|anon=false|authenticated=true|service_role=true
+eff|player_belongs_to_casino(p_player_id uuid, p_casino_id uuid)|anon=false|authenticated=true|service_role=true
+eff|purge_old_ingest_requests(retention_days integer)|anon=false|authenticated=true|service_role=true
+eff|recalculate_grpi_risk_score(p_global_identity_id uuid)|anon=false|authenticated=false|service_role=true
+eff|refresh_all_materialized_views()|anon=false|authenticated=true|service_role=true
+eff|refresh_realtime_views()|anon=false|authenticated=true|service_role=true
+eff|resolve_alert(p_alert_id uuid)|anon=false|authenticated=false|service_role=true
+eff|resolve_player_identity(p_casino_id uuid, p_ref_hash text, p_safebet_id text)|anon=false|authenticated=false|service_role=true
+eff|rotate_risk_engine_secret()|anon=false|authenticated=false|service_role=false
+eff|run_full_detection_scan()|anon=false|authenticated=false|service_role=true
+eff|sbiq_activate_policy_set(p_version integer, p_actor text, p_reason text)|anon=false|authenticated=false|service_role=true
+eff|sbiq_active_policy_rules()|anon=false|authenticated=false|service_role=true
+eff|sbiq_archive_event_partitions_before(p_cutoff date)|anon=false|authenticated=true|service_role=true
+eff|sbiq_audit_benchmark(p_n integer)|anon=false|authenticated=false|service_role=true
+eff|sbiq_audit_chain_backfill()|anon=false|authenticated=true|service_role=true
+eff|sbiq_audit_chain_insert()|anon=false|authenticated=false|service_role=true
+eff|sbiq_audit_config_change()|anon=false|authenticated=false|service_role=true
+eff|sbiq_audit_event_hash(p_schema text, p_scope text, p_seq bigint, p_prev text, p_event_id text, p_event_type text, p_user_id text, p_user_role text, p_casino text, p_res_type text, p_res_id text, p_outcome text, p_created timestamp with time zone, p_corr text, p_metadata jsonb)|anon=true|authenticated=true|service_role=true
+eff|sbiq_audit_events_immutable()|anon=true|authenticated=true|service_role=true
+eff|sbiq_b10_record_follow_up_occurrence(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid, p_occurred_on date)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b11_close_follow_up_requirement(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b12_mark_operator_notification_read(p_casino_id uuid, p_actor_id uuid, p_notification_id text)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b13_begin_player_communication_send(p_casino_id uuid, p_actor_id uuid, p_communication_id uuid, p_send_idempotency_key uuid)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b13_create_player_communication(p_casino_id uuid, p_actor_id uuid, p_intervention_id uuid, p_communication_type text, p_template_key text, p_idempotency_key uuid)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b13_record_player_communication_receipt(p_casino_id uuid, p_communication_id uuid, p_status text, p_provider_reference text, p_failure_class text)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b6_link_after_insert()|anon=true|authenticated=true|service_role=true
+eff|sbiq_b6_link_guard()|anon=true|authenticated=true|service_role=true
+eff|sbiq_b8_set_follow_up(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_action text, p_follow_up_date date)|anon=false|authenticated=false|service_role=true
+eff|sbiq_b9_record_alert_intervention(p_alert_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid, p_intervention_type text, p_outcome text, p_follow_up_required boolean, p_follow_up_date date)|anon=false|authenticated=false|service_role=true
+eff|sbiq_canonical_json(v jsonb)|anon=true|authenticated=true|service_role=true
+eff|sbiq_certified_financial_posture_v2(p_casino uuid, p_as_of timestamp with time zone)|anon=false|authenticated=false|service_role=true
+eff|sbiq_connector_health(p_casino uuid)|anon=false|authenticated=true|service_role=true
+eff|sbiq_customer_success()|anon=false|authenticated=true|service_role=true
+eff|sbiq_ensure_event_partition(p_ts timestamp with time zone)|anon=false|authenticated=true|service_role=true
+eff|sbiq_fin_currency(p_casino uuid)|anon=true|authenticated=true|service_role=true
+eff|sbiq_fin_rollup_upsert_range(p_from timestamp with time zone, p_to timestamp with time zone)|anon=false|authenticated=true|service_role=true
+eff|sbiq_financial_capability(p_casino uuid)|anon=true|authenticated=true|service_role=true
+eff|sbiq_financial_rollup_backfill(p_months integer)|anon=false|authenticated=false|service_role=true
+eff|sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb)|anon=false|authenticated=false|service_role=true
+eff|sbiq_financial_rollup_refresh(p_max_buckets integer)|anon=false|authenticated=true|service_role=true
+eff|sbiq_financial_rollup_status()|anon=false|authenticated=false|service_role=true
+eff|sbiq_financial_rollup_watchdog()|anon=false|authenticated=true|service_role=true
+eff|sbiq_may_access_chain_scope(p_scope text)|anon=false|authenticated=true|service_role=true
+eff|sbiq_next_case_seq()|anon=false|authenticated=true|service_role=true
+eff|sbiq_platform_health(p_casino uuid)|anon=false|authenticated=true|service_role=true
+eff|sbiq_ppa_audit()|anon=true|authenticated=true|service_role=true
+eff|sbiq_ppa_validate()|anon=true|authenticated=true|service_role=true
+eff|sbiq_regulator_national(p_jurisdiction text)|anon=false|authenticated=false|service_role=true
+eff|sbiq_regulator_operators(p_jurisdiction text)|anon=false|authenticated=false|service_role=true
+eff|sbiq_run_audit_verification(p_mode text)|anon=false|authenticated=true|service_role=true
+eff|sbiq_seed_demo_financials(p_casino uuid, p_player text)|anon=false|authenticated=true|service_role=true
+eff|sbiq_session_policy(p_casino uuid)|anon=true|authenticated=true|service_role=true
+eff|sbiq_supersede_prior_sessions()|anon=false|authenticated=false|service_role=true
+eff|sbiq_verify_audit_chain(p_scope text)|anon=false|authenticated=true|service_role=true
+eff|sbiq_verify_audit_chain_range(p_scope text, p_from bigint, p_to bigint)|anon=false|authenticated=false|service_role=true
+eff|sbiq_workflow_operations(p_casino uuid, p_jurisdiction text)|anon=false|authenticated=true|service_role=true
+eff|sbiq_write_projection_states(p_casino uuid, p_players jsonb, p_sessions jsonb, p_machines jsonb)|anon=false|authenticated=false|service_role=true
+eff|set_assessment_number()|anon=true|authenticated=true|service_role=true
+eff|sync_casino_id_from_player()|anon=false|authenticated=true|service_role=true
+eff|update_compliance_updated_at()|anon=false|authenticated=true|service_role=true
+eff|update_enrollment_progress()|anon=false|authenticated=true|service_role=true
+eff|update_global_player_metrics(p_global_identity_id uuid, p_deposit_delta numeric, p_loss_delta numeric, p_bet_delta integer)|anon=false|authenticated=false|service_role=true
+eff|update_integration_updated_at()|anon=false|authenticated=true|service_role=true
+eff|update_platform_integrations_updated_at()|anon=false|authenticated=true|service_role=true
+eff|update_revenue_protection_monthly()|anon=false|authenticated=true|service_role=true
+eff|workflow_audit_immutable()|anon=true|authenticated=true|service_role=true
+fn|admin_cleanup_gaming_sessions()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|app_visible_casinos()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|archive_old_records(p_months_old integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|assign_default_modules_to_casino()|secdef=false|owner=postgres|search_path=none|exec=anon,authenticated,postgres,service_role
+fn|auto_generate_player_id()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|award_training_credits()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|calculate_rpi_roi(p_casino_id uuid, p_month date)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|calculate_rpi_roi(p_casino_id uuid, p_start_date timestamp with time zone, p_end_date timestamp with time zone)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|call_risk_engine()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|can_user_manage_staff(staff_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|can_user_view_staff(staff_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|casino_event_log_immutable()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|casino_has_module(p_casino_id uuid, p_module_slug text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|check_distributed_rate_limit(p_key text, p_limit integer, p_window_seconds integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|check_player_self_exclusion(p_email text, p_phone text, p_id_number text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|check_rate_limit_sliding(p_token_id text, p_endpoint text, p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|cleanup_rate_limit_entries()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|clear_force_password_reset()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|compute_audit_chain_hash()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|compute_compliance_audit_chain_hash()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|consume_secret_retrieval_token(p_token_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|create_monthly_partition(p_table_name text, p_year integer, p_month integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|debug_current_user_role()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|detect_binge_sessions(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|detect_cross_casino_chasing(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|detect_late_night_activity(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|detect_loss_chasing(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|detect_rapid_deposits(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|ensure_future_partitions(p_months_ahead integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_audit_logs_immutable()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_contact_submission_guard()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|fn_my_casino_id()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_my_province()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_my_role()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_purge_raw_payloads()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_retrieval_tokens_immutable()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|fn_security_events_immutable()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|fn_set_updated_at()|secdef=false|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|generate_alerts_for_grpi(p_grpi_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|generate_certificate_on_pass()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|generate_grpi(p_email text, p_phone text, p_id_number text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|generate_player_id_for_casino(p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_alerts_by_pattern()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_assessment_stats(p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_auth_casino_id()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_bie_grpi_profiles(p_limit integer, p_offset integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_casino_modules(p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_casino_training_stats()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_cross_operator_metrics()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_current_user_role()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_current_user_role_v2()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_grpi_compliance_queue(p_limit integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_grpi_cross_casino_alerts(p_limit integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_grpi_dashboard_rows(p_limit integer, p_offset integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_grpi_summary()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_my_role()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_operator_feature_slugs(p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_performance_stats()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_player_audit_count(p_player_id uuid, p_since_minutes integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_player_cross_casino_profile(p_global_identity_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_player_recent_audit_events(p_player_id uuid, p_limit integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_rate_limit_analytics(p_casino_id uuid, p_hours_back integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_rate_limit_tier(p_casino_id uuid, p_endpoint text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_recent_logins(p_casino_id uuid, p_limit integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_risk_engine_url()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_severity_distribution()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|get_staff_casino_id(p_auth_uid uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_user_by_email_fast(p_email text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_user_casino_id()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_user_context()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|get_user_province()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|grpi_set_updated_at()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|handle_new_auth_user()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|hash_identity(p_value text)|secdef=false|owner=postgres|search_path=set|exec=postgres,service_role
+fn|is_admin()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|is_casino_admin()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|is_provincial_regulator()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|is_regulator()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|is_staff_for_casino(p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|is_super_admin()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|issue_secret_retrieval_token(p_secret_name text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|link_player_to_grpi(p_player_id uuid, p_casino_id uuid, p_email text, p_phone text, p_id_number text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|log_auth_event(p_user_email text, p_outcome text, p_user_agent text, p_metadata jsonb, p_user_id uuid, p_user_role text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|log_security_event(p_casino_id uuid, p_event_type text, p_severity text, p_source text, p_resource text, p_details jsonb)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|mask_email(email text)|secdef=false|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|mask_phone(phone text)|secdef=false|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|player_belongs_to_casino(p_player_id uuid, p_casino_id uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|purge_old_ingest_requests(retention_days integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|recalculate_grpi_risk_score(p_global_identity_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|refresh_all_materialized_views()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|refresh_realtime_views()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|resolve_alert(p_alert_id uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|resolve_player_identity(p_casino_id uuid, p_ref_hash text, p_safebet_id text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|rotate_risk_engine_secret()|secdef=true|owner=postgres|search_path=set|exec=postgres
+fn|run_full_detection_scan()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_activate_policy_set(p_version integer, p_actor text, p_reason text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_active_policy_rules()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_archive_event_partitions_before(p_cutoff date)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_audit_benchmark(p_n integer)|secdef=false|owner=postgres|search_path=none|exec=postgres,service_role
+fn|sbiq_audit_chain_backfill()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_audit_chain_insert()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_audit_config_change()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_audit_event_hash(p_schema text, p_scope text, p_seq bigint, p_prev text, p_event_id text, p_event_type text, p_user_id text, p_user_role text, p_casino text, p_res_type text, p_res_id text, p_outcome text, p_created timestamp with time zone, p_corr text, p_metadata jsonb)|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_audit_events_immutable()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_b10_record_follow_up_occurrence(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid, p_occurred_on date)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b11_close_follow_up_requirement(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b12_mark_operator_notification_read(p_casino_id uuid, p_actor_id uuid, p_notification_id text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b13_begin_player_communication_send(p_casino_id uuid, p_actor_id uuid, p_communication_id uuid, p_send_idempotency_key uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b13_create_player_communication(p_casino_id uuid, p_actor_id uuid, p_intervention_id uuid, p_communication_type text, p_template_key text, p_idempotency_key uuid)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b13_record_player_communication_receipt(p_casino_id uuid, p_communication_id uuid, p_status text, p_provider_reference text, p_failure_class text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b6_link_after_insert()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_b6_link_guard()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_b8_set_follow_up(p_intervention_id uuid, p_casino_id uuid, p_actor_id uuid, p_action text, p_follow_up_date date)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_b9_record_alert_intervention(p_alert_id uuid, p_casino_id uuid, p_actor_id uuid, p_idempotency_key uuid, p_intervention_type text, p_outcome text, p_follow_up_required boolean, p_follow_up_date date)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_canonical_json(v jsonb)|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_certified_financial_posture_v2(p_casino uuid, p_as_of timestamp with time zone)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_connector_health(p_casino uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_customer_success()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_ensure_event_partition(p_ts timestamp with time zone)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_fin_currency(p_casino uuid)|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_fin_rollup_upsert_range(p_from timestamp with time zone, p_to timestamp with time zone)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_financial_capability(p_casino uuid)|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_financial_rollup_backfill(p_months integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_financial_rollup_raise_alert(p_category text, p_severity text, p_scope text, p_details jsonb)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_financial_rollup_refresh(p_max_buckets integer)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_financial_rollup_status()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_financial_rollup_watchdog()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_may_access_chain_scope(p_scope text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_next_case_seq()|secdef=false|owner=postgres|search_path=none|exec=authenticated,postgres,service_role
+fn|sbiq_platform_health(p_casino uuid)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_ppa_audit()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_ppa_validate()|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_regulator_national(p_jurisdiction text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_regulator_operators(p_jurisdiction text)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_run_audit_verification(p_mode text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_seed_demo_financials(p_casino uuid, p_player text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_session_policy(p_casino uuid)|secdef=false|owner=postgres|search_path=set|exec=anon,authenticated,postgres,service_role
+fn|sbiq_supersede_prior_sessions()|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_verify_audit_chain(p_scope text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_verify_audit_chain_range(p_scope text, p_from bigint, p_to bigint)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|sbiq_workflow_operations(p_casino uuid, p_jurisdiction text)|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|sbiq_write_projection_states(p_casino uuid, p_players jsonb, p_sessions jsonb, p_machines jsonb)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|set_assessment_number()|secdef=false|owner=postgres|search_path=none|exec=anon,authenticated,postgres,service_role
+fn|sync_casino_id_from_player()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|update_compliance_updated_at()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|update_enrollment_progress()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|update_global_player_metrics(p_global_identity_id uuid, p_deposit_delta numeric, p_loss_delta numeric, p_bet_delta integer)|secdef=true|owner=postgres|search_path=set|exec=postgres,service_role
+fn|update_integration_updated_at()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|update_platform_integrations_updated_at()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|update_revenue_protection_monthly()|secdef=true|owner=postgres|search_path=set|exec=authenticated,postgres,service_role
+fn|workflow_audit_immutable()|secdef=false|owner=postgres|search_path=none|exec=anon,authenticated,postgres,service_role
+rel|S|audit_chain_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|audit_chain_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|audit_chain_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|compliance_audit_chain_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|compliance_audit_chain_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|compliance_audit_chain_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|connector_runs_id_seq|anon|SELECT,UPDATE,USAGE
+rel|S|connector_runs_id_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|connector_runs_id_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|connector_runs_id_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|policy_change_log_id_seq|anon|SELECT,UPDATE,USAGE
+rel|S|policy_change_log_id_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|policy_change_log_id_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|policy_change_log_id_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|policy_rules_id_seq|anon|SELECT,UPDATE,USAGE
+rel|S|policy_rules_id_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|policy_rules_id_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|policy_rules_id_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_ops_alerts_id_seq|anon|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_ops_alerts_id_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_ops_alerts_id_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_ops_alerts_id_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_run_log_id_seq|anon|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_run_log_id_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_run_log_id_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|sbiq_financial_rollup_run_log_id_seq|service_role|SELECT,UPDATE,USAGE
+rel|S|workflow_case_seq|anon|SELECT,UPDATE,USAGE
+rel|S|workflow_case_seq|authenticated|SELECT,UPDATE,USAGE
+rel|S|workflow_case_seq|postgres|SELECT,UPDATE,USAGE
+rel|S|workflow_case_seq|service_role|SELECT,UPDATE,USAGE
+rel|m|mv_api_traffic_hourly|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_api_traffic_hourly|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_casino_daily_stats|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_casino_daily_stats|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_casino_risk_distribution|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_casino_risk_distribution|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_intervention_effectiveness|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_intervention_effectiveness|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_player_risk_summary|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|m|mv_player_risk_summary|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|behaviour_events_archive|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|behaviour_events_archive|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|behaviour_events_archive|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|casino_event_log|authenticated|MAINTAIN,SELECT
+rel|p|casino_event_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|casino_event_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|sessions_archive|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|sessions_archive|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|sessions_archive|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|transactions_archive|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|transactions_archive|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|p|transactions_archive|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|abac_policies|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|abac_policies|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|abac_policies|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|account_misuse_logs|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|account_misuse_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|account_misuse_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|account_misuse_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_decision_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_decision_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_decision_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_false_positive_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_false_positive_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_false_positive_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_outcomes|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_outcomes|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_outcomes|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_recommendations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_recommendations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_intervention_recommendations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_learning_metrics|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_learning_metrics|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_learning_metrics|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_model_registry|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_model_registry|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_model_registry|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_prediction_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_prediction_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_prediction_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_reason_stacks|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_reason_stacks|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_reason_stacks|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_security_insights|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_security_insights|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ai_security_insights|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|alert_intervention_links|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|alert_intervention_links|service_role|INSERT,SELECT,UPDATE
+rel|r|alerts|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|alerts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|alerts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_activity|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_activity|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_activity|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_rate_limits|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_rate_limits|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_rate_limits|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_requests_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_requests_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_requests_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_tokens|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_tokens|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|api_tokens|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|app_config|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|app_config|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|app_config|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|app_config|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_checkpoint|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_checkpoint|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_checkpoint|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_checkpoint|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_head|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_head|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_head|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_chain_head|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_events|authenticated|INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE
+rel|r|audit_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_logs|authenticated|INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE
+rel|r|audit_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_verification_run|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_verification_run|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_verification_run|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|audit_verification_run|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|aws_infrastructure_metrics|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|aws_infrastructure_metrics|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|aws_infrastructure_metrics|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioral_risk_profiles|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioral_risk_profiles|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioral_risk_profiles|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2024_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2025_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events_archive_2026_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behaviour_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_events|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_patterns|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_patterns|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|behavioural_patterns|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bie_risk_scores|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bie_risk_scores|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bie_risk_scores|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bri_signal_history|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bri_signal_history|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|bri_signal_history|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_config|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_config|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_config|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_event_log_2026_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integration_configs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integration_configs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integration_configs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integrations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integrations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_integrations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_modules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_modules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_modules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_packages|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_packages|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casino_packages|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casinos|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casinos|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|casinos|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|circuit_breaker_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|circuit_breaker_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|circuit_breaker_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_audit_logs|authenticated|INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE
+rel|r|compliance_audit_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_audit_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_certificates|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_certificates|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_certificates|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_controls|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_controls|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_controls|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_evidence|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_evidence|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_evidence|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_frameworks|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_frameworks|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_frameworks|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_settings|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_settings|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_settings|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_snapshots|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_snapshots|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|compliance_snapshots|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|connector_runs|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|connector_runs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|connector_runs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|connector_runs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|consent_records|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|consent_records|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|consent_records|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|contact_submissions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|contact_submissions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|contact_submissions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_alerts|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_alerts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_alerts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_signal_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_signal_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|cross_operator_signal_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|csv_batch_imports|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|csv_batch_imports|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|csv_batch_imports|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_processing_activities|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_processing_activities|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_processing_activities|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_policies|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_policies|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_policies|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_rules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_rules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_retention_rules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_security_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_security_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_security_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_subject_requests|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_subject_requests|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|data_subject_requests|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_audit_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_audit_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_audit_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_behavioral_insights|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_behavioral_insights|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_behavioral_insights|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_esg_scores|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_esg_scores|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_esg_scores|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_interventions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_interventions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_interventions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_live_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_live_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_live_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_players|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_players|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_players|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_protection_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_protection_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|demo_protection_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|deployment_logs|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|deployment_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|deployment_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|deployment_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|distributed_rate_limits|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|distributed_rate_limits|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|distributed_rate_limits|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|distributed_rate_limits|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|dr_status|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|dr_status|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|dr_status|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_evidence_trail|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_evidence_trail|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_evidence_trail|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_king_iv_mapping|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_king_iv_mapping|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_king_iv_mapping|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_reports|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_reports|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|esg_reports|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|feature_modules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|feature_modules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|feature_modules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_shift_policy|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_shift_policy|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_shift_policy|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_shift_policy|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_source_capability|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_source_capability|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_source_capability|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|financial_source_capability|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|gaming_sessions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|gaming_sessions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|gaming_sessions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_identities|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_identities|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_identities|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_player_metrics|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_player_metrics|authenticated|SELECT
+rel|r|global_player_metrics|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|global_player_metrics|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|grpi_audit_logs|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|grpi_audit_logs|authenticated|SELECT
+rel|r|grpi_audit_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|grpi_audit_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_device_intelligence|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_device_intelligence|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_device_intelligence|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_identity_drift|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_identity_drift|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_identity_drift|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_intervention_signals|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_intervention_signals|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_intervention_signals|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_minor_risk_scores|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_minor_risk_scores|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_minor_risk_scores|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_operator_risk_summary|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_operator_risk_summary|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_operator_risk_summary|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_province_risk_summary|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_province_risk_summary|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_province_risk_summary|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_school_hour_flags|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_school_hour_flags|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|guardian_school_hour_flags|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|helpline_interactions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|helpline_interactions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|helpline_interactions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ingest_requests|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ingest_requests|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ingest_requests|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_api_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_api_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_api_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_partners|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_partners|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_partners|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_providers|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_providers|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_providers|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_status|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_status|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_sync_status|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_configs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_configs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_configs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhook_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhooks|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhooks|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|integration_webhooks|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_delivery_queue|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_delivery_queue|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_delivery_queue|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_follow_up_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_follow_up_events|service_role|SELECT
+rel|r|intervention_history|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_history|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_history|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_logs|authenticated|INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE
+rel|r|intervention_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_outcomes|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_outcomes|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_outcomes|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_player_communications|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_player_communications|service_role|SELECT
+rel|r|intervention_threshold_rules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_threshold_rules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|intervention_threshold_rules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|interventions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|interventions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|interventions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ip_allowlists|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ip_allowlists|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|ip_allowlists|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_kpi_snapshots|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_kpi_snapshots|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|live_kpi_snapshots|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_activity|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_activity|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_activity|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_sessions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_sessions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|login_sessions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|machine_activity|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|machine_activity|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|machine_activity|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|manual_override_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|manual_override_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|manual_override_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|mfa_settings|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|mfa_settings|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|mfa_settings|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|module_quizzes|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|module_quizzes|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|module_quizzes|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_feature_access|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_feature_access|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_feature_access|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_integrations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_integrations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_integrations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_notification_reads|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_notification_reads|service_role|SELECT
+rel|r|operator_onboarding|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_onboarding|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_onboarding|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_onboarding|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_subscriptions|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_subscriptions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_subscriptions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|operator_subscriptions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|package_modules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|package_modules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|package_modules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pilot_deployments|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pilot_deployments|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pilot_deployments|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pilot_deployments|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrity_alert|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrity_alert|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrity_alert|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|platform_integrity_alert|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_bets|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_bets|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_bets|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_consents|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_consents|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_consents|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_identity_map|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_identity_map|authenticated|SELECT
+rel|r|player_identity_map|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_identity_map|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_limit_actions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_limit_actions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_limit_actions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_protection_alerts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_protection_alerts|service_role|INSERT,SELECT,UPDATE
+rel|r|player_protection_interventions|authenticated|SELECT
+rel|r|player_protection_interventions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_protection_interventions|service_role|DELETE,INSERT,SELECT
+rel|r|player_pseudonym_tokens|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_pseudonym_tokens|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_pseudonym_tokens|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_sessions|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_sessions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|player_sessions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|players|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|players|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|players|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_change_log|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_change_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_change_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_change_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_rules|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_rules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_rules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_rules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_sets|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_sets|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_sets|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|policy_sets|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pricing_packages|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pricing_packages|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|pricing_packages|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_machine_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_machine_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_machine_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_machine_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_player_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_player_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_player_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_player_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_session_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_session_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_session_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|projection_session_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|prompt_logs|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|prompt_logs|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|prompt_logs|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|prompt_logs|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_answers|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_answers|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_answers|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_attempts|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_attempts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_attempts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_questions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_questions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|quiz_questions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_tiers|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_tiers|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_tiers|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_violations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_violations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rate_limit_violations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|regulators|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|regulators|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|regulators|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_calculations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_calculations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_calculations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_monthly|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_monthly|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|revenue_protection_monthly|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rg_security_overlay|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rg_security_overlay|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|rg_security_overlay|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|risk_score_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|risk_score_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|risk_score_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|risk_scores|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|risk_scores|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_access_matrix|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_access_matrix|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_access_matrix|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_permissions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_permissions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|role_permissions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|safebet_identity_map|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|safebet_identity_map|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|safebet_identity_map|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|safebet_identity_map|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_checkpoint|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_checkpoint|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_hourly|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_hourly|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_ops_alerts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_ops_alerts|service_role|SELECT
+rel|r|sbiq_financial_rollup_ops_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_ops_state|service_role|SELECT
+rel|r|sbiq_financial_rollup_run_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sbiq_financial_rollup_run_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|secret_retrieval_tokens|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|secret_retrieval_tokens|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|secret_retrieval_tokens|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|secret_retrieval_tokens|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_incidents|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_incidents|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_incidents|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_metrics|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_metrics|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_metrics|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_rotation_log|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_rotation_log|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_rotation_log|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|security_rotation_log|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusion_registry|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusion_registry|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusion_registry|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|self_exclusions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_breach_detections|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_breach_detections|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_breach_detections|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_broadcast_acknowledgements|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_broadcast_acknowledgements|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_broadcast_acknowledgements|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_exclusion_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_exclusion_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_exclusion_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_operator_subscriptions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_operator_subscriptions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_operator_subscriptions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_protection_broadcasts|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_protection_broadcasts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sen_protection_broadcasts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|session_lifecycle_policy|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|session_lifecycle_policy|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|session_lifecycle_policy|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|session_lifecycle_policy|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2024_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2025_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions_archive_2026_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|sessions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|software_modules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|software_modules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|software_modules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_assignments|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_assignments|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_assignments|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_preferences|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_preferences|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff_training_preferences|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|staff|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_config|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_config|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_config|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_health_metrics|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_health_metrics|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|system_health_metrics|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|tenant_security_status|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|tenant_security_status|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|tenant_security_status|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|threat_alerts|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|threat_alerts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|threat_alerts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_assignment_templates|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_assignment_templates|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_assignment_templates|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_categories|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_categories|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_categories|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_certificates|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_certificates|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_certificates|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_credits|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_credits|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_credits|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_enrollments|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_enrollments|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_enrollments|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lesson_progress|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lesson_progress|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lesson_progress|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lessons|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lessons|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_lessons|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_modules|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_modules|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|training_modules|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2024_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2025_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_01|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_01|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_01|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_02|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_02|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_02|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_03|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_03|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_03|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_04|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_04|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_04|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_05|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_05|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_05|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_06|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_06|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_06|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_07|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_07|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_07|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_08|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_08|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_08|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_09|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_09|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_09|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_10|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_10|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_10|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_11|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_11|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_11|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_12|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_12|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions_archive_2026_12|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|transactions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|trusted_devices|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|trusted_devices|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|trusted_devices|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|users|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|users|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|users|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_assessments|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_assessments|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_assessments|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_assessments|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_educational_resources|anon|SELECT
+rel|r|wellbeing_educational_resources|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_educational_resources|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_educational_resources|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_badges|anon|SELECT
+rel|r|wellbeing_game_badges|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_badges|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_badges|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_campaigns|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_campaigns|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_campaigns|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_concepts|anon|SELECT
+rel|r|wellbeing_game_concepts|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_concepts|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_concepts|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_feedback|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_feedback|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_feedback|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_insights|anon|INSERT,SELECT
+rel|r|wellbeing_game_insights|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_insights|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_insights|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_invitations|anon|SELECT
+rel|r|wellbeing_game_invitations|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_invitations|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_invitations|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_sessions|anon|INSERT,SELECT
+rel|r|wellbeing_game_sessions|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_sessions|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_sessions|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry_events|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry_events|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry_events|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_game_telemetry|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_player_badges|anon|INSERT,SELECT
+rel|r|wellbeing_player_badges|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_player_badges|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_player_badges|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_risk_scores|anon|INSERT,SELECT
+rel|r|wellbeing_risk_scores|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_risk_scores|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|wellbeing_risk_scores|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_audit|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_audit|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_audit|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_audit|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_cases|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_cases|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_cases|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_cases|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_notifications|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_notifications|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_notifications|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_notifications|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_tasks|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_tasks|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_tasks|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|r|workflow_tasks|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|operators|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|operators|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|operators|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_audit_verification_health|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_audit_verification_health|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_audit_verification_health|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_audit_verification_health|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_behaviour_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_behaviour_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_behaviour_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_behaviour_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_casino_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_casino_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_casino_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_casino_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_compliance_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_compliance_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_compliance_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_compliance_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_executive_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_executive_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_executive_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_executive_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_financial_posture|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_financial_posture|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_financial_posture|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_financial_posture|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_outcome_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_outcome_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_intervention_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_regulator_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_regulator_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_regulator_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_regulator_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_risk_state|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_risk_state|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_risk_state|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_risk_state|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_session_posture|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_session_posture|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_session_posture|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|projection_session_posture|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|sbiq_event_log_partition_security|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|sbiq_event_log_partition_security|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|sbiq_event_log_partition_security|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_api_traffic_hourly|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_api_traffic_hourly|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_api_traffic_hourly|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_api_traffic_hourly|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_daily_stats|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_daily_stats|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_daily_stats|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_daily_stats|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_risk_distribution|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_risk_distribution|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_risk_distribution|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_casino_risk_distribution|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_intervention_effectiveness|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_intervention_effectiveness|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_intervention_effectiveness|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_intervention_effectiveness|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_partition_info|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_partition_info|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_player_risk_summary|anon|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_player_risk_summary|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_player_risk_summary|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_player_risk_summary|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_table_size_stats|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_table_size_stats|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_tenant_health|authenticated|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_tenant_health|postgres|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
+rel|v|v_tenant_health|service_role|DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE
