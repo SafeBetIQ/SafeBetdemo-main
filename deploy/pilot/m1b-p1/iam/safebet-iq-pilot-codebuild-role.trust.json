@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PilotCodeBuildAssume",
+      "Effect": "Allow",
+      "Principal": { "Service": "codebuild.amazonaws.com" },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": { "aws:SourceAccount": "046276255259" },
+        "ArnLike": { "aws:SourceArn": "arn:aws:codebuild:eu-west-1:046276255259:project/safebet-iq-pilot-node20-build" }
+      }
+    }
+  ]
+}
