@@ -13,7 +13,7 @@ const BS = read('SafeBetdemo-main/deploy/buildspec-pilot.yml');
 const DEMO_BS = read('SafeBetdemo-main/deploy/buildspec.yml');
 
 const COMMIT = '379141e45c7f6f9db1888ebaebfa45fbf86a993e';        // schema baseline SOURCE authority
-const APP_COMMIT = '1111111111111111111111111111111111111111';   // synthetic reviewed Pilot app commit
+const APP_COMMIT = '3b18faa4343eee30576aa4f3ac132ac2176c9713';   // authorised Pilot application commit
 const SHA = '530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182';
 const DERIV_SHA = 'c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067';
 const FP = '5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49';
@@ -147,7 +147,8 @@ const PRE = (() => {
 const bsEnv = (o = {}) => ({
   NEXT_PUBLIC_ENV: 'pilot', NEXT_PUBLIC_SAFEBET_ENV: 'pilot', SAFEBET_OPERATING_MODE: 'production',
   NEXT_PUBLIC_SAFEBET_OPERATING_MODE: 'production', ENABLE_DEMO_QUICK_LOGIN: 'false',
-  SAFEBET_SCHEMA_SOURCE_COMMIT: COMMIT, SAFEBET_FORBIDDEN_REFS: Object.values(FORBIDDEN).join(' '),
+  SAFEBET_SCHEMA_SOURCE_COMMIT: COMMIT, SAFEBET_APP_COMMIT: APP_COMMIT,
+  SAFEBET_FORBIDDEN_REFS: Object.values(FORBIDDEN).join(' '),
   NEXT_PUBLIC_SUPABASE_URL: `https://${PILOT_REF}.supabase.co`, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-public',
   SAFEBET_GIT_COMMIT: APP_COMMIT, ...o,
 });
@@ -156,6 +157,7 @@ test('buildspec-pilot: sets the Pilot values, separates schema-source from app a
   for (const kv of ['NEXT_PUBLIC_ENV: "pilot"', 'NEXT_PUBLIC_SAFEBET_ENV: "pilot"', 'SAFEBET_OPERATING_MODE: "production"',
     'NEXT_PUBLIC_SAFEBET_OPERATING_MODE: "production"', 'ENABLE_DEMO_QUICK_LOGIN: "false"']) assert.ok(BS.includes(kv), kv);
   assert.ok(BS.includes('SAFEBET_SCHEMA_SOURCE_COMMIT:'), 'schema-source authority documented');
+  assert.ok(BS.includes(`SAFEBET_APP_COMMIT: "${APP_COMMIT}"`), 'authorised Pilot app commit pinned');
   assert.ok(!/SAFEBET_AUTHORISED_COMMIT:/.test(BS), 'old single-authority var removed');
   assert.ok(!/"dataClass": "synthetic"/.test(BS), 'Pilot must not declare synthetic data');
   assert.ok(BS.includes('"dataClass": "pilot-no-operator-data"'), 'Pilot data class is explicit and not real-operator-data');
@@ -173,9 +175,24 @@ test('buildspec-pilot guard: passes for a reviewed Pilot app commit, fails close
     { NEXT_PUBLIC_SUPABASE_URL: '' },
     { SAFEBET_GIT_COMMIT: '' },                       // app commit required
     { SAFEBET_GIT_COMMIT: 'deadbeef' },               // must be 40-hex
-    { SAFEBET_GIT_COMMIT: COMMIT },                   // must NOT deploy the schema-source commit (379141e)
-    { CODEBUILD_RESOLVED_SOURCE_VERSION: COMMIT },    // resolved source must not be the schema-source commit
-    { CODEBUILD_RESOLVED_SOURCE_VERSION: 'b836e124f45828ac1f30e32b44e2caa4fcc47555' }, // != supplied app commit
     { SUPABASE_SERVICE_ROLE_KEY: 'x' }];
   for (const o of bad) assert.notEqual(bash(PRE, bsEnv(o)).status, 0, JSON.stringify(o));
+});
+
+test('buildspec-pilot B-2: CODEBUILD_RESOLVED_SOURCE_VERSION is Git identity only when it is a 40-hex SHA', () => {
+  const S3_VERSION = '3HL4kqtJlcpXroDTDmJ.rmSpXd3dIbrHYz0';   // S3 object version id — not a Git SHA
+  // 1) 40-hex correct Git SHA => PASS
+  assert.equal(bash(PRE, bsEnv({ CODEBUILD_RESOLVED_SOURCE_VERSION: APP_COMMIT })).status, 0, '40-hex correct');
+  // 2) 40-hex incorrect Git SHA => FAIL
+  assert.notEqual(bash(PRE, bsEnv({ CODEBUILD_RESOLVED_SOURCE_VERSION: 'a'.repeat(40) })).status, 0, '40-hex incorrect');
+  // 2b) resolved Git SHA == schema-source => FAIL
+  assert.notEqual(bash(PRE, bsEnv({ CODEBUILD_RESOLVED_SOURCE_VERSION: COMMIT })).status, 0, 'resolved == schema-source');
+  // 3) S3-style source version id => must NOT fail merely because it is not a Git SHA
+  assert.equal(bash(PRE, bsEnv({ CODEBUILD_RESOLVED_SOURCE_VERSION: S3_VERSION })).status, 0, 'S3 version id tolerated');
+  // 3b) empty CRSV (also not a Git SHA) => PASS
+  assert.equal(bash(PRE, bsEnv({ CODEBUILD_RESOLVED_SOURCE_VERSION: '' })).status, 0, 'empty CRSV tolerated');
+  // 4) SAFEBET_GIT_COMMIT incorrect (40-hex but not the authorised app commit) => FAIL
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_GIT_COMMIT: 'b'.repeat(40) })).status, 0, 'git_commit != authorised');
+  // 5) SAFEBET_GIT_COMMIT = schema-source commit => FAIL
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_GIT_COMMIT: COMMIT })).status, 0, 'git_commit == schema-source');
 });

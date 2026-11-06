@@ -30,14 +30,14 @@ env:
     NEXT_PUBLIC_SAFEBET_OPERATING_MODE: "production"
     SAFEBET_OPERATING_MODE: "production"
     ENABLE_DEMO_QUICK_LOGIN: "false"
-    # TWO SEPARATE AUTHORITIES (M1B-P1F Correction 6):
+    # TWO SEPARATE AUTHORITIES (M1B-P1F Correction 6 / M1B-P1):
     #   SAFEBET_SCHEMA_SOURCE_COMMIT = provenance of the curated schema baseline (530941a5…). This is
     #     NOT the application deployment authority. The Pilot application MUST NOT be deployed from it,
     #     because that commit predates the M1B-P1F hardening.
-    #   Pilot APPLICATION deployment authority = the reviewed M1B-P1F commit, supplied at start-build as
-    #     SAFEBET_GIT_COMMIT. Deliberately NOT hard-coded: that commit does not exist until this work is
-    #     committed and reviewed. The guard pins the build to it and rejects the schema-source commit.
+    #   SAFEBET_APP_COMMIT = the authorised Pilot APPLICATION deployment commit. SAFEBET_GIT_COMMIT
+    #     supplied at start-build must equal it (and must not be the schema-source commit).
     SAFEBET_SCHEMA_SOURCE_COMMIT: "379141e45c7f6f9db1888ebaebfa45fbf86a993e"
+    SAFEBET_APP_COMMIT: "3b18faa4343eee30576aa4f3ac132ac2176c9713"
     SAFEBET_FORBIDDEN_REFS: "ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll"
     NODE_OPTIONS: "--max-old-space-size=4096"
 
@@ -66,12 +66,21 @@ phases:
         # Application deployment authority: the reviewed M1B-P1F commit, supplied at start-build.
         # It must be a real 40-hex commit and must NOT be the schema-baseline source commit (which
         # lacks the M1B-P1F hardening), nor a forbidden-project ref.
-        [ -n "${SAFEBET_GIT_COMMIT:-}" ] || fail "SAFEBET_GIT_COMMIT (reviewed Pilot application commit) required"
+        # SAFEBET_GIT_COMMIT is the MANDATORY authoritative application-commit identity (the git archive
+        # packaged into the S3 source). It must be a 40-hex commit, must equal the authorised Pilot app
+        # commit, and must never be the schema-source commit.
+        [ -n "${SAFEBET_GIT_COMMIT:-}" ] || fail "SAFEBET_GIT_COMMIT (authorised Pilot application commit) required"
         echo "${SAFEBET_GIT_COMMIT}" | grep -Eq '^[0-9a-f]{40}$' || fail "SAFEBET_GIT_COMMIT must be a 40-hex commit"
-        [ "${SAFEBET_GIT_COMMIT}" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "SAFEBET_GIT_COMMIT is the schema-baseline SOURCE commit (lacks M1B-P1F hardening) — deploy the reviewed hardening commit, not 379141e"
-        if [ -n "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" ]; then
-          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" = "${SAFEBET_GIT_COMMIT}" ] || fail "source version != supplied application commit"
-          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "source version is the schema-source commit, not an approved Pilot application deployment commit"
+        [ "${SAFEBET_GIT_COMMIT}" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "SAFEBET_GIT_COMMIT is the schema-baseline SOURCE commit (379141e) — not the application deployment authority"
+        [ "${SAFEBET_GIT_COMMIT}" = "$SAFEBET_APP_COMMIT" ] || fail "SAFEBET_GIT_COMMIT must equal the authorised Pilot application commit $SAFEBET_APP_COMMIT"
+        # CODEBUILD_RESOLVED_SOURCE_VERSION is Git identity ONLY when it is a 40-hex Git SHA (GitHub/
+        # CodeCommit sources). For the approved S3-backed source it is an S3 object version id and MUST
+        # NOT be treated as Git identity — but it is never accepted as proof of the commit either.
+        if echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" = "${SAFEBET_GIT_COMMIT}" ] || fail "resolved Git source version != authorised application commit"
+          [ "$CODEBUILD_RESOLVED_SOURCE_VERSION" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "resolved Git source version is the schema-source commit"
+        else
+          echo "note: CODEBUILD_RESOLVED_SOURCE_VERSION is not a 40-hex Git SHA (S3-backed source) — not used as Git identity; SAFEBET_GIT_COMMIT remains authoritative"
         fi
         [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ] || fail "the service-role key must never be a build input"
         echo "pilot build guard OK"
