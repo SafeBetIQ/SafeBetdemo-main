@@ -1,11 +1,9 @@
-# SafeBet IQ - M1B-P1 B-1 IAM gate (APPLY). OUT-OF-BAND ADMIN ACTION.
-# Creates the dedicated Pilot CodeBuild role from the approved JSON and adds ONLY that role to the
-# SafeBetIQPilotProvisionerPolicy iam:PassRole scope. All IAM MUTATION runs under an MFA-backed
-# temporary STS session (never the long-lived 'default' profile). Fail-closed; no secret printed.
-#
-# Run by the owner using the admin-capable bootstrap principal (safebetiq-backup-user):
-#   # profile 'default' = safebetiq-backup-user   (bootstrap source only)
-#   ./B1-apply.ps1          # prompts for the current TOTP, then runs under the MFA session
+# SafeBet IQ - M1B-P1 B-1 IAM gate (APPLY, recovery-safe). OUT-OF-BAND ADMIN ACTION.
+# Creates the dedicated Pilot CodeBuild role from the approved JSON (or verifies a pre-existing exact
+# copy) and adds ONLY that role to the SafeBetIQPilotProvisionerPolicy iam:PassRole scope. Resumable
+# and idempotent. All IAM calls go through Invoke-Aws (throws on native non-zero exit). Policy documents
+# are transported via a UTF-8-no-BOM temp file validated locally and by Access Analyzer before apply.
+# All mutation runs under an MFA-backed temporary STS session. Fail-closed; no secret printed.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/B1-common.ps1"
@@ -19,114 +17,149 @@ $HERE      = $PSScriptRoot
 $TRUST     = Join-Path $HERE 'safebet-iq-pilot-codebuild-role.trust.json'
 $POLICY    = Join-Path $HERE 'safebet-iq-pilot-codebuild-role.policy.json'
 $EVIDENCE  = Join-Path $HERE 'B1-evidence.json'
+$MARKER    = Join-Path $HERE 'B1-role-ownership.json'
 $EB_EC2    = "arn:aws:iam::$($B1.Account):role/aws-elasticbeanstalk-ec2-role"
 $EB_SVC    = "arn:aws:iam::$($B1.Account):role/aws-elasticbeanstalk-service-role"
+$DEMO_CB   = "arn:aws:iam::$($B1.Account):role/SafeBetDemoCodeBuildRole"
+$EXPECTED_EXISTING = @($EB_EC2, $EB_SVC, $DEMO_CB)   # the approved pre-amendment PassRole roles
 $ev = [ordered]@{ step = @() }
+$tmpFile = $null
 function Note($m){ Write-Host "[B1] $m"; $ev.step += $m }
-function Canon($o){
-  if ($o -is [System.Management.Automation.PSCustomObject]) {
-    $h=[ordered]@{}; foreach($p in ($o.PSObject.Properties.Name | Sort-Object)){ $h[$p]=Canon $o.$p }; return $h
-  } elseif ($o -is [System.Collections.IEnumerable] -and $o -isnot [string]) {
-    $a=@($o | ForEach-Object { Canon $_ }); try { return @($a | Sort-Object { ($_ | ConvertTo-Json -Compress -Depth 20) }) } catch { return $a }
-  } else { return $o }
-}
-function CanonJson($o){ (Canon $o) | ConvertTo-Json -Depth 20 -Compress }
+function Get-ProvDoc([string]$VerId){ (Invoke-AwsJson @('iam','get-policy-version','--policy-arn',$PROV_POL,'--version-id',$VerId,'--output','json')).PolicyVersion.Document }
+function PassStmt($doc){ @($doc.Statement | Where-Object { @($_.Action) -contains 'iam:PassRole' }) }
 function SimDecision($srcArn,$action,$resArn){
-  aws iam simulate-principal-policy --policy-source-arn $srcArn --action-names $action --resource-arns $resArn `
-    --query 'EvaluationResults[0].EvalDecision' --output text
+  (Invoke-Aws @('iam','simulate-principal-policy','--policy-source-arn',$srcArn,'--action-names',$action,'--resource-arns',$resArn,'--query','EvaluationResults[0].EvalDecision','--output','text')) -join ''
 }
 
 # Steps 1-2: base identity + exact MFA serial (long-lived profile = bootstrap source only).
 $ev.base_caller = Assert-BackupUserBase
 Assert-ExactMfaSerial
-Note "base identity OK ($($ev.base_caller)); exact MFA serial $($B1.MfaSerial) present"
+Note "base identity OK ($($ev.base_caller)); exact MFA serial present"
 
-# Steps 3-6: acquire the MFA-backed temporary session. Everything after this uses env creds (no --profile).
+# Steps 3-6: acquire the MFA-backed temporary session. Everything after uses env creds (no --profile).
 $ev.mfa = New-MfaSession
-Note 'MFA-backed temporary STS session acquired (GetSessionToken with registered MFA serial).'
+Note 'MFA-backed temporary STS session acquired.'
 
 try {
-  # ---- Role: create or verify-no-drift (steps 6-10) ----
   $approvedTrust  = Get-Content $TRUST  -Raw | ConvertFrom-Json
   $approvedPolicy = Get-Content $POLICY -Raw | ConvertFrom-Json
-  $r = $null
-  try { $r = aws iam get-role --role-name $ROLE --output json 2>$null | ConvertFrom-Json } catch { $r = $null }
+
+  # ===== ROLE PHASE (resume-aware) =====
+  $r = Get-AwsJsonOrNull @('iam','get-role','--role-name',$ROLE,'--output','json')
   if ($r) {
-    Note "role $ROLE already exists - verifying no drift (will NOT overwrite)"
-    if ((CanonJson $r.Role.AssumeRolePolicyDocument) -ne (CanonJson $approvedTrust)) { throw 'ABORT: existing role trust policy differs from approved trust.json (drift).' }
-    $attached = aws iam list-attached-role-policies --role-name $ROLE --output json | ConvertFrom-Json
+    Note "role $ROLE already exists - verifying exact match (no overwrite)"
+    if ((CanonJson $r.Role.AssumeRolePolicyDocument) -ne (CanonJson $approvedTrust)) { throw 'ABORT: existing role trust differs from approved trust.json (drift).' }
+    $attached = Invoke-AwsJson @('iam','list-attached-role-policies','--role-name',$ROLE,'--output','json')
     if (@($attached.AttachedPolicies).Count -ne 0) { throw 'ABORT: existing role has attached managed policies (expected none).' }
-    $inline = aws iam list-role-policies --role-name $ROLE --output json | ConvertFrom-Json
-    if (@($inline.PolicyNames) -notcontains $INLINE) { throw "ABORT: existing role missing inline policy $INLINE." }
-    $livePol = (aws iam get-role-policy --role-name $ROLE --policy-name $INLINE --output json | ConvertFrom-Json).PolicyDocument
+    $names = @((Invoke-AwsJson @('iam','list-role-policies','--role-name',$ROLE,'--output','json')).PolicyNames)
+    if ($names.Count -ne 1 -or $names[0] -ne $INLINE) { throw "ABORT: unexpected inline policy set on existing role: $($names -join ', ')." }
+    $livePol = (Invoke-AwsJson @('iam','get-role-policy','--role-name',$ROLE,'--policy-name',$INLINE,'--output','json')).PolicyDocument
     if ((CanonJson $livePol) -ne (CanonJson $approvedPolicy)) { throw 'ABORT: existing inline policy differs from approved policy.json (drift).' }
-    Note 'existing role matches approved JSON exactly (no drift).'
+    $ev.role_action = 'preexisting_verified'
+    # Ownership: only a marker written by a prior B-1 run can establish that this sequence created the role.
+    if (Test-Path $MARKER) {
+      $mk = Get-Content $MARKER -Raw | ConvertFrom-Json
+      if ($mk.role_created_by_b1 -eq $true -and $mk.role_arn -eq $ROLE_ARN) { $ev.role_ownership = 'b1_created' }
+      else { $ev.role_ownership = 'preexisting_unverified' }
+    } else { $ev.role_ownership = 'preexisting_unverified' }
+    Note "existing role matches approved JSON exactly (ownership=$($ev.role_ownership))."
   } else {
     Note "creating role $ROLE from approved trust.json"
-    aws iam create-role --role-name $ROLE --assume-role-policy-document "file://$TRUST" `
-      --description 'Pilot CodeBuild service role (M1B-P1): scoped logs + build artifacts only' `
-      --tags Key=Project,Value=SafeBetIQ Key=Environment,Value=Pilot Key=ManagedBy,Value=M1B Key=Purpose,Value=CodeBuild | Out-Null
-    aws iam put-role-policy --role-name $ROLE --policy-name $INLINE --policy-document "file://$POLICY" | Out-Null
-    Note 'role + inline policy created.'
+    Invoke-Aws @('iam','create-role','--role-name',$ROLE,'--assume-role-policy-document',"file://$TRUST",
+      '--description','Pilot CodeBuild service role (M1B-P1): scoped logs + build artifacts only',
+      '--tags','Key=Project,Value=SafeBetIQ','Key=Environment,Value=Pilot','Key=ManagedBy,Value=M1B','Key=Purpose,Value=CodeBuild') | Out-Null
+    Invoke-Aws @('iam','put-role-policy','--role-name',$ROLE,'--policy-name',$INLINE,'--policy-document',"file://$POLICY") | Out-Null
+    # Persist ownership immediately so a later failure (or rollback) still knows B-1 created it.
+    (@{ role_arn=$ROLE_ARN; role_created_by_b1=$true; created_at_utc=[DateTime]::UtcNow.ToString('o') } | ConvertTo-Json) | Set-Content $MARKER -Encoding ascii
+    $ev.role_action = 'created'; $ev.role_ownership = 'b1_created'
+    Note 'role + inline policy created; ownership marker written.'
   }
-
-  # Read back + assert minimal (steps 9-10).
-  $attached = aws iam list-attached-role-policies --role-name $ROLE --output json | ConvertFrom-Json
-  if (@($attached.AttachedPolicies).Count -ne 0) { throw 'ABORT: role has managed policies attached (must be inline-only, least-privilege).' }
-  $trustBack = (aws iam get-role --role-name $ROLE --output json | ConvertFrom-Json).Role.AssumeRolePolicyDocument
+  # Common read-back assertions.
+  $trustBack = (Invoke-AwsJson @('iam','get-role','--role-name',$ROLE,'--output','json')).Role.AssumeRolePolicyDocument
   if ($trustBack.Statement[0].Principal.Service -ne 'codebuild.amazonaws.com') { throw 'ABORT: trust principal is not codebuild.amazonaws.com.' }
+  if (@((Invoke-AwsJson @('iam','list-attached-role-policies','--role-name',$ROLE,'--output','json')).AttachedPolicies).Count -ne 0) { throw 'ABORT: role has managed policies attached.' }
   $ev.role_arn = $ROLE_ARN
-  Note 'role read-back OK: codebuild-only trust; inline-only; no Administrator/PowerUser/unrelated policy.'
+  Note 'role read-back OK: codebuild-only trust; inline-only; no managed/admin policy.'
 
-  # ---- Provisioner PassRole amendment (steps 11-13) ----
-  $defVer = (aws iam get-policy --policy-arn $PROV_POL --output json | ConvertFrom-Json).Policy.DefaultVersionId
-  $ev.provisioner_prior_version = $defVer
-  $doc = (aws iam get-policy-version --policy-arn $PROV_POL --version-id $defVer --output json | ConvertFrom-Json).PolicyVersion.Document
-  $pass = @($doc.Statement | Where-Object { @($_.Action) -contains 'iam:PassRole' })
-  if (@($pass).Count -ne 1) { throw "ABORT: expected exactly one iam:PassRole statement, found $(@($pass).Count)." }
-  $res = @($pass[0].Resource)
-  if ($res -contains '*') { throw 'ABORT: existing PassRole is already wildcard - refusing to touch.' }
-  foreach($rq in @($EB_EC2,$EB_SVC)){ if ($res -notcontains $rq){ throw "ABORT: expected existing PassRole resource missing: $rq" } }
-  if ($res -contains $ROLE_ARN) { Note 'PassRole already includes the Pilot CodeBuild role - no change needed.'; $ev.amended=$false }
-  else {
-    $pass[0].Resource = @($res + $ROLE_ARN)   # add ONLY the new role ARN; preserve everything else
-    $new = $doc | ConvertTo-Json -Depth 30
-    $tmp = New-TemporaryFile; $new | Set-Content $tmp -Encoding utf8
-    $vers = (aws iam list-policy-versions --policy-arn $PROV_POL --output json | ConvertFrom-Json).Versions
-    if (@($vers).Count -ge 5) {
-      $old = @($vers | Where-Object { -not $_.IsDefaultVersion } | Sort-Object CreateDate | Select-Object -First 1)
-      if ($old) { aws iam delete-policy-version --policy-arn $PROV_POL --version-id $old.VersionId | Out-Null; Note "pruned oldest non-default version $($old.VersionId)" }
+  # ===== PASSROLE PHASE (resume-aware) =====
+  $priorVer = (Invoke-AwsJson @('iam','get-policy','--policy-arn',$PROV_POL,'--output','json')).Policy.DefaultVersionId
+  $ev.provisioner_prior_version = $priorVer
+  $curDoc = Get-ProvDoc $priorVer
+  $passArr = PassStmt $curDoc
+  if (@($passArr).Count -ne 1) { throw "ABORT: expected exactly one iam:PassRole statement, found $(@($passArr).Count)." }
+  $curPass = @($passArr[0].Resource)
+  if ($curPass -contains '*') { throw 'ABORT: existing PassRole is wildcard - refusing to touch.' }
+  foreach ($rq in @($EB_EC2,$EB_SVC)) { if ($curPass -notcontains $rq) { throw "ABORT: expected existing PassRole role missing: $rq" } }
+  $unexpected = @($curPass | Where-Object { $_ -ne $ROLE_ARN -and $EXPECTED_EXISTING -notcontains $_ })
+  if (@($unexpected).Count -ne 0) { throw "ABORT (drift): unexpected PassRole roles present: $($unexpected -join ', ')." }
+
+  if ($curPass -contains $ROLE_ARN) {
+    $ev.passrole_action = 'preexisting_verified'; $ev.provisioner_new_version = $priorVer
+    Note 'PassRole already includes the Pilot CodeBuild role - PassRole phase already complete.'
+  } else {
+    # Build the additive candidate in memory (independent deep clone of the current default).
+    $newDoc = ($curDoc | ConvertTo-Json -Depth 30) | ConvertFrom-Json
+    $ni = -1; for ($i=0; $i -lt @($newDoc.Statement).Count; $i++){ if (@($newDoc.Statement[$i].Action) -contains 'iam:PassRole'){ $ni=$i } }
+    $newDoc.Statement[$ni].Resource = @($curPass + $ROLE_ARN)
+    # Prove the ONLY semantic change is adding exactly the Pilot role ARN.
+    $newPass = @($newDoc.Statement[$ni].Resource)
+    $added   = @($newPass | Where-Object { $curPass -notcontains $_ })
+    $removed = @($curPass | Where-Object { $newPass -notcontains $_ })
+    if (@($removed).Count -ne 0) { throw "ABORT: candidate removes roles: $($removed -join ', ')." }
+    if (@($added).Count -ne 1 -or $added[0] -ne $ROLE_ARN) { throw "ABORT: candidate adds more than the Pilot role: $($added -join ', ')." }
+    $probe = ($newDoc | ConvertTo-Json -Depth 30) | ConvertFrom-Json
+    $probe.Statement[$ni].Resource = $curPass
+    if ((CanonJson $probe) -ne (CanonJson $curDoc)) { throw 'ABORT: candidate changes more than the PassRole resource array.' }
+
+    # Serialize + local JSON validation + UTF-8-no-BOM temp file (file:// transport, never inline arg).
+    $json = $newDoc | ConvertTo-Json -Depth 30
+    $null = $json | ConvertFrom-Json   # local syntactic validation; throws if invalid
+    $tmpFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "sbiq-prov-$([guid]::NewGuid()).json")
+    Write-Utf8NoBom $tmpFile $json
+    if (([System.IO.File]::ReadAllBytes($tmpFile))[0] -eq 0xEF) { throw 'ABORT: temp policy file has a BOM.' }
+
+    # Access Analyzer validate-policy BEFORE create-policy-version. Zero ERROR required; warnings recorded.
+    $findings = @(Invoke-AwsJson @('accessanalyzer','validate-policy','--policy-type','IDENTITY_POLICY','--policy-document',"file://$tmpFile",'--query','findings','--output','json'))
+    $ev.analyzer = [ordered]@{
+      errors   = @($findings | Where-Object { $_.findingType -eq 'ERROR' } | ForEach-Object { $_.issueCode })
+      warnings = @($findings | Where-Object { $_.findingType -in @('SECURITY_WARNING','WARNING') } | ForEach-Object { "$($_.findingType):$($_.issueCode)" })
     }
-    aws iam create-policy-version --policy-arn $PROV_POL --policy-document "file://$tmp" --set-as-default | Out-Null
-    Remove-Item $tmp -Force
-    $ev.amended = $true
-    Note 'provisioner PassRole amended (added only the Pilot CodeBuild role; set as default).'
+    if (@($ev.analyzer.errors).Count -ne 0) { throw "ABORT: Access Analyzer ERROR findings on candidate: $($ev.analyzer.errors -join ', ')." }
+    if (@($ev.analyzer.warnings).Count -ne 0) { Note "Access Analyzer warnings (recorded, not ignored): $($ev.analyzer.warnings -join ', ')" }
+
+    # Respect the 5-version limit (never delete the current default).
+    $vers = @((Invoke-AwsJson @('iam','list-policy-versions','--policy-arn',$PROV_POL,'--output','json')).Versions)
+    if ($vers.Count -ge 5) {
+      $old = @($vers | Where-Object { -not $_.IsDefaultVersion } | Sort-Object CreateDate | Select-Object -First 1)
+      if ($old) { Invoke-Aws @('iam','delete-policy-version','--policy-arn',$PROV_POL,'--version-id',$old.VersionId) | Out-Null; Note "pruned oldest non-default version $($old.VersionId)" }
+    }
+    # Mutate (throws on any non-zero exit - no false success possible).
+    Invoke-Aws @('iam','create-policy-version','--policy-arn',$PROV_POL,'--policy-document',"file://$tmpFile",'--set-as-default') | Out-Null
+
+    # Read back and CONFIRM before declaring success.
+    $newVer = (Invoke-AwsJson @('iam','get-policy','--policy-arn',$PROV_POL,'--output','json')).Policy.DefaultVersionId
+    if ($newVer -eq $priorVer) { throw 'ABORT: default version did not advance after create-policy-version.' }
+    $chk = Get-ProvDoc $newVer
+    $resN = @((PassStmt $chk)[0].Resource)
+    if ($resN -contains '*') { throw 'ABORT: PassRole became wildcard.' }
+    if ($resN -notcontains $ROLE_ARN) { throw 'ABORT: new Pilot CodeBuild role missing from PassRole.' }
+    foreach ($rq in @($EB_EC2,$EB_SVC)) { if ($resN -notcontains $rq) { throw "ABORT: existing approved PassRole role was dropped: $rq" } }
+    $iamAdmin = @($chk.Statement | Where-Object { @($_.Action) | Where-Object { $_ -match '^iam:(Create|Put|Attach|Delete|Update)' -and $_ -ne 'iam:PassRole' } })
+    if (@($iamAdmin).Count -ne 0) { throw 'ABORT: policy now contains IAM administrative actions.' }
+    $probe2 = ($chk | ConvertTo-Json -Depth 30) | ConvertFrom-Json
+    $pi = -1; for ($i=0; $i -lt @($probe2.Statement).Count; $i++){ if (@($probe2.Statement[$i].Action) -contains 'iam:PassRole'){ $pi=$i } }
+    $probe2.Statement[$pi].Resource = $curPass
+    if ((CanonJson $probe2) -ne (CanonJson $curDoc)) { throw 'ABORT: applied version changed more than the PassRole resource.' }
+    $ev.passrole_action = 'added'; $ev.provisioner_new_version = $newVer
+    Note "provisioner PassRole amended and CONFIRMED (version $newVer; +Pilot CodeBuild role only)."
   }
 
-  # Read back + verify strictly additive (step 13).
-  $newDef = (aws iam get-policy --policy-arn $PROV_POL --output json | ConvertFrom-Json).Policy.DefaultVersionId
-  $ev.provisioner_new_version = $newDef
-  $chk = (aws iam get-policy-version --policy-arn $PROV_POL --version-id $newDef --output json | ConvertFrom-Json).PolicyVersion.Document
-  $resN = @(@($chk.Statement | Where-Object { @($_.Action) -contains 'iam:PassRole' })[0].Resource)
-  if ($resN -contains '*') { throw 'ABORT: PassRole became wildcard.' }
-  if ($resN -notcontains $ROLE_ARN) { throw 'ABORT: new Pilot CodeBuild role missing from PassRole.' }
-  foreach($rq in @($EB_EC2,$EB_SVC)){ if ($resN -notcontains $rq){ throw "ABORT: existing approved PassRole role was dropped: $rq" } }
-  $iamAdmin = @($chk.Statement | Where-Object { @($_.Action) | Where-Object { $_ -match '^iam:(Create|Put|Attach|Delete|Update)' -and $_ -ne 'iam:PassRole' } })
-  if (@($iamAdmin).Count -ne 0) { throw 'ABORT: policy now contains IAM administrative actions (unexpected).' }
-  $secStmt = @($chk.Statement | Where-Object { @($_.Action) | Where-Object { $_ -like 'secretsmanager:*' } })
-  if (@($secStmt.Resource) -notcontains "arn:aws:secretsmanager:eu-west-1:$($B1.Account):secret:safebet-iq/pilot/*") { throw 'ABORT: Secrets scope changed.' }
-  $r53 = @($chk.Statement | Where-Object { @($_.Action) -contains 'route53:ChangeResourceRecordSets' })
-  if (@($r53.Resource) -notcontains 'arn:aws:route53:::hostedzone/Z08227093UE2VXI2FU58S') { throw 'ABORT: Route53 scope changed.' }
-  $region = @($chk.Statement | Where-Object { $_.Condition -and $_.Condition.StringEquals.'aws:RequestedRegion' -eq 'eu-west-1' })
-  if (@($region).Count -lt 1) { throw 'ABORT: eu-west-1 region guard missing.' }
-  Note 'provisioner policy verified: +Pilot CodeBuild PassRole only; existing roles intact; no wildcard; no IAM admin; Secrets/Route53/region unchanged.'
-
-  # ---- Simulations (steps 14-15) ----
+  # ===== SIMULATIONS (only now, before finalising evidence) =====
   $ev.sim = [ordered]@{}
-  $ev.sim.pos_passrole_pilot     = SimDecision $PROV_ROLE 'iam:PassRole' $ROLE_ARN                                                     # expect allowed
-  $ev.sim.neg_passrole_unrelated = SimDecision $PROV_ROLE 'iam:PassRole' "arn:aws:iam::$($B1.Account):role/OrganizationAccountAccessRole"  # expect implicitDeny
-  if ($ev.sim.pos_passrole_pilot -ne 'allowed') { throw "ABORT: positive PassRole simulation = $($ev.sim.pos_passrole_pilot) (expected allowed)." }
-  if ($ev.sim.neg_passrole_unrelated -eq 'allowed') { throw 'ABORT: provisioner can PassRole an unrelated role (should be denied).' }
+  $ev.sim.pos_passrole_pilot     = SimDecision $PROV_ROLE 'iam:PassRole' $ROLE_ARN
+  $ev.sim.neg_passrole_unrelated = SimDecision $PROV_ROLE 'iam:PassRole' "arn:aws:iam::$($B1.Account):role/OrganizationAccountAccessRole"
+  if ($ev.sim.pos_passrole_pilot -ne 'allowed') { throw "ABORT: positive PassRole simulation = $($ev.sim.pos_passrole_pilot)." }
+  if ($ev.sim.neg_passrole_unrelated -eq 'allowed') { throw 'ABORT: provisioner can PassRole an unrelated role.' }
   $ev.sim.cb_demo_secret    = SimDecision $ROLE_ARN 'secretsmanager:GetSecretValue' "arn:aws:secretsmanager:eu-west-1:$($B1.Account):secret:safebet-iq/demo/x"
   $ev.sim.cb_prod_secret    = SimDecision $ROLE_ARN 'secretsmanager:GetSecretValue' "arn:aws:secretsmanager:eu-west-1:$($B1.Account):secret:safebet-iq/prod/x"
   $ev.sim.cb_route53        = SimDecision $ROLE_ARN 'route53:ChangeResourceRecordSets' 'arn:aws:route53:::hostedzone/Z08227093UE2VXI2FU58S'
@@ -135,15 +168,16 @@ try {
   foreach ($k in 'cb_demo_secret','cb_prod_secret','cb_route53','cb_eb_deploy','cb_iam_createrole') {
     if ($ev.sim[$k] -eq 'allowed') { throw "ABORT: CodeBuild role unexpectedly allowed $k." }
   }
-  Note 'simulations OK: provisioner PassRole positive/negative correct; CodeBuild role cannot read secrets / change DNS / deploy EB / administer IAM.'
+  Note 'simulations OK (provisioner PassRole positive/negative; CodeBuild role denied secrets/DNS/EB/IAM).'
 
+  # ===== EVIDENCE (ONLY after every check above has passed) =====
   $ev.timestamp_utc = [DateTime]::UtcNow.ToString('o')
-  $ev | ConvertTo-Json -Depth 8 | Set-Content $EVIDENCE -Encoding utf8
+  $ev | ConvertTo-Json -Depth 8 | Set-Content $EVIDENCE -Encoding ascii
   Note "non-secret evidence written -> $EVIDENCE"
-  Write-Host 'B-1 APPLY COMPLETE (MFA session; role created/verified; PassRole amended additively; verified; simulated).'
+  Write-Host "B-1 APPLY COMPLETE (role=$($ev.role_action); passrole=$($ev.passrole_action); verified; simulated)."
 }
 finally {
-  # Step 8 (MANDATORY): drop the temporary session from this process whether B-1 succeeded or failed.
+  if ($tmpFile -and (Test-Path $tmpFile)) { Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue }
   Clear-MfaSession
-  Write-Host '[B1] temporary MFA session credentials cleared from this process.'
+  Write-Host '[B1] temp policy file removed (if any); temporary MFA session credentials cleared.'
 }
