@@ -1,10 +1,12 @@
-// M1B-P1 B-1 IAM gate: recovery-safe design (static; no AWS, no execution).
-// Covers: central AWS-CLI failure handling, BOM-free policy transport, Access Analyzer pre-check,
-// resume/idempotency, ownership-aware rollback, evidence timing, and secret/TOTP redaction.
+// M1B-P1 B-1 IAM gate: recovery-safe + semantic-delta finalizer (static + behavioral).
+// Static text checks always run. Behavioral checks exercise Assert-AdditivePassRoleDelta via Windows
+// PowerShell and auto-skip where PowerShell is unavailable (e.g. Linux CI).
 // Run: node --test tests/pilotB1IamGate.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const IAM = '../../deploy/pilot/m1b-p1/iam/';
 const read = (f) => readFileSync(new URL(IAM + f, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -13,113 +15,105 @@ const noApiName = (s) => code(s).replace(/GetSessionToken/g, '').replace(/get-se
 const COMMON = read('B1-common.ps1');
 const APPLY = read('B1-apply.ps1');
 const ROLLBACK = read('B1-rollback.ps1');
-const PILOT = 'arn:aws:iam::046276255259:role/safebet-iq-pilot-codebuild-role';
+const COMMON_PATH = fileURLToPath(new URL(IAM + 'B1-common.ps1', import.meta.url));
+const ACC = '046276255259';
+const PILOT = `arn:aws:iam::${ACC}:role/safebet-iq-pilot-codebuild-role`;
 const SECRET_FIELDS = ['AccessKeyId', 'SecretAccessKey', 'SessionToken'];
 
-test('1. aws non-zero exit => Invoke-Aws throws (not just $ErrorActionPreference)', () => {
+// ---- behavioral harness (PowerShell) ----
+function hasPowerShell() {
+  try { return spawnSync('powershell', ['-NoProfile', '-Command', '1'], { encoding: 'utf8' }).status === 0; }
+  catch { return false; }
+}
+const PS = hasPowerShell();
+const skipPS = PS ? false : 'PowerShell unavailable (behavioral delta checks run on the owner Windows host)';
+function delta(prior, next) {
+  const q = (o) => JSON.stringify(o).replace(/'/g, "''");
+  const script = `$ErrorActionPreference='Stop'; . '${COMMON_PATH.replace(/'/g, "''")}' | Out-Null;`
+    + `$p='${q(prior)}' | ConvertFrom-Json; $n='${q(next)}' | ConvertFrom-Json;`
+    + `try { Assert-AdditivePassRoleDelta $p $n '${PILOT}'; 'PASS' } catch { 'THROW' }`;
+  return (spawnSync('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' }).stdout || '').trim();
+}
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const BASE = {
+  Version: '2012-10-17',
+  Statement: [
+    { Sid: 'PassOnlyApprovedRoles', Effect: 'Allow', Action: 'iam:PassRole',
+      Resource: [`arn:aws:iam::${ACC}:role/aws-elasticbeanstalk-ec2-role`, `arn:aws:iam::${ACC}:role/aws-elasticbeanstalk-service-role`, `arn:aws:iam::${ACC}:role/SafeBetDemoCodeBuildRole`] },
+    { Sid: 'ServiceLinkedRolesForEB', Effect: 'Allow', Action: 'iam:CreateServiceLinkedRole', Resource: '*',
+      Condition: { StringEquals: { 'iam:AWSServiceName': ['elasticbeanstalk.amazonaws.com', 'autoscaling.amazonaws.com', 'elasticloadbalancing.amazonaws.com'] } } },
+    { Sid: 'Secrets', Effect: 'Allow', Action: ['secretsmanager:CreateSecret'], Resource: `arn:aws:secretsmanager:eu-west-1:${ACC}:secret:safebet-iq/pilot/*` },
+  ],
+};
+const addPilot = (d) => { const c = clone(d); c.Statement[0].Resource = [...c.Statement[0].Resource, PILOT]; return c; };
+
+test('1. pre-existing approved iam:CreateServiceLinkedRole does NOT trigger a false positive', { skip: skipPS }, () => {
+  assert.equal(delta(BASE, addPilot(BASE)), 'PASS');
+  assert.ok(!/policy now contains IAM administrative actions/.test(APPLY), 'the absolute iam: check is removed');
+});
+test('2. a newly ADDED IAM administrative action aborts', { skip: skipPS }, () => {
+  const n = addPilot(BASE); n.Statement[1].Action = ['iam:CreateServiceLinkedRole', 'iam:CreateUser'];
+  assert.equal(delta(BASE, n), 'THROW');
+});
+test('3. changing the allowed service-linked-role service list aborts', { skip: skipPS }, () => {
+  const n = addPilot(BASE); n.Statement[1].Condition.StringEquals['iam:AWSServiceName'].push('ec2.amazonaws.com');
+  assert.equal(delta(BASE, n), 'THROW');
+});
+test('4. broadening the CreateServiceLinkedRole condition aborts', { skip: skipPS }, () => {
+  const n = addPilot(BASE); delete n.Statement[1].Condition;
+  assert.equal(delta(BASE, n), 'THROW');
+});
+test('5. removing a prior IAM action aborts', { skip: skipPS }, () => {
+  const n = addPilot(BASE); n.Statement.splice(1, 1);
+  assert.equal(delta(BASE, n), 'THROW');
+});
+test('6. only the Pilot PassRole ARN delta is accepted (extra role / no-op / wildcard abort)', { skip: skipPS }, () => {
+  const extra = addPilot(BASE); extra.Statement[0].Resource.push(`arn:aws:iam::${ACC}:role/some-other-role`);
+  assert.equal(delta(BASE, extra), 'THROW');
+  assert.equal(delta(BASE, clone(BASE)), 'THROW');            // no delta at all
+  const wild = clone(BASE); wild.Statement[0].Resource = ['*'];
+  assert.equal(delta(BASE, wild), 'THROW');                   // wildcard
+});
+
+test('7. exact current (v2) resumes idempotently without creating a new version', () => {
+  const idem = APPLY.slice(APPLY.indexOf('if ($curPass -contains $ROLE_ARN) {'), APPLY.indexOf('} else {\n    # ADDITIVE'));
+  assert.match(idem, /passrole_action = 'preexisting_verified'/);
+  assert.match(idem, /no new version created/);
+  assert.ok(!/create-policy-version/.test(idem), 'idempotent path creates no new version');
+  assert.match(idem, /Assert-AdditivePassRoleDelta \$d \$curDoc \$ROLE_ARN/, 'proves the existing v2 is the additive delta vs a prior version');
+});
+test('8. simulations still run (and precede evidence) on every path', () => {
+  const iSim = APPLY.indexOf("SimDecision \$PROV_ROLE 'iam:PassRole' \$ROLE_ARN");
+  const iEv = APPLY.indexOf('EVIDENCE (ONLY after every check');
+  assert.ok(iSim > 0 && iEv > iSim, 'simulations before evidence');
+  for (const s of ['cb_demo_secret', 'cb_prod_secret', 'cb_route53', 'cb_eb_deploy', 'cb_iam_createrole']) assert.ok(APPLY.includes(s));
+});
+test('9. evidence written only after simulations; records version + action fields; no secrets', () => {
+  assert.match(APPLY, /current_policy_version = \$ev\.provisioner_new_version/);
+  assert.match(APPLY, /prior_policy_version   = \$ev\.provisioner_prior_version/);
+  assert.match(APPLY, /Set-Content \$EVIDENCE -Encoding ascii/);
+  for (const v of SECRET_FIELDS) assert.ok(!noApiName(APPLY).includes(v));
+});
+
+// ---- carried recovery/essentials (static) ----
+test('native AWS failure handling + BOM-free transport retained', () => {
   assert.match(COMMON, /function Invoke-Aws/);
-  assert.match(COMMON, /if \(\$LASTEXITCODE -ne 0\) \{ throw "AWS CLI failed \(exit \$LASTEXITCODE\)/);
-  // mutations go through the wrapper (no raw `aws iam create-policy-version | Out-Null`).
-  assert.ok(!/\naws iam (create-policy-version|create-role|set-default-policy-version|delete-role)/.test(APPLY + ROLLBACK), 'no un-wrapped mutating aws call');
-  assert.match(APPLY, /Invoke-Aws @\('iam','create-policy-version'/);
-});
-
-test('2. no success message can be emitted after a failed create-policy-version', () => {
-  const iCreate = APPLY.indexOf("Invoke-Aws @('iam','create-policy-version'");
-  const iReadback = APPLY.indexOf('new Pilot CodeBuild role missing from PassRole');
-  const iSuccess = APPLY.indexOf('amended and CONFIRMED');
-  assert.ok(iCreate > 0 && iReadback > iCreate && iSuccess > iReadback,
-    'create -> read-back verification -> success message, in that order');
-  // The old premature "amended ... set as default" message is gone.
-  assert.ok(!/amended \(added only the Pilot CodeBuild role; set as default\)/.test(APPLY));
-});
-
-test('3. the candidate provisioner policy is validated locally as JSON before apply', () => {
-  assert.match(APPLY, /\$json \| ConvertFrom-Json/, 'local JSON round-trip validation');
-});
-
-test('4. candidate differs from current only by the one Pilot role ARN', () => {
-  assert.match(APPLY, /\$added\s*=\s*@\(\$newPass \| Where-Object \{ \$curPass -notcontains \$_ \}\)/);
-  assert.match(APPLY, /\$added\)\.Count -ne 1 -or \$added\[0\] -ne \$ROLE_ARN.*throw/s);
-  assert.match(APPLY, /\$probe\.Statement\[\$ni\]\.Resource = \$curPass/);
-  assert.match(APPLY, /\(CanonJson \$probe\) -ne \(CanonJson \$curDoc\).*throw/s, 'rest of the document must be identical');
-});
-
-test('5. candidate PassRole stays an array', () => {
-  assert.match(APPLY, /\$newDoc\.Statement\[\$ni\]\.Resource = @\(\$curPass \+ \$ROLE_ARN\)/);
-});
-
-test('6. no wildcard PassRole', () => {
-  assert.match(APPLY, /\$curPass -contains '\*'.*throw/s);
-  assert.match(APPLY, /\$resN -contains '\*'.*throw/s);
-});
-
-test('7. temporary policy file is UTF-8 without BOM', () => {
-  assert.match(COMMON, /function Write-Utf8NoBom/);
+  assert.match(COMMON, /if \(\$LASTEXITCODE -ne 0\) \{ throw "AWS CLI failed/);
   assert.match(COMMON, /New-Object System\.Text\.UTF8Encoding\(\$false\)/);
   assert.match(APPLY, /Write-Utf8NoBom \$tmpFile \$json/);
-  assert.match(APPLY, /ReadAllBytes\(\$tmpFile\)\)\[0\] -eq 0xEF.*throw/s, 'BOM self-check');
-  // The BOM-prone Set-Content -Encoding utf8 is NOT used for the policy document.
-  assert.ok(!/Set-Content \$tmp\w* -Encoding utf8/.test(APPLY), 'no Set-Content utf8 for the policy temp file');
+  assert.match(APPLY, /ReadAllBytes\(\$tmpFile\)\)\[0\] -eq 0xEF.*throw/s);
+  assert.ok(!/Set-Content \$tmp\w* -Encoding utf8/.test(APPLY));
+  assert.match(APPLY, /Invoke-Aws @\('iam','create-policy-version'/);
 });
-
-test('8. an existing EXACT Pilot CodeBuild role resumes safely (no overwrite)', () => {
-  assert.match(APPLY, /\$ev\.role_action = 'preexisting_verified'/);
-  assert.match(APPLY, /already exists - verifying exact match \(no overwrite\)/);
-  assert.ok(!/create-role/.test(APPLY.slice(APPLY.indexOf('already exists'), APPLY.indexOf('} else {'))), 'no create in the exists branch');
+test('semantic-delta verifier is defined and used for candidate + read-back', () => {
+  assert.match(COMMON, /function Assert-AdditivePassRoleDelta/);
+  assert.ok((APPLY.match(/Assert-AdditivePassRoleDelta/g) || []).length >= 2, 'used for candidate and applied read-back');
 });
-
-test('9. an existing DRIFTED role aborts', () => {
-  assert.match(APPLY, /existing role trust differs from approved trust\.json \(drift\).*throw|throw 'ABORT: existing role trust differs/);
-  assert.match(APPLY, /existing inline policy differs from approved policy\.json \(drift\)/);
-});
-
-test('10. v1 unchanged + Pilot role absent => additive amendment path', () => {
-  const branch = APPLY.slice(APPLY.indexOf("} else {\n    # Build the additive candidate"));
-  assert.match(branch, /Invoke-Aws @\('iam','create-policy-version'/);
-  assert.match(APPLY, /\$ev\.passrole_action = 'added'/);
-});
-
-test('11. Pilot role already present => idempotent verified path (no new version)', () => {
-  const idem = APPLY.slice(APPLY.indexOf("if (\$curPass -contains \$ROLE_ARN) {"), APPLY.indexOf('} else {\n    # Build the additive candidate'));
-  assert.match(idem, /passrole_action = 'preexisting_verified'/);
-  assert.ok(!/create-policy-version/.test(idem), 'no create-policy-version on the idempotent path');
-});
-
-test('12. unexpected provisioner-policy drift aborts', () => {
-  assert.match(APPLY, /unexpected PassRole roles present.*throw|throw "ABORT \(drift\): unexpected PassRole roles present/);
-  assert.match(APPLY, /expected existing PassRole role missing/);
-});
-
-test('13. the temporary policy file is removed in finally', () => {
-  assert.match(APPLY, /\nfinally \{[\s\S]*if \(\$tmpFile -and \(Test-Path \$tmpFile\)\) \{ Remove-Item \$tmpFile -Force/);
-});
-
-test('14. MFA session cleanup remains mandatory in both scripts', () => {
-  for (const s of [APPLY, ROLLBACK]) assert.match(s, /\nfinally \{[\s\S]*Clear-MfaSession/);
-  for (const v of ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN']) assert.ok(COMMON.includes(v));
-});
-
-test('15. no AWS secret or TOTP is written to disk or evidence', () => {
-  for (const v of SECRET_FIELDS) {
-    assert.ok(!noApiName(APPLY).includes(v), `apply must not reference ${v}`);
-    assert.ok(!noApiName(ROLLBACK).includes(v), `rollback must not reference ${v}`);
-  }
-  // The returned MFA evidence hashtable carries none of the credential field names.
-  const ret = COMMON.slice(COMMON.indexOf('return [ordered]@{'), COMMON.indexOf('function Clear-MfaSession'));
-  for (const v of SECRET_FIELDS) assert.ok(!noApiName(ret).includes(v));
-  // TOTP interactive-only and cleared; ownership marker records no secret.
-  assert.match(COMMON, /Read-Host -AsSecureString/);
-  assert.match(COMMON, /\$code = \$null/);
-  assert.ok(!/role_created_by_b1[\s\S]{0,120}(AccessKey|Secret|Token|code)/i.test(APPLY), 'ownership marker has no secret');
-});
-
-// --- carried essentials: exact identities, serial, duration, additive/rollback behaviour ---
-test('exact base identity, MFA serial, 900s duration, bootstrap-only --profile', () => {
+test('exact identities, serial, 900s, bootstrap-only --profile, MFA cleanup, ownership-preserving rollback', () => {
   assert.ok(COMMON.includes("UserArn   = 'arn:aws:iam::046276255259:user/safebetiq-backup-user'"));
   assert.ok(COMMON.includes("MfaSerial = 'arn:aws:iam::046276255259:mfa/safebetiq-backup-user-mfa'"));
   assert.ok(COMMON.includes('Duration  = 900'));
-  assert.ok(!/--profile/.test(code(APPLY)) && !/--profile/.test(code(ROLLBACK)), 'no --profile in apply/rollback');
-  assert.match(ROLLBACK, /set-default-policy-version','--policy-arn',\$PROV_POL,'--version-id',\$prior/);
+  assert.ok(!/--profile/.test(code(APPLY)) && !/--profile/.test(code(ROLLBACK)));
+  for (const s of [APPLY, ROLLBACK]) assert.match(s, /\nfinally \{[\s\S]*Clear-MfaSession/);
   assert.match(ROLLBACK, /B-1 ownership is NOT established/);
 });

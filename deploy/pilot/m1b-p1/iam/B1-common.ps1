@@ -55,6 +55,36 @@ function Canon($o){
 }
 function CanonJson($o){ (Canon $o) | ConvertTo-Json -Depth 20 -Compress }
 
+# Index of the single iam:PassRole statement in a policy document (-1 if none).
+function Get-PassRoleIndex($doc){
+  for ($i=0; $i -lt @($doc.Statement).Count; $i++){ if (@($doc.Statement[$i].Action) -contains 'iam:PassRole'){ return $i } }
+  return -1
+}
+
+# Semantic-DELTA verifier (replaces the old absolute "contains iam:" check, which false-positived on the
+# pre-existing approved iam:CreateServiceLinkedRole). Throws unless $NewDoc equals $PriorDoc EXCEPT that
+# the single iam:PassRole Resource array has exactly ONE added entry = $PilotArn (and none removed, no
+# wildcard). Because every other statement must be byte-identical, this ALLOWS pre-existing approved IAM
+# actions (e.g. iam:CreateServiceLinkedRole with its elasticbeanstalk/autoscaling/elasticloadbalancing
+# service list) while forbidding any new/removed/broadened IAM action, any other new role ARN, any wildcard
+# PassRole, and any change to Secrets/Route53/region statements.
+function Assert-AdditivePassRoleDelta($PriorDoc, $NewDoc, [string]$PilotArn){
+  $pi = Get-PassRoleIndex $PriorDoc; $ni = Get-PassRoleIndex $NewDoc
+  if ($pi -lt 0 -or $ni -lt 0) { throw 'ABORT: a iam:PassRole statement is missing.' }
+  $priorPass = @($PriorDoc.Statement[$pi].Resource)
+  $newPass   = @($NewDoc.Statement[$ni].Resource)
+  if ($newPass -contains '*') { throw 'ABORT: wildcard iam:PassRole is not permitted.' }
+  $added   = @($newPass | Where-Object { $priorPass -notcontains $_ })
+  $removed = @($priorPass | Where-Object { $newPass -notcontains $_ })
+  if (@($removed).Count -ne 0) { throw "ABORT: PassRole roles were removed: $($removed -join ', ')." }
+  if (@($added).Count -ne 1 -or $added[0] -ne $PilotArn) { throw "ABORT: PassRole change is not exactly +$PilotArn (added: $($added -join ', '))." }
+  # Normalise the new doc's PassRole resource back to the prior set; the WHOLE document must then be
+  # byte-identical to the prior - proving no other statement (IAM or otherwise) changed in any way.
+  $probe = ($NewDoc | ConvertTo-Json -Depth 30) | ConvertFrom-Json
+  $probe.Statement[(Get-PassRoleIndex $probe)].Resource = $priorPass
+  if ((CanonJson $probe) -ne (CanonJson $PriorDoc)) { throw 'ABORT: a non-PassRole statement changed - only the Pilot PassRole addition is permitted.' }
+}
+
 # ---- Write a JSON string to a file as UTF-8 WITHOUT BOM (PS 5.1 Set-Content -Encoding utf8 adds a BOM,
 #      which the AWS policy parser rejects as "Syntax errors in policy") ----
 function Write-Utf8NoBom([string]$Path, [string]$Text) {

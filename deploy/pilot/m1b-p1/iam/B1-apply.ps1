@@ -81,10 +81,9 @@ try {
   $ev.role_arn = $ROLE_ARN
   Note 'role read-back OK: codebuild-only trust; inline-only; no managed/admin policy.'
 
-  # ===== PASSROLE PHASE (resume-aware) =====
-  $priorVer = (Invoke-AwsJson @('iam','get-policy','--policy-arn',$PROV_POL,'--output','json')).Policy.DefaultVersionId
-  $ev.provisioner_prior_version = $priorVer
-  $curDoc = Get-ProvDoc $priorVer
+  # ===== PASSROLE PHASE (resume-aware; semantic-DELTA verified, not an absolute iam: check) =====
+  $curDef = (Invoke-AwsJson @('iam','get-policy','--policy-arn',$PROV_POL,'--output','json')).Policy.DefaultVersionId
+  $curDoc = Get-ProvDoc $curDef
   $passArr = PassStmt $curDoc
   if (@($passArr).Count -ne 1) { throw "ABORT: expected exactly one iam:PassRole statement, found $(@($passArr).Count)." }
   $curPass = @($passArr[0].Resource)
@@ -94,31 +93,34 @@ try {
   if (@($unexpected).Count -ne 0) { throw "ABORT (drift): unexpected PassRole roles present: $($unexpected -join ', ')." }
 
   if ($curPass -contains $ROLE_ARN) {
-    $ev.passrole_action = 'preexisting_verified'; $ev.provisioner_new_version = $priorVer
-    Note 'PassRole already includes the Pilot CodeBuild role - PassRole phase already complete.'
+    # IDEMPOTENT: the current default already contains the Pilot role. Prove it is EXACTLY the approved
+    # additive change by finding the unique prior version that, plus the Pilot role, equals the current
+    # default (every other statement identical, incl. the pre-existing iam:CreateServiceLinkedRole).
+    $matches = @()
+    foreach ($v in @((Invoke-AwsJson @('iam','list-policy-versions','--policy-arn',$PROV_POL,'--output','json')).Versions | Where-Object { $_.VersionId -ne $curDef })) {
+      $d = Get-ProvDoc $v.VersionId
+      $dpi = Get-PassRoleIndex $d
+      if ($dpi -lt 0 -or (@($d.Statement[$dpi].Resource) -contains $ROLE_ARN)) { continue }  # prior must NOT already contain the Pilot role
+      try { Assert-AdditivePassRoleDelta $d $curDoc $ROLE_ARN; $matches += $v.VersionId } catch { }
+    }
+    if (@($matches).Count -ne 1) { throw "ABORT: cannot uniquely establish the prior approved version proving the additive-only delta (found $(@($matches).Count)). Owner decision required." }
+    $ev.provisioner_prior_version = $matches[0]
+    $ev.provisioner_new_version   = $curDef
+    $ev.passrole_action = 'preexisting_verified'
+    Note "PassRole already contains the approved additive change (current=$curDef, prior=$($matches[0])); no new version created."
   } else {
-    # Build the additive candidate in memory (independent deep clone of the current default).
+    # ADDITIVE: build candidate, verify delta, transport BOM-free, Access-Analyzer validate, then create.
+    $ev.provisioner_prior_version = $curDef
     $newDoc = ($curDoc | ConvertTo-Json -Depth 30) | ConvertFrom-Json
-    $ni = -1; for ($i=0; $i -lt @($newDoc.Statement).Count; $i++){ if (@($newDoc.Statement[$i].Action) -contains 'iam:PassRole'){ $ni=$i } }
-    $newDoc.Statement[$ni].Resource = @($curPass + $ROLE_ARN)
-    # Prove the ONLY semantic change is adding exactly the Pilot role ARN.
-    $newPass = @($newDoc.Statement[$ni].Resource)
-    $added   = @($newPass | Where-Object { $curPass -notcontains $_ })
-    $removed = @($curPass | Where-Object { $newPass -notcontains $_ })
-    if (@($removed).Count -ne 0) { throw "ABORT: candidate removes roles: $($removed -join ', ')." }
-    if (@($added).Count -ne 1 -or $added[0] -ne $ROLE_ARN) { throw "ABORT: candidate adds more than the Pilot role: $($added -join ', ')." }
-    $probe = ($newDoc | ConvertTo-Json -Depth 30) | ConvertFrom-Json
-    $probe.Statement[$ni].Resource = $curPass
-    if ((CanonJson $probe) -ne (CanonJson $curDoc)) { throw 'ABORT: candidate changes more than the PassRole resource array.' }
+    $newDoc.Statement[(Get-PassRoleIndex $newDoc)].Resource = @($curPass + $ROLE_ARN)
+    Assert-AdditivePassRoleDelta $curDoc $newDoc $ROLE_ARN   # candidate == current + ONLY the Pilot role
 
-    # Serialize + local JSON validation + UTF-8-no-BOM temp file (file:// transport, never inline arg).
     $json = $newDoc | ConvertTo-Json -Depth 30
-    $null = $json | ConvertFrom-Json   # local syntactic validation; throws if invalid
+    $null = $json | ConvertFrom-Json   # local JSON validation
     $tmpFile = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "sbiq-prov-$([guid]::NewGuid()).json")
     Write-Utf8NoBom $tmpFile $json
     if (([System.IO.File]::ReadAllBytes($tmpFile))[0] -eq 0xEF) { throw 'ABORT: temp policy file has a BOM.' }
 
-    # Access Analyzer validate-policy BEFORE create-policy-version. Zero ERROR required; warnings recorded.
     $findings = @(Invoke-AwsJson @('accessanalyzer','validate-policy','--policy-type','IDENTITY_POLICY','--policy-document',"file://$tmpFile",'--query','findings','--output','json'))
     $ev.analyzer = [ordered]@{
       errors   = @($findings | Where-Object { $_.findingType -eq 'ERROR' } | ForEach-Object { $_.issueCode })
@@ -127,29 +129,19 @@ try {
     if (@($ev.analyzer.errors).Count -ne 0) { throw "ABORT: Access Analyzer ERROR findings on candidate: $($ev.analyzer.errors -join ', ')." }
     if (@($ev.analyzer.warnings).Count -ne 0) { Note "Access Analyzer warnings (recorded, not ignored): $($ev.analyzer.warnings -join ', ')" }
 
-    # Respect the 5-version limit (never delete the current default).
     $vers = @((Invoke-AwsJson @('iam','list-policy-versions','--policy-arn',$PROV_POL,'--output','json')).Versions)
     if ($vers.Count -ge 5) {
       $old = @($vers | Where-Object { -not $_.IsDefaultVersion } | Sort-Object CreateDate | Select-Object -First 1)
       if ($old) { Invoke-Aws @('iam','delete-policy-version','--policy-arn',$PROV_POL,'--version-id',$old.VersionId) | Out-Null; Note "pruned oldest non-default version $($old.VersionId)" }
     }
-    # Mutate (throws on any non-zero exit - no false success possible).
     Invoke-Aws @('iam','create-policy-version','--policy-arn',$PROV_POL,'--policy-document',"file://$tmpFile",'--set-as-default') | Out-Null
 
-    # Read back and CONFIRM before declaring success.
+    # Read back and CONFIRM (semantic delta) BEFORE declaring success.
     $newVer = (Invoke-AwsJson @('iam','get-policy','--policy-arn',$PROV_POL,'--output','json')).Policy.DefaultVersionId
-    if ($newVer -eq $priorVer) { throw 'ABORT: default version did not advance after create-policy-version.' }
+    if ($newVer -eq $curDef) { throw 'ABORT: default version did not advance after create-policy-version.' }
     $chk = Get-ProvDoc $newVer
-    $resN = @((PassStmt $chk)[0].Resource)
-    if ($resN -contains '*') { throw 'ABORT: PassRole became wildcard.' }
-    if ($resN -notcontains $ROLE_ARN) { throw 'ABORT: new Pilot CodeBuild role missing from PassRole.' }
-    foreach ($rq in @($EB_EC2,$EB_SVC)) { if ($resN -notcontains $rq) { throw "ABORT: existing approved PassRole role was dropped: $rq" } }
-    $iamAdmin = @($chk.Statement | Where-Object { @($_.Action) | Where-Object { $_ -match '^iam:(Create|Put|Attach|Delete|Update)' -and $_ -ne 'iam:PassRole' } })
-    if (@($iamAdmin).Count -ne 0) { throw 'ABORT: policy now contains IAM administrative actions.' }
-    $probe2 = ($chk | ConvertTo-Json -Depth 30) | ConvertFrom-Json
-    $pi = -1; for ($i=0; $i -lt @($probe2.Statement).Count; $i++){ if (@($probe2.Statement[$i].Action) -contains 'iam:PassRole'){ $pi=$i } }
-    $probe2.Statement[$pi].Resource = $curPass
-    if ((CanonJson $probe2) -ne (CanonJson $curDoc)) { throw 'ABORT: applied version changed more than the PassRole resource.' }
+    Assert-AdditivePassRoleDelta $curDoc $chk $ROLE_ARN      # applied == prior + ONLY the Pilot role (pre-existing iam:CreateServiceLinkedRole allowed)
+    foreach ($rq in @($EB_EC2,$EB_SVC)) { if (@((PassStmt $chk)[0].Resource) -notcontains $rq) { throw "ABORT: existing approved PassRole role was dropped: $rq" } }
     $ev.passrole_action = 'added'; $ev.provisioner_new_version = $newVer
     Note "provisioner PassRole amended and CONFIRMED (version $newVer; +Pilot CodeBuild role only)."
   }
@@ -171,6 +163,10 @@ try {
   Note 'simulations OK (provisioner PassRole positive/negative; CodeBuild role denied secrets/DNS/EB/IAM).'
 
   # ===== EVIDENCE (ONLY after every check above has passed) =====
+  $ev.current_policy_version = $ev.provisioner_new_version
+  $ev.prior_policy_version   = $ev.provisioner_prior_version
+  $ev.positive_passrole      = $ev.sim.pos_passrole_pilot
+  $ev.negative_passrole      = $ev.sim.neg_passrole_unrelated
   $ev.timestamp_utc = [DateTime]::UtcNow.ToString('o')
   $ev | ConvertTo-Json -Depth 8 | Set-Content $EVIDENCE -Encoding ascii
   Note "non-secret evidence written -> $EVIDENCE"
