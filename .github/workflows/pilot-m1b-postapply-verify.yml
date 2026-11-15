@@ -29,7 +29,12 @@ concurrency:
 env:
   AUTHORISED_ENVIRONMENT: pilot
   AUTHORISED_COMMIT: 379141e45c7f6f9db1888ebaebfa45fbf86a993e
-  AUTHORISED_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  # The governed apply captures fingerprint.sql BEFORE pilot_post_apply_grants.sql, so this is the
+  # PRE-hardening fingerprint (kept for provenance; NOT what a hardened live Pilot produces).
+  AUTHORISED_PRE_HARDENING_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  # The live, already-hardened Pilot fingerprint — independently reproduced twice on disposable
+  # Postgres 17 (pilot-m1b-fingerprint-repro.yml). This is what the verifier compares against.
+  AUTHORISED_POST_HARDENING_FINGERPRINT: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
   AUTHORISED_MANIFEST_SHA: ea03c077605e3fdecd88377f251cc2f10810f4ed6f52addf662007e1c65f27e6
   PILOT_EXECUTION_SOURCE_COMMIT: e16451b707e92d2b105ed4cb36173ad12645a482
   FORBIDDEN_REFS: 'ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll'
@@ -101,12 +106,17 @@ jobs:
           grep -qx 'ssl|true' ssl.txt || { echo "::error::connection is not SSL"; exit 1; }
           echo "ssl|true"
 
-      - name: 4 · Structural fingerprint must equal the authorised value (read-only)
+      - name: 4 · Structural fingerprint must equal the authorised POST-hardening value (read-only)
         run: |
           set -euo pipefail
           psql "$PILOT_DB_URL" -f "$AUTH_BASE/fingerprint.sql" | tr -d '\r' > pilot.fp.txt
           fp=$(sha256sum pilot.fp.txt | cut -d' ' -f1); echo "pilot_fingerprint=$fp"
-          [ "$fp" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::Pilot fingerprint != authorised fingerprint"; exit 1; }
+          # The live Pilot is already hardened (post-apply grants applied), so it must match the
+          # POST-hardening fingerprint, never the pre-hardening one.
+          if [ "$fp" = "$AUTHORISED_PRE_HARDENING_FINGERPRINT" ]; then
+            echo "::error::Pilot fingerprint equals the PRE-hardening value — post-apply hardening appears NOT applied"; exit 1
+          fi
+          [ "$fp" = "$AUTHORISED_POST_HARDENING_FINGERPRINT" ] || { echo "::error::Pilot fingerprint != authorised POST-hardening fingerprint"; exit 1; }
 
       - name: 5 · Privilege / security state must equal the reviewed manifest (read-only)
         run: |
@@ -170,6 +180,7 @@ jobs:
           echo "- SSL: $(cat ssl.txt 2>/dev/null || echo 'n/a')"
           [ -f pilot.fp.txt ] && echo "- structural fingerprint: $(sha256sum pilot.fp.txt | cut -d' ' -f1)"
           [ -f pilot.priv.txt ] && echo "- privilege-state hash: $(sha256sum pilot.priv.txt | cut -d' ' -f1)"
-          echo "  AUTHORISED_FINGERPRINT: ${AUTHORISED_FINGERPRINT}"
+          echo "  AUTHORISED_POST_HARDENING_FINGERPRINT: ${AUTHORISED_POST_HARDENING_FINGERPRINT}"
+          echo "  (pre-hardening, provenance only: ${AUTHORISED_PRE_HARDENING_FINGERPRINT})"
           echo "  AUTHORISED_MANIFEST_SHA: ${AUTHORISED_MANIFEST_SHA}"
           echo "- NOTE: read-only; no baseline apply, no privilege mutation, no row writes, no AWS, no deploy."

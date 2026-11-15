@@ -1,0 +1,152 @@
+name: SafeBet IQ — Pilot M1B post-hardening fingerprint reproduction (isolated, no secrets)
+
+# Independently derives the deterministic POST-hardening structural fingerprint on a DISPOSABLE
+# PostgreSQL 17, reproducing the governed apply sequence that produced the live Pilot state:
+#   platform-prep + Supabase-default emulation -> preflight -> pre-apply hardening preamble ->
+#   apply deterministic derivative -> PRE-hardening fingerprint (must equal 5f324b14...) ->
+#   apply pilot_post_apply_grants.sql -> privilege manifest (must equal ea03c077...) ->
+#   re-run fingerprint.sql AFTER hardening => POST-hardening fingerprint.
+# Runs the reproduction on TWO fresh databases and fails unless both post-hardening hashes are
+# identical. No secrets, no GitHub environment, no real project — credential-free and read-only
+# with respect to any live Pilot. Uses the reviewed execution-source artifacts (e16451b).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/pilot-m1b-postapply-fingerprint-20261115]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-m1b-fp-repro-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PILOT_EXECUTION_SOURCE_COMMIT: e16451b707e92d2b105ed4cb36173ad12645a482
+  AUTHORISED_SHA: 530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182
+  AUTHORISED_DERIVATIVE_SHA: c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067
+  AUTHORISED_PRE_HARDENING_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  AUTHORISED_MANIFEST_SHA: ea03c077605e3fdecd88377f251cc2f10810f4ed6f52addf662007e1c65f27e6
+  # Authorised POST-hardening fingerprint — independently reproduced here and matched to the live
+  # Pilot (apply run 43748247971). The verifier compares the hardened live Pilot against this value.
+  AUTHORISED_POST_HARDENING_FINGERPRINT: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
+  BASE: deploy/pilot/baseline
+  DERIVATIVE: deploy/pilot/baseline/generated/pilot_app_schema_supabase.sql
+
+jobs:
+  repro:
+    name: Derive post-hardening fingerprint (disposable Postgres 17, x2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      LOCAL: postgres://postgres:postgres@localhost:5432
+    steps:
+      - name: Checkout reviewed execution-source artifacts (e16451b)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PILOT_EXECUTION_SOURCE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Self-check — no secret, no GitHub environment
+        run: |
+          set -euo pipefail
+          grep -q 'secrets\.' .github/workflows/pilot-m1b-fingerprint-repro.yml 2>/dev/null && { echo "::error::references a secret"; exit 1; } || true
+          echo "credential-free reproduction"
+      - name: Install PostgreSQL 17 client (PGDG, bounded retry on the key fetch)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          ok=0
+          for a in 1 2 3 4 5; do
+            if sudo curl -fsSL --retry 2 --connect-timeout 15 --max-time 60 \
+                 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+                 https://www.postgresql.org/media/keys/ACCC4CF8.asc; then ok=1; break; fi
+            echo "PGDG key fetch attempt $a failed; backing off..."; sleep $((a*5))
+          done
+          [ "$ok" = 1 ] || { echo "::error::could not fetch the PGDG signing key after retries"; exit 1; }
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          P=/usr/lib/postgresql/17/bin/psql; "$P" --version | grep -Eq ' 17\.([6-9]|[1-9][0-9])' || { echo "::error::psql >= 17.6 required"; exit 1; }
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Determinism — canonical + derivative SHA pinned
+        run: |
+          set -euo pipefail
+          [ "$(sha256sum "$BASE/pilot_app_schema_baseline.sql" | cut -d' ' -f1)" = "$AUTHORISED_SHA" ] || { echo "::error::canonical SHA mismatch"; exit 1; }
+          node "$BASE/generate-supabase-derivative.mjs" --check
+          [ "$(sha256sum "$DERIVATIVE" | cut -d' ' -f1)" = "$AUTHORISED_DERIVATIVE_SHA" ] || { echo "::error::derivative SHA mismatch"; exit 1; }
+
+      - name: Reproduce the governed sequence on TWO fresh databases
+        run: |
+          set -euo pipefail
+          reproduce() {
+            local db="$1"
+            psql "$LOCAL/postgres" -X -v ON_ERROR_STOP=1 -c "create database $db;" >/dev/null
+            local DB="$LOCAL/$db"
+            psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/platform-prep.sql" >/dev/null
+            psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/rehearsal/supabase-defaults-emulation.sql" >/dev/null
+            psql "$DB" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_preflight.sql" >/dev/null
+            psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_pre_apply_security.sql" >/dev/null
+            psql "$DB" -X -q -1 -v ON_ERROR_STOP=1 -f "$DERIVATIVE" >/dev/null
+            # PRE-hardening fingerprint must equal the original authorised value.
+            psql "$DB" -f "$BASE/fingerprint.sql" | tr -d '\r' > "pre_$db.txt"
+            local pre; pre=$(sha256sum "pre_$db.txt" | cut -d' ' -f1)
+            [ "$pre" = "$AUTHORISED_PRE_HARDENING_FINGERPRINT" ] || { echo "::error::$db PRE-hardening fingerprint != 5f324b14..."; exit 1; }
+            # Apply the deliberate post-apply privilege hardening.
+            psql "$DB" -X -q -v ON_ERROR_STOP=1 -f "$BASE/pilot_post_apply_grants.sql" >/dev/null
+            # Privilege manifest must match exactly.
+            psql "$DB" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_privilege_verify.sql" > "priv_$db.txt"
+            diff -u "$BASE/pilot_privilege_manifest.txt" "priv_$db.txt" >/dev/null || { echo "::error::$db privilege state differs from manifest"; exit 1; }
+            [ "$(sha256sum "priv_$db.txt" | cut -d' ' -f1)" = "$AUTHORISED_MANIFEST_SHA" ] || { echo "::error::$db manifest SHA mismatch"; exit 1; }
+            # POST-hardening fingerprint — the value under derivation.
+            psql "$DB" -f "$BASE/fingerprint.sql" | tr -d '\r' > "post_$db.txt"
+            sha256sum "post_$db.txt" | cut -d' ' -f1
+          }
+          A=$(reproduce pilot_repro_a)
+          B=$(reproduce pilot_repro_b)
+          echo "pre_hardening_fingerprint=$AUTHORISED_PRE_HARDENING_FINGERPRINT"
+          echo "post_hardening_fingerprint_A=$A"
+          echo "post_hardening_fingerprint_B=$B"
+          [ "$A" = "$B" ] || { echo "::error::post-hardening fingerprint NOT reproducible ($A vs $B)"; exit 1; }
+          echo "post_hardening_fingerprint=$A"
+          [ "$A" = "$AUTHORISED_POST_HARDENING_FINGERPRINT" ] || { echo "::error::derived post-hardening fingerprint ($A) != authorised ($AUTHORISED_POST_HARDENING_FINGERPRINT)"; exit 1; }
+          # Pre and post must be DIFFERENT (post-apply hardening deliberately changes grants).
+          [ "$A" != "$AUTHORISED_PRE_HARDENING_FINGERPRINT" ] || { echo "::error::post-hardening fingerprint equals pre-hardening — hardening had no effect"; exit 1; }
+          echo "post-hardening fingerprint reproduced and matches the authorised value"
+          {
+            echo "## Post-hardening fingerprint reproduction"
+            echo "- pre-hardening (authorised, provenance): \`$AUTHORISED_PRE_HARDENING_FINGERPRINT\`"
+            echo "- post-hardening run A: \`$A\`"
+            echo "- post-hardening run B: \`$B\`"
+            echo "- reproducible: yes · equals authorised post-hardening value: yes · differs from pre-hardening: yes"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
+  verifier-check:
+    name: Verifier uses the POST-hardening fingerprint (static, no DB)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout this branch (contains the verifier)
+        uses: actions/checkout@v4
+      - name: Verifier must compare the hardened Pilot against the POST-hardening fingerprint
+        env:
+          POST: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
+          PRE: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+        run: |
+          set -euo pipefail
+          V=.github/workflows/pilot-m1b-postapply-verify.yml
+          [ -f "$V" ] || { echo "::error::verifier workflow not found on this branch"; exit 1; }
+          grep -q "AUTHORISED_POST_HARDENING_FINGERPRINT: ${POST}" "$V" || { echo "::error::verifier does not pin the authorised post-hardening fingerprint"; exit 1; }
+          grep -q '\[ "\$fp" = "\$AUTHORISED_POST_HARDENING_FINGERPRINT" \]' "$V" || { echo "::error::verifier does not compare against the post-hardening fingerprint"; exit 1; }
+          grep -q 'equals the PRE-hardening value' "$V" || { echo "::error::verifier does not reject the pre-hardening fingerprint"; exit 1; }
+          # The pre-hardening value must appear only as documented provenance, never as the comparison target.
+          grep -q '\[ "\$fp" = "\$AUTHORISED_FINGERPRINT" \]' "$V" && { echo "::error::verifier still compares against the ambiguous AUTHORISED_FINGERPRINT"; exit 1; } || true
+          echo "verifier correctly uses the post-hardening fingerprint and rejects the pre-hardening one"
