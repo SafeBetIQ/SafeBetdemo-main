@@ -15,10 +15,9 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   generateEtags: true,
-  experimental: {
-    outputFileTracingExcludes: {
-      '*': ['../infrastructure/**/*'],
-    },
+  // Next 15: outputFileTracingExcludes graduated from `experimental` to a top-level config key.
+  outputFileTracingExcludes: {
+    '*': ['../infrastructure/**/*'],
   },
 };
 

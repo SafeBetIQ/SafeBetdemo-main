@@ -14,8 +14,9 @@ import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { formatPercentage } from '@/lib/utils';
+import { Suspense } from 'react';
 
-export default function StaffProfilePage() {
+function StaffProfilePageInner() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -733,5 +734,13 @@ export default function StaffProfilePage() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+export default function StaffProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffProfilePageInner />
+    </Suspense>
   );
 }
