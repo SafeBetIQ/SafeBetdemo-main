@@ -314,8 +314,11 @@ jobs:
               and (p.proname ~ '^sbiq_demo' or p.proname ~ 'showcase' or p.proname = 'simulate_live_feed'
                    or p.proname ~ '^sbiq_admin_(financial_section|overview_snapshot|refresh_registered|registered_status)');
             if n > 0 then raise exception 'Demo simulation functions present: %', n; end if;
-            if to_regclass('cron.job') is not null and exists (select 1 from cron.job) then
-              raise exception 'pg_cron jobs present in a fresh Pilot';
+            -- Reference the cron relation only when it exists; a static reference would fail to
+            -- parse/plan when pg_cron is absent even behind a false to_regclass() guard.
+            if to_regclass('cron.job') is not null then
+              execute 'select count(*) from cron.job' into n;
+              if n > 0 then raise exception 'pg_cron jobs present in a fresh Pilot: %', n; end if;
             end if;
           end $$;
           SQL
