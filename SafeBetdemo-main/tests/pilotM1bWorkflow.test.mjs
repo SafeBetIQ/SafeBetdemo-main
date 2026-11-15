@@ -139,6 +139,19 @@ test('rehearsal job: proves derivative + fingerprint (before hardening) + manife
   assert.ok(iFp >= 0 && iPost > iFp, 'fingerprint proven before post-apply hardening');
 });
 
+test('apply step 11: cron verification references cron.job only via dynamic EXECUTE (safe when pg_cron absent)', () => {
+  const s11 = runBlock(WF, '11 · No Demo seed / simulation subsystem');
+  // The guarded existence check must be dynamic so the cron.job relation is never parsed/planned
+  // when pg_cron is absent (otherwise: relation "cron.job" does not exist on a fresh Pilot).
+  assert.match(s11, /to_regclass\('cron\.job'\) is not null/, 'guards on to_regclass');
+  assert.match(s11, /execute 'select count\(\*\) from cron\.job' into n/, 'counts via dynamic EXECUTE');
+  assert.ok(!/exists\s*\(\s*select\s+1\s+from\s+cron\.job\s*\)/i.test(s11),
+    'no static "exists (select 1 from cron.job)" that fails to plan when pg_cron is absent');
+  // The only textual reference to the cron.job relation is inside the EXECUTE string literal.
+  const refs = (s11.match(/from\s+cron\.job/gi) || []);
+  assert.equal(refs.length, 1, 'exactly one cron.job reference, inside the dynamic EXECUTE literal');
+});
+
 // ── Pilot buildspec ───────────────────────────────────────────────────────────
 const PRE = (() => {
   const m = BS.match(/pre_build:\n {4}commands:\n {6}- \|\n([\s\S]*?)\n {6}- rm -rf/);
