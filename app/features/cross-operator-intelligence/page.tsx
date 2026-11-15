@@ -80,11 +80,14 @@ const HOW_IT_WORKS = [
   },
 ];
 
+// Cross-operator intelligence is a PLANNED capability. There is no live national network.
+// Implementation depends on lawful data-sharing arrangements, privacy safeguards and
+// authorised operator participation.
 const NETWORK_STATS = [
-  { value: '15+', label: 'Network Operators', sub: 'And growing across South Africa' },
-  { value: '50k+', label: 'Players Monitored', sub: 'Across the shared network' },
-  { value: '<500ms', label: 'Alert Propagation', sub: 'From trigger to all operators' },
-  { value: '100%', label: 'POPIA Compliant', sub: 'Every data share governed' },
+  { value: 'Planned', label: 'Network Model', sub: 'Subject to authorised participation' },
+  { value: 'Pseudonymised', label: 'Data Approach', sub: 'Privacy-by-design signal sharing' },
+  { value: 'Lawful', label: 'Data Sharing', sub: 'Dependent on lawful arrangements' },
+  { value: 'POPIA-aligned', label: 'Governance', sub: 'Every planned share governed' },
 ];
 
 const BENEFITS = [

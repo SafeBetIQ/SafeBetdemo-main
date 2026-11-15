@@ -82,7 +82,7 @@ export default function NovaIQPage() {
             transition={{ duration: 0.8 }}
           >
             <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20 text-sm px-4 py-2">
-              AI-POWERED BEHAVIORAL INTELLIGENCE
+              BEHAVIOURAL INTELLIGENCE
             </Badge>
 
             <motion.h1
@@ -106,8 +106,9 @@ export default function NovaIQPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.8 }}
             >
-              Interactive behavioral assessment that enhances AI accuracy by +12.5%.
-              Make real decisions in realistic scenarios while our XAI engine combines your behavioral patterns with live casino data for transparent, trustworthy harm prevention.
+              An interactive behavioural assessment that complements SafeBet IQ's rule-based risk scoring.
+              Players make real decisions in realistic scenarios, and the explainable engine combines those
+              behavioural patterns with casino session data for transparent, reviewable risk assessment.
             </motion.p>
 
             {/* Stats Bar */}
@@ -118,16 +119,16 @@ export default function NovaIQPage() {
               transition={{ delay: 0.5, duration: 0.8 }}
             >
               <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 text-center">
-                <div className="text-2xl md:text-3xl font-bold text-brand-400">86.9%</div>
-                <div className="text-xs text-gray-400 mt-1">AI Accuracy</div>
+                <div className="text-2xl md:text-3xl font-bold text-brand-400">Explainable</div>
+                <div className="text-xs text-gray-400 mt-1">Transparent assessment</div>
               </div>
               <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 text-center">
-                <div className="text-2xl md:text-3xl font-bold text-green-400">+12.5%</div>
-                <div className="text-xs text-gray-400 mt-1">Nova IQ Lift</div>
+                <div className="text-2xl md:text-3xl font-bold text-green-400">Scenario</div>
+                <div className="text-xs text-gray-400 mt-1">Real-decision based</div>
               </div>
               <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 text-center">
-                <div className="text-2xl md:text-3xl font-bold text-purple-400">83.4%</div>
-                <div className="text-xs text-gray-400 mt-1">Success Rate</div>
+                <div className="text-2xl md:text-3xl font-bold text-purple-400">Human-reviewed</div>
+                <div className="text-xs text-gray-400 mt-1">Supports staff decisions</div>
               </div>
             </motion.div>
 
@@ -199,7 +200,7 @@ export default function NovaIQPage() {
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">Non-Invasive</h3>
                   <p className="text-gray-400">
-                    Quick 5-8 minute assessment. Delivered via email or messaging. Zero disruption to operations.
+                    Quick 5-8 minute assessment. Planned delivery via email or messaging. Zero disruption to operations.
                   </p>
                 </CardContent>
               </Card>
@@ -421,6 +422,9 @@ export default function NovaIQPage() {
               <br />
               <strong className="text-white">No raw gameplay data. No personal wellbeing profiling.</strong>
             </p>
+            <div className="mt-4 inline-block text-[11px] uppercase tracking-wide text-gray-500 font-mono border border-gray-700 rounded-full px-3 py-1">
+              Illustrative demonstration data
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
@@ -743,9 +747,9 @@ export default function NovaIQPage() {
                   <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6">
                     <TrendingUp className="h-7 w-7 text-green-400" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4">Outcome Learning</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4">Outcome Tracking</h3>
                   <p className="text-gray-300 leading-relaxed mb-4">
-                    Track post-intervention outcomes to improve AI accuracy. System learns which interventions work best for each behavioral profile.
+                    Track post-intervention outcomes to inform responsible gambling decisions, recording which interventions are followed through for each behavioural profile.
                   </p>
                   <ul className="space-y-2 text-sm text-gray-400">
                     <li className="flex items-start">
@@ -758,7 +762,7 @@ export default function NovaIQPage() {
                     </li>
                     <li className="flex items-start">
                       <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>AI accuracy improvement +19%</span>
+                      <span>Follow-up and closure tracking</span>
                     </li>
                   </ul>
                 </CardContent>
@@ -843,8 +847,8 @@ export default function NovaIQPage() {
                     <div className="flex items-start">
                       <TrendingUp className="h-5 w-5 text-brand-400 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <p className="text-white font-semibold mb-1">Engagement Rate</p>
-                        <p className="text-gray-400 text-sm">68% completion rate</p>
+                        <p className="text-white font-semibold mb-1">Engagement Tracking</p>
+                        <p className="text-gray-400 text-sm">Assessment completion recorded</p>
                       </div>
                     </div>
 

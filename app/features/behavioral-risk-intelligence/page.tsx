@@ -14,44 +14,44 @@ const capabilities = [
   {
     icon: Brain,
     title: 'Persona Shift Detection',
-    description: 'AI identifies when a player\'s behavior diverges from their established patterns, flagging sudden changes in betting amounts, session duration, or game type preferences.',
-    stat: '94%',
-    statLabel: 'Detection Accuracy',
+    description: 'The rule-based engine flags when a player\'s behaviour diverges from their established patterns — sudden changes in betting amounts, session duration, or game-type preferences.',
+    stat: 'Rule-based',
+    statLabel: 'Detection',
   },
   {
     icon: Gauge,
-    title: 'Cognitive Fatigue Index',
-    description: 'Proprietary algorithm measures decision-making degradation over time, detecting when players are no longer making rational choices due to fatigue or emotional distress.',
-    stat: 'Real-time',
+    title: 'Session Fatigue Indicators',
+    description: 'Tracks session-length and timing indicators to surface prolonged or escalating play that may warrant staff review.',
+    stat: 'Per-session',
     statLabel: 'Monitoring',
   },
   {
     icon: Zap,
-    title: 'Impulse vs Intention Analysis',
-    description: 'Distinguishes between planned gambling activity and impulsive behavior by analyzing deposit patterns, bet timing, and session frequency against historical baselines.',
-    stat: '87%',
-    statLabel: 'Impulse Identification',
+    title: 'Deposit & Bet Pattern Analysis',
+    description: 'Analyses deposit patterns, bet timing, and session frequency against each player\'s historical baseline to surface chasing-losses signals.',
+    stat: 'Baseline',
+    statLabel: 'Comparison',
   },
   {
     icon: ScanLine,
     title: 'Session Pattern Profiling',
-    description: 'Builds comprehensive behavioral profiles for each player by tracking session lengths, break patterns, deposit-to-loss ratios, and time-of-day activity clusters.',
-    stat: '150+',
-    statLabel: 'Behavioral Signals',
+    description: 'Builds behavioural profiles by tracking session lengths, break patterns, deposit-to-loss ratios, and time-of-day activity clusters.',
+    stat: 'Multiple',
+    statLabel: 'Behavioural signals',
   },
   {
     icon: Network,
     title: 'Multi-Signal Risk Scoring',
-    description: 'Combines financial, behavioral, temporal, and contextual signals into a unified risk score that adapts dynamically as new data becomes available.',
-    stat: '12',
-    statLabel: 'Risk Dimensions',
+    description: 'Combines financial, behavioural and temporal signals into a transparent, weighted risk score that is reproducible and auditable.',
+    stat: '4',
+    statLabel: 'Risk levels',
   },
   {
     icon: Target,
-    title: 'Predictive Harm Prevention',
-    description: 'Machine learning models predict potential harm up to 48 hours before critical events, enabling casinos to intervene before damage occurs rather than after.',
-    stat: '48hrs',
-    statLabel: 'Early Warning',
+    title: 'Escalation Detection',
+    description: 'Detects rising-risk trajectories within and across sessions so that staff can review and intervene before harm deepens. Predictive ML forecasting is not implemented.',
+    stat: 'Trajectory',
+    statLabel: 'Risk trend',
   },
 ];
 
@@ -136,7 +136,7 @@ export default function BehavioralRiskIntelligencePage() {
             >
               <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
                 <Brain className="h-4 w-4 mr-2" />
-                AI-Powered Behavioral Analysis
+                Rule-Based Behavioural Analysis
               </Badge>
             </motion.div>
 
@@ -466,10 +466,10 @@ export default function BehavioralRiskIntelligencePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { value: '150+', label: 'Behavioral Signals Tracked', icon: Activity },
-              { value: '94%', label: 'Risk Detection Accuracy', icon: Target },
-              { value: '<2s', label: 'Average Alert Latency', icon: Clock },
-              { value: '48hr', label: 'Predictive Warning Window', icon: TrendingUp },
+              { value: 'Multiple', label: 'Behavioural Signals Tracked', icon: Activity },
+              { value: 'Rule-based', label: 'Risk Detection Method', icon: Target },
+              { value: '4', label: 'Risk Levels (Low–Critical)', icon: Clock },
+              { value: 'Reproducible', label: 'Explainable Scoring', icon: TrendingUp },
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}

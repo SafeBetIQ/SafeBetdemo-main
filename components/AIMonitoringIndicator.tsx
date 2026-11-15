@@ -82,9 +82,9 @@ export default function AIMonitoringIndicator() {
                   transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
                 />
               </div>
-              <span className="text-white text-sm font-medium">AI System Monitoring Players</span>
+              <span className="text-white text-sm font-medium">Rule-Based Risk Monitoring</span>
             </div>
-            <div className="text-brand-400 text-xs mt-1">Real-Time Analysis Active</div>
+            <div className="text-brand-400 text-xs mt-1">Behavioural analysis active</div>
           </motion.div>
         )}
       </div>

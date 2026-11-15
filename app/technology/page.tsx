@@ -33,20 +33,22 @@ export default function TechnologyPage() {
             </h1>
 
             <p className="text-xl text-gray-400 mb-10 max-w-3xl mx-auto leading-relaxed">
-              Our explainable AI engine combines machine learning, Nova IQ behavioral assessments, and real-time casino data to identify gambling harm with 86.9% accuracy and continuously improving.
+              Our explainable risk engine combines a transparent, rule-based scoring model, Nova IQ behavioural
+              assessments, and casino session data to surface gambling-harm signals — with every score
+              reproducible and auditable.
             </p>
             <div className="flex justify-center gap-8 mb-10">
               <div className="text-center">
-                <div className="text-4xl font-bold text-brand-400 mb-1">86.9%</div>
-                <div className="text-sm text-gray-500">AI Accuracy</div>
+                <div className="text-4xl font-bold text-brand-400 mb-1">Rule-based</div>
+                <div className="text-sm text-gray-500">Scoring method</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-green-400 mb-1">+19.4%</div>
-                <div className="text-sm text-gray-500">90-Day Improvement</div>
+                <div className="text-4xl font-bold text-green-400 mb-1">Explainable</div>
+                <div className="text-sm text-gray-500">Every score reproducible</div>
               </div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-purple-400 mb-1">+12.5%</div>
-                <div className="text-sm text-gray-500">Nova IQ Lift</div>
+                <div className="text-4xl font-bold text-purple-400 mb-1">Auditable</div>
+                <div className="text-sm text-gray-500">Transparent weights</div>
               </div>
             </div>
           </div>
@@ -61,7 +63,7 @@ export default function TechnologyPage() {
                 SafeBet IQ Risk Engine
               </h2>
               <p className="text-lg text-gray-400 mb-8 leading-relaxed">
-                Our machine learning model analyzes 8 critical behavioral dimensions in real-time, scoring every player from 0-100 to identify potential gambling harm before it escalates.
+                Our rule-based engine analyses weighted behavioural dimensions, scoring every player from 0-100 against a transparent rule set to surface potential gambling harm for staff review.
               </p>
               <div className="space-y-4">
                 <div className="flex items-start space-x-4">
@@ -87,8 +89,8 @@ export default function TechnologyPage() {
                     <Brain className="h-6 w-6 text-brand-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Predictive ML Models</h3>
-                    <p className="text-gray-400">Trained on 250+ player profiles to identify harmful patterns with 99.9% accuracy.</p>
+                    <h3 className="text-lg font-semibold text-white mb-2">Explainable Scoring</h3>
+                    <p className="text-gray-400">Deterministic, weighted rules surface harmful patterns — every score is reproducible and fully auditable, with no opaque model inference.</p>
                   </div>
                 </div>
               </div>
@@ -207,9 +209,9 @@ export default function TechnologyPage() {
                 <div className="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6">
                   <BarChart3 className="h-7 w-7 text-green-400" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-4">Outcome Learning</h3>
+                <h3 className="text-2xl font-bold text-white mb-4">Outcome Tracking</h3>
                 <p className="text-gray-300 leading-relaxed mb-4">
-                  Track post-intervention outcomes to improve AI accuracy over time. The system learns which interventions work best for each behavioral profile.
+                  Track post-intervention outcomes to inform responsible gambling decisions. Recorded outcomes help operators and regulators understand which interventions are followed through.
                 </p>
                 <ul className="space-y-2 text-sm text-gray-400">
                   <li className="flex items-start">
@@ -222,11 +224,11 @@ export default function TechnologyPage() {
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>AI accuracy improvements up to +19% in 90 days</span>
+                    <span>Follow-up requirement and closure tracking</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="h-4 w-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>Privacy-safe shared intelligence across operators</span>
+                    <span>Privacy-safe cross-operator intelligence (planned)</span>
                   </li>
                 </ul>
               </CardContent>
@@ -241,8 +243,8 @@ export default function TechnologyPage() {
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-white mb-3">Nova IQ: Behavioral Intelligence, Not Just a Game</h3>
                 <p className="text-lg text-gray-300 leading-relaxed mb-4">
-                  Nova IQ is an interactive behavioral assessment tool that works together with SafeBet IQ's intervention engine.
-                  It provides decision-pattern analysis that enhances AI accuracy without exposing personal data or replacing human judgment.
+                  Nova IQ is an interactive behavioural assessment tool that works together with SafeBet IQ's intervention workflow.
+                  It provides decision-pattern analysis that informs risk assessment without exposing personal data or replacing human judgment.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-start gap-3">
@@ -302,7 +304,7 @@ export default function TechnologyPage() {
               {
                 icon: Globe,
                 title: 'Cloud Infrastructure',
-                description: '99.99% uptime SLA with automatic scaling to handle thousands of concurrent players without performance degradation.'
+                description: 'Cloud-hosted with horizontal scaling, designed to handle concurrent player sessions with consistent performance.'
               },
               {
                 icon: Eye,
@@ -341,18 +343,18 @@ export default function TechnologyPage() {
               },
               {
                 step: '02',
-                title: 'AI Analysis',
-                description: 'Our ML engine processes data across 8 dimensions, calculating weighted risk scores and comparing against trained models.'
+                title: 'Risk Analysis',
+                description: 'Our rule-based engine processes data across weighted behavioural dimensions, calculating a transparent, reproducible risk score.'
               },
               {
                 step: '03',
                 title: 'Risk Classification',
-                description: 'Players are automatically categorized as Low, Medium, High, or Critical risk based on their calculated score (0-100).'
+                description: 'Players are categorized as Low, Medium, High, or Critical risk based on their calculated score (0-100).'
               },
               {
                 step: '04',
-                title: 'Automated Action',
-                description: 'When thresholds are exceeded, interventions are triggered automatically via WhatsApp, SMS, or email with responsible gambling resources.'
+                title: 'Governed Action',
+                description: 'When thresholds are crossed, players are surfaced to staff for review and a recorded intervention decision. Governed multi-channel delivery (WhatsApp, SMS, email) is in development.'
               }
             ].map((step, i) => (
               <div key={i} className="relative">

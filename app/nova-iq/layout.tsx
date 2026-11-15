@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Nova IQ Intelligence System - SafeBet IQ',
-  description: 'Nova IQ - AI-powered behavioral assessment enhancing harm prevention accuracy by +12.5% through explainable AI and interactive decision analysis',
+  description: 'Nova IQ - an interactive, explainable behavioural assessment that complements SafeBet IQ rule-based risk scoring through interactive decision analysis',
 };
 
 export default function NovaIQLayout({

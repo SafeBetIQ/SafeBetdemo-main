@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const platforms = [
   {
     name: 'SOFTSWISS',
-    description: 'Full iGaming platform integration with real-time player data sync',
+    description: 'Integration target: iGaming platform compatibility with player data sync (planned)',
     features: ['Player activity webhooks', 'Deposit/withdrawal tracking', 'Session monitoring'],
   },
   {
@@ -25,7 +25,7 @@ const platforms = [
   },
   {
     name: 'BET Software',
-    description: 'South Africa\'s leading betting platform with native integration',
+    description: 'Integration target: compatibility with a leading South African betting platform (planned)',
     features: ['SA-specific compliance', 'Branch-level reporting', 'FICA integration'],
   },
   {
@@ -78,8 +78,8 @@ const apiEndpoints = [
 const capabilities = [
   {
     icon: Zap,
-    title: 'AI Risk Detection',
-    description: 'Real-time behavioral analysis with dynamic risk scoring from 0-100 across 150+ behavioral signals.',
+    title: 'Risk Detection',
+    description: 'Rule-based behavioural analysis with transparent risk scoring from 0-100 across multiple behavioural signals.',
   },
   {
     icon: Shield,
@@ -93,13 +93,13 @@ const capabilities = [
   },
   {
     icon: Clock,
-    title: '3-5 Day Integration',
-    description: 'Fast deployment with dedicated technical support, sandbox testing, and migration assistance.',
+    title: 'Sandbox-First Integration',
+    description: 'Integrate against a sandbox environment with technical support and documentation before any production connection.',
   },
   {
     icon: Lock,
     title: 'Player Protection',
-    description: 'Configurable cool-off periods, deposit limits, self-exclusion management, and WhatsApp interventions.',
+    description: 'Configurable cool-off periods, deposit limits, and self-exclusion management. Governed messaging interventions are in development.',
   },
   {
     icon: Globe,
@@ -223,9 +223,9 @@ export default function SafeBetIQConnectPublicPage() {
                 transition={{ delay: 0.8 }}
               >
                 {[
-                  { value: '3-5 days', label: 'To Go Live' },
-                  { value: '99.9%', label: 'Uptime SLA' },
-                  { value: '<50ms', label: 'API Latency' },
+                  { value: 'Sandbox', label: 'Test environment' },
+                  { value: 'REST + Webhooks', label: 'Integration model' },
+                  { value: 'OAuth 2.0 / API key', label: 'Authentication' },
                 ].map((stat) => (
                   <div key={stat.label} className="text-center">
                     <div className="text-xl font-bold text-white">{stat.value}</div>
@@ -390,10 +390,12 @@ export default function SafeBetIQConnectPublicPage() {
               Platform Compatibility
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Works With Your <span className="text-brand-400">Existing Stack</span>
+              Designed to Work With Your <span className="text-brand-400">Existing Stack</span>
             </h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Pre-built integrations for the platforms that power South African and international casinos.
+              SafeBet IQ Connect is designed for compatibility with the platforms that power South African and
+              international casinos via its documented API. The platforms below are integration targets — not
+              active partnerships or prebuilt connectors.
             </p>
           </motion.div>
 

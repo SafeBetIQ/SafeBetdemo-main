@@ -41,14 +41,14 @@ const FEATURES = [
   },
   {
     icon: MessageSquare,
-    title: 'Automated Interventions',
+    title: 'Governed Interventions',
     description:
-      'Reach at-risk players instantly via WhatsApp, SMS, or email. Personalised responsible gaming messages fire automatically when thresholds are crossed.',
+      'When risk thresholds are crossed, staff review the signal, decide on an intervention, and record the action — each step linked to tamper-evident compliance evidence. Governed multi-channel delivery (WhatsApp, SMS, email) is in development.',
     features: [
-      'Multi-channel delivery',
+      'Human-reviewed decisions',
       'Template & tone library',
-      'Automated trigger rules',
-      'Response & outcome tracking',
+      'Recorded intervention actions',
+      'Audit-linked outcome tracking',
     ],
     color: 'from-brand-400 to-brand-600',
     accent: 'brand',
@@ -101,7 +101,7 @@ const MODULES = [
   {
     icon: Globe,
     title: 'SafeBet IQ Connect',
-    description: 'REST API + webhooks for direct integration with your platform — Playtech, BetSoftware, Evolution, and more.',
+    description: 'A documented REST API and webhooks designed to integrate with casino platforms. Each operator configures their own credentials in a sandbox-first integration flow.',
     color: 'text-teal-400',
     bg: 'bg-teal-500/10',
     border: 'border-teal-500/20',
@@ -120,63 +120,66 @@ const MODULES = [
   },
   {
     icon: ShieldCheck,
-    title: 'Self-Exclusion Network',
-    description: 'Cross-operator self-exclusion sharing network, ensuring players excluded at one venue cannot access others.',
+    title: 'Self-Exclusion Network (Planned)',
+    description: 'A planned cross-operator self-exclusion network so that a player excluded at one venue cannot access others — subject to regulatory authorisation, lawful data-sharing and privacy safeguards.',
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/20',
     hoverBorder: 'hover:border-cyan-500/40',
-    features: ['Cross-operator exclusion sync', 'Instant ban propagation', 'Regulator-linked registry', 'Re-entry attempt alerts'],
+    features: ['Cross-operator exclusion sync', 'Registry propagation', 'Regulator-linked registry', 'Re-entry attempt alerts'],
   },
   {
     icon: Cpu,
-    title: 'GuardianLayer',
-    description: 'Minor protection module detecting under-age gambling patterns and triggering immediate escalation protocols.',
+    title: 'SafeBet Guardian (In Development)',
+    description: 'Guardian supports underage and vulnerable-player protection — detection, investigation support and lawful escalation workflows. In development.',
     color: 'text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/20',
     hoverBorder: 'hover:border-orange-500/40',
-    features: ['Age pattern detection', 'Behavioural anomaly flags', 'Instant escalation workflows', 'Supervisor alert system'],
+    features: ['Age pattern detection', 'Behavioural anomaly flags', 'Escalation workflows', 'Supervisor alert system'],
   },
 ];
 
 const BENEFITS = [
   {
-    title: 'Full Regulatory Compliance',
+    title: 'Regulatory Compliance Support',
     description:
-      'Automatically satisfy all National Gambling Board and provincial authority requirements. Generate audit-ready reports at any time with zero manual effort.',
+      'Built around National Gambling Act and provincial authority requirements. Generate audit-ready reports on demand, backed by a tamper-evident audit trail.',
     icon: Shield,
-    stat: '99.9%',
-    statLabel: 'Compliance Rate',
+    stat: 'Audit-ready',
+    statLabel: 'Compliance reporting',
   },
   {
     title: 'Protect Players & Sustain Revenue',
     description:
-      'Early AI-driven intervention reduces harm while preserving engagement. Healthy players generate sustainable, long-term revenue for your operation.',
+      'Early, human-governed intervention is designed to reduce harm while preserving healthy engagement — supporting sustainable, long-term operator revenue.',
     icon: Heart,
-    stat: '68%',
-    statLabel: 'Harm Reduction',
+    stat: 'Early',
+    statLabel: 'Risk detection',
   },
   {
-    title: 'Operational Cost Savings',
+    title: 'Operational Efficiency',
     description:
-      'Automate compliance monitoring, intervention workflows, and reporting. Eliminate thousands of hours of manual oversight each year.',
+      'Structure compliance monitoring, intervention workflows and reporting in one place — reducing manual oversight effort across the responsible-gambling programme.',
     icon: TrendingUp,
-    stat: '40%',
-    statLabel: 'Ops Cost Saved',
+    stat: 'Unified',
+    statLabel: 'Workflow',
   },
   {
-    title: 'Enterprise-Grade Security',
+    title: 'Security by Design',
     description:
-      'Bank-level AES-256 encryption, full POPIA compliance, and a 99.99% uptime SLA. Your player data is always protected and always available.',
+      'Designed with encryption in transit and at rest, pseudonymised player identifiers, and role-based access controls as core architectural considerations.',
     icon: Lock,
-    stat: '99.99%',
-    statLabel: 'Uptime SLA',
+    stat: 'By design',
+    statLabel: 'Privacy & security',
   },
 ];
 
+// Integration targets — SafeBet IQ is designed to be compatible with major casino
+// platforms via its documented API. Named platforms are compatibility targets, not
+// active partnerships or prebuilt connectors.
 const INTEGRATIONS = [
-  'Playtech', 'BetSoftware', 'Evolution Gaming', 'SoftSwiss', 'Altenar', 'WhatsApp Business', 'Twilio SMS', 'NRGP', 'SafeBet IQ Connect'
+  'Documented REST API', 'Webhooks', 'Per-operator credentials', 'Sandbox environment', 'SafeBet IQ Connect'
 ];
 
 const RISK_FACTORS = [
@@ -285,7 +288,7 @@ export default function CasinosPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
-                SafePlay gives casino operators a complete AI-powered responsible gambling platform — real-time behavioral risk scoring, automated interventions, explainable AI, and full regulatory compliance for South African gaming authorities.
+                SafeBet IQ gives casino operators an integrated responsible gambling platform — rule-based behavioural risk scoring, human-governed interventions, explainable scoring, and compliance reporting built for South African gaming authorities.
               </motion.p>
 
               <motion.div
@@ -315,9 +318,9 @@ export default function CasinosPage() {
                 transition={{ duration: 0.6, delay: 0.6 }}
               >
                 {[
-                  { label: 'Active Players', value: liveStats.players, suffix: '+', animate: true },
-                  { label: 'Interventions Today', value: liveStats.interventions, suffix: '+', animate: true },
-                  { label: 'Compliance Rate', value: '99.9%', animate: false },
+                  { label: 'Risk Levels', value: '4', suffix: '', animate: false },
+                  { label: 'Behavioural Dimensions', value: '5', suffix: '', animate: false },
+                  { label: 'Report Formats', value: 'CSV · PDF', animate: false },
                 ].map((stat, i) => (
                   <div key={i} className="text-center flex-1">
                     {stat.animate ? (
@@ -404,9 +407,9 @@ export default function CasinosPage() {
                     <div className="flex items-start gap-3">
                       <Bell className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
                       <div>
-                        <div className="text-sm font-semibold text-orange-400 mb-1">AI Recommends</div>
+                        <div className="text-sm font-semibold text-orange-400 mb-1">System Flags for Review</div>
                         <ul className="text-xs text-gray-400 space-y-1">
-                          <li>• Send WhatsApp responsible gaming message</li>
+                          <li>• Flag for staff review and intervention decision</li>
                           <li>• Apply 60-min session warning</li>
                           <li>• Flag for supervisor review</li>
                         </ul>
@@ -507,10 +510,10 @@ export default function CasinosPage() {
                 SafeBet IQ Risk Engine
               </Badge>
               <h2 className="text-4xl font-bold text-white mb-6 leading-tight">
-                Machine Learning That Explains Every Decision
+                Risk Scoring That Explains Every Decision
               </h2>
               <p className="text-gray-400 leading-relaxed mb-8">
-                Our risk engine analyzes multiple behavioral dimensions simultaneously and surfaces not just a score — but a complete, auditable explanation of why that score was assigned. Every intervention is backed by explainable AI that regulators and operators can trust.
+                Our rule-based risk engine analyses multiple behavioural dimensions simultaneously and surfaces not just a score — but a complete, auditable explanation of why that score was assigned. Every score is transparent and reproducible, so regulators and operators can review the reasoning behind it.
               </p>
 
               <div className="space-y-3 mb-8">
@@ -541,8 +544,8 @@ export default function CasinosPage() {
               <div className="flex items-center gap-4 p-4 bg-brand-400/5 border border-brand-400/20 rounded-xl">
                 <Gauge className="h-8 w-8 text-brand-400 flex-shrink-0" />
                 <div>
-                  <div className="text-white font-semibold text-sm">Trained on 250,000+ player profiles</div>
-                  <div className="text-gray-500 text-xs mt-0.5">Continuously improving via federated cross-operator learning</div>
+                  <div className="text-white font-semibold text-sm">Transparent, rule-based scoring</div>
+                  <div className="text-gray-500 text-xs mt-0.5">Deterministic weights across behavioural dimensions — every score is reproducible and auditable</div>
                 </div>
               </div>
             </motion.div>
@@ -741,10 +744,10 @@ export default function CasinosPage() {
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { label: 'Casino Operators', target: 50, suffix: '+' },
-              { label: 'Players Protected', target: 250000, suffix: '+' },
-              { label: 'Interventions Delivered', target: 45000, suffix: '+' },
-              { label: 'Compliance Score', target: 99, suffix: '.9%' },
+              { label: 'Risk Levels', target: 4, suffix: '' },
+              { label: 'Behavioural Dimensions', target: 5, suffix: '' },
+              { label: 'SA Provinces (regulator model)', target: 9, suffix: '' },
+              { label: 'Report Formats (CSV · PDF)', target: 2, suffix: '' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -801,15 +804,15 @@ export default function CasinosPage() {
                 },
                 {
                   step: '03',
-                  title: 'Real-Time Monitoring Activates',
-                  description: 'Every session is scored in real-time. Alerts fire automatically when risk thresholds are crossed — no manual monitoring required.',
+                  title: 'Monitoring Activates',
+                  description: 'Every session is scored against the rule set. Alerts surface when risk thresholds are crossed, ready for staff review.',
                   icon: Activity,
                   side: 'left',
                 },
                 {
                   step: '04',
-                  title: 'Automated Interventions & Reporting',
-                  description: 'WhatsApp, SMS, and email interventions deploy automatically. Compliance reports are always ready for regulators.',
+                  title: 'Governed Interventions & Reporting',
+                  description: 'Staff review flagged players, decide and record interventions, and generate audit-ready reports. Governed multi-channel delivery is in development.',
                   icon: FileText,
                   side: 'right',
                 },
@@ -859,7 +862,7 @@ export default function CasinosPage() {
           >
             <Badge className="mb-6 bg-brand-400/10 text-brand-400 border-brand-400/20">
               <Star className="h-3.5 w-3.5 mr-2" />
-              Trusted by 50+ SA Operators
+              Built for South African operators & regulators
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
               Ready to Elevate Your

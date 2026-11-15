@@ -39,8 +39,8 @@ const REGULATOR_TOOLS = [
   },
   {
     icon: FileText,
-    title: 'Automated Regulatory Reports',
-    description: 'Monthly and quarterly compliance reports generated automatically and delivered to regulators without operator involvement.',
+    title: 'Regulatory Reports',
+    description: 'Monthly and quarterly compliance reports generated on demand for authorised regulators. Automated scheduled delivery to regulators is in development.',
     color: 'text-green-400',
     bg: 'bg-green-400/10',
   },

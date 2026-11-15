@@ -101,7 +101,7 @@ const PROCESS_STEPS = [
   {
     step: '03',
     title: 'All Venues Enforce',
-    description: 'Every casino on the network automatically blocks the player at login, registration, and on-site verification.',
+    description: 'Planned: participating casinos would block the player at login, registration, and on-site verification across the network.',
   },
   {
     step: '04',
@@ -132,16 +132,18 @@ export default function SelfExclusionNetworkPage() {
           <div className="text-center mb-16">
             <Badge className="mb-6 bg-orange-500/10 text-orange-400 border-orange-500/20 px-4 py-2">
               <Ban className="h-4 w-4 mr-2" />
-              Self-Exclusion Network
+              Self-Exclusion Network — Planned
             </Badge>
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
               One Exclusion.{' '}
-              <span className="text-orange-400">Every Casino Enforces It.</span>
+              <span className="text-orange-400">Enforced Everywhere — By Design.</span>
             </h1>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
-              SafeBet IQ's self-exclusion network ensures that when a player requests exclusion —
-              or when one is mandated — that exclusion is enforced in real time across every
-              participating operator, with zero gaps.
+              SafeBet IQ's self-exclusion network is a <strong className="text-white">planned</strong> capability.
+              The goal: when a player requests exclusion — or when one is mandated — that exclusion would be
+              distributed across participating operators. It is not yet operational and depends on regulatory
+              authorisation, lawful data-sharing and authorised operator participation. SafeBet IQ does not
+              currently block players across licensed operators.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">

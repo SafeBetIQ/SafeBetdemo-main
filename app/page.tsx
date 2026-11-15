@@ -15,47 +15,44 @@ const CORE_MODULES = [
     icon: Brain,
     title: 'Behavioural Risk Intelligence',
     description: 'Rule-based analysis of session duration, deposit frequency, loss escalation, and bet intensity. Risk levels: Low · Moderate · High · Critical.',
-    tags: ['Default Module'],
+    tags: ['Demonstrated'],
   },
   {
     icon: Bell,
     title: 'Responsible Gambling Interventions',
-    description: 'Threshold-triggered interventions delivered via WhatsApp, Twilio, and email. All interventions logged with outcome tracking.',
-    tags: ['Default Module'],
+    description: 'Human-governed intervention workflow: risk signals are reviewed by staff, decisions are recorded, and each action is linked to tamper-evident compliance evidence.',
+    tags: ['Partially Implemented'],
   },
   {
     icon: FileText,
     title: 'Compliance Reporting',
-    description: 'National Gambling Act compliance scores, downloadable reports, audit trails, and NRGP contribution tracking.',
-    tags: ['Default Module'],
+    description: 'National Gambling Act compliance views, downloadable CSV/PDF reports, audit trails, and NRGP contribution tracking.',
+    tags: ['Demonstrated'],
   },
   {
     icon: Network,
     title: 'Cross-Operator Intelligence',
-    description: 'Pseudonymised detection of operator hopping, multi-platform gambling, and loss-chasing across the national network.',
-    tags: ['Optional Module'],
+    description: 'Planned: pseudonymised detection of operator hopping and loss-chasing across operators, subject to lawful data-sharing arrangements and authorised participation.',
+    tags: ['Planned'],
   },
   {
     icon: ShieldOff,
     title: 'Self-Exclusion Network',
-    description: 'Operators submit self-exclusion events. SafeBet IQ distributes protection intelligence across the entire operator network.',
-    tags: ['Optional Module'],
+    description: 'Planned: network-wide distribution of self-exclusion intelligence across participating operators, subject to regulatory authorisation and privacy safeguards.',
+    tags: ['Planned'],
   },
   {
     icon: BarChart3,
     title: 'Regulator Intelligence',
-    description: 'National and provincial regulator dashboards with high-risk player analytics, intervention statistics, and behavioural insights.',
-    tags: ['Optional Module'],
+    description: 'National and provincial regulator dashboards with risk analytics, intervention activity and behavioural insights over governed data.',
+    tags: ['Demonstrated'],
   },
 ];
 
-const INTEGRATIONS = [
-  'SOFTSWISS', 'Altenar', 'Bet Software', 'Playtech', 'Evolution Gaming',
-  'Twilio', 'WhatsApp Business API',
-];
-
+// Integration approach — operators configure their own credentials. Named platforms
+// are integration targets, not active partnerships or prebuilt connectors.
 const COMPLIANCE = [
-  'ISO 27001', 'POPIA', 'National Gambling Act (SA)',
+  'POPIA-aligned', 'National Gambling Act (SA)', 'NRGP-aligned',
 ];
 
 const USER_ROLES = [
@@ -87,27 +84,49 @@ export default function HomePage() {
           </Badge>
 
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
-            The Intelligence Layer
+            Intelligent Responsible Gambling.
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-500">
-              Above Casino Platforms
+              Stronger Regulatory Oversight.
             </span>
           </h1>
 
           <p className="text-lg text-gray-400 mb-10 max-w-3xl mx-auto leading-relaxed">
-            SafeBet IQ sits above casino software as a behavioural intelligence layer.
-            It analyses player behaviour, detects harmful patterns, triggers interventions,
-            and delivers compliance intelligence to operators and regulators — in real time.
+            SafeBet IQ brings together behavioural risk monitoring, player protection intelligence,
+            regulatory dashboards and verifiable compliance evidence in one integrated platform.
           </p>
+
+          {/* Three core value propositions */}
+          <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mx-auto mb-10">
+            {[
+              { icon: Brain, title: 'Behavioural Risk Intelligence' },
+              { icon: Shield, title: 'Responsible Gambling Oversight' },
+              { icon: FileText, title: 'Verifiable Compliance Evidence' },
+            ].map((v, i) => {
+              const Icon = v.icon;
+              return (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/60 px-4 py-3 text-left">
+                  <div className="w-9 h-9 rounded-lg bg-brand-900/40 border border-brand-800 flex items-center justify-center flex-shrink-0">
+                    <Icon className="h-4 w-4 text-brand-400" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-200">{v.title}</span>
+                </div>
+              );
+            })}
+          </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100 font-semibold px-8">
-              <Link href="/login">Access Platform</Link>
+              <Link href="/contact">Request a Demo</Link>
             </Button>
             <Button asChild size="lg" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-8">
-              <Link href="/safeplay-connect">API Documentation</Link>
+              <Link href="/login">Explore the Platform</Link>
             </Button>
           </div>
+
+          <p className="mt-6 text-xs text-gray-500 font-mono tracking-wide">
+            Demonstration available. Controlled pilot preparation underway.
+          </p>
 
         </div>
       </section>
@@ -164,13 +183,13 @@ export default function HomePage() {
               </div>
               <div className="space-y-4">
                 {[
-                  { label: 'Player risk visibility', value: 'Real-time scoring: Low · Moderate · High · Critical' },
-                  { label: 'Harm detection', value: 'AI-driven pattern detection across every session' },
-                  { label: 'Interventions', value: 'Automated via WhatsApp, Twilio & email with outcome tracking' },
-                  { label: 'Self-exclusion', value: 'Network-wide distribution across all connected operators' },
-                  { label: 'Compliance reporting', value: 'One-click NGA reports, live audit trail, NRGP tracking' },
-                  { label: 'Regulator oversight', value: 'Live dashboards — national & 9 provincial regulators' },
-                  { label: 'Multi-casino visibility', value: 'Cross-operator intelligence with full data isolation' },
+                  { label: 'Player risk visibility', value: 'Rule-based scoring: Low · Moderate · High · Critical' },
+                  { label: 'Harm detection', value: 'Rule-based pattern detection across every session' },
+                  { label: 'Interventions', value: 'Human-reviewed, recorded, and linked to compliance evidence' },
+                  { label: 'Self-exclusion', value: 'Per-operator today; network distribution on the roadmap' },
+                  { label: 'Compliance reporting', value: 'NGA compliance views, audit trail, NRGP tracking' },
+                  { label: 'Regulator oversight', value: 'Dashboards for national & provincial regulator roles' },
+                  { label: 'Multi-casino visibility', value: 'Operator-level aggregation with strict data isolation' },
                   { label: 'Audit trail', value: 'Every action logged, timestamped, and exportable' },
                 ].map((row, i) => (
                   <div key={i} className="flex flex-col gap-0.5 pb-4 border-b border-brand-800/20 last:border-0 last:pb-0">
@@ -186,9 +205,9 @@ export default function HomePage() {
           <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { before: 'Blind', after: 'Full Visibility', label: 'Player Behaviour' },
-              { before: 'Days', after: 'Real-Time', label: 'Intervention Speed' },
-              { before: 'Per Casino', after: 'Cross-Network', label: 'Self-Exclusion Reach' },
-              { before: 'Manual', after: 'Automated', label: 'Compliance Reporting' },
+              { before: 'Ad-hoc', after: 'Governed', label: 'Intervention Process' },
+              { before: 'Per Casino', after: 'Roadmap', label: 'Self-Exclusion Reach' },
+              { before: 'Manual', after: 'Structured', label: 'Compliance Reporting' },
             ].map((item, i) => (
               <div key={i} className="rounded-xl border border-gray-800 bg-gray-950 p-4 text-center">
                 <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{item.label}</p>
@@ -207,10 +226,10 @@ export default function HomePage() {
       <section className="py-20 px-6 border-t border-gray-900 bg-gray-950/50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">Feature Module System</h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">Platform Capabilities</h2>
             <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              Super Admin can enable or disable modules per casino operator.
-              Default modules are active for all operators.
+              Each capability is labelled by its current status — Demonstrated, Partially Implemented,
+              In Development or Planned — so you always know what is available today versus on the roadmap.
             </p>
           </div>
 
@@ -228,8 +247,10 @@ export default function HomePage() {
                         <span
                           key={j}
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            tag === 'Default Module'
+                            tag === 'Demonstrated'
                               ? 'bg-brand-900/40 text-brand-400 border border-brand-800'
+                              : tag === 'Partially Implemented'
+                              ? 'bg-amber-900/30 text-amber-400 border border-amber-800'
                               : 'bg-gray-800 text-gray-400 border border-gray-700'
                           }`}
                         >
@@ -287,13 +308,16 @@ export default function HomePage() {
           <div>
             <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
               <Layers className="h-5 w-5 text-brand-400" />
-              Casino Platform Integrations
+              Integration Approach
             </h3>
             <p className="text-gray-400 text-sm mb-5">
-              Each casino operator configures their own credentials. Integrations are never global or hardcoded.
+              SafeBet IQ is designed to ingest player and session signals from casino platforms via a
+              documented API. Each operator configures their own credentials — integrations are never
+              global or hardcoded. Platform and communication connectors are integration targets on the
+              roadmap, not prebuilt partnerships.
             </p>
             <div className="flex flex-wrap gap-2">
-              {INTEGRATIONS.map((name, i) => (
+              {['Documented REST API', 'Per-operator credentials', 'Sandbox environment'].map((name, i) => (
                 <span key={i} className="text-xs px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
                   {name}
                 </span>
@@ -307,7 +331,9 @@ export default function HomePage() {
               Security & Compliance
             </h3>
             <p className="text-gray-400 text-sm mb-5">
-              Privacy-by-design architecture. No personal identity data stored. Pseudonymised player tokens throughout.
+              Designed with privacy, role-based access controls and auditability as core architectural
+              considerations. Player identifiers are pseudonymised, and the listed frameworks are design
+              and alignment targets — not certifications.
             </p>
             <div className="flex flex-wrap gap-2 mb-5">
               {COMPLIANCE.map((name, i) => (

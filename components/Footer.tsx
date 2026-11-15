@@ -17,7 +17,7 @@ export function Footer() {
               />
             </div>
             <p className="text-gray-400 text-sm mb-4">
-              Africa's first AI-driven responsible gambling platform
+              Responsible gambling intelligence and regulatory technology for operators and regulators
             </p>
             <div className="space-y-1 text-sm text-gray-400">
               <p>Email: sales@safebetiq.com</p>

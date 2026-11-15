@@ -107,7 +107,7 @@ export default function MainNavigation() {
                     href="/technology"
                     className="block px-4 py-3 text-gray-300 hover:text-brand-400 hover:bg-gray-900 transition-colors"
                   >
-                    AI Technology
+                    Technology
                   </Link>
                   <Link
                     href="/safeplay-connect"
@@ -169,7 +169,7 @@ export default function MainNavigation() {
             </div>
             <div className="space-y-2">
               <div className="text-brand-400 text-sm font-semibold">Technology</div>
-              <Link href="/technology" className="block text-gray-300 hover:text-brand-400 pl-4">AI Technology</Link>
+              <Link href="/technology" className="block text-gray-300 hover:text-brand-400 pl-4">Technology</Link>
               <Link href="/safeplay-connect" className="block text-gray-300 hover:text-brand-400 pl-4">SafeBet IQ Connect</Link>
               <Link href="/nova-iq" className="block text-gray-300 hover:text-brand-400 pl-4">Nova IQ</Link>
             </div>

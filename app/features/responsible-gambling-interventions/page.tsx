@@ -8,42 +8,45 @@ import { MessageSquare, ArrowRight, CircleCheck as CheckCircle, Bell, Zap, Clock
 import { Footer } from '@/components/Footer';
 import MainNavigation from '@/components/MainNavigation';
 
+// Communication channels are planned delivery mechanisms for governed interventions.
+// They are not yet operational — provider integration, privacy safeguards and operator
+// approval are required before any channel can send live messages.
 const CHANNELS = [
   {
     icon: Phone,
     name: 'WhatsApp',
-    description: 'Instant, personalised messages delivered directly to the player\'s phone with read receipts and response tracking.',
-    badge: 'Highest Open Rate',
-    badgeColor: 'bg-green-500/10 text-green-400 border-green-500/20',
-    stat: '98%',
-    statLabel: 'Open Rate',
+    description: 'Planned governed delivery of personalised responsible-gambling messages, subject to WhatsApp Business provider integration and operator approval.',
+    badge: 'Planned',
+    badgeColor: 'bg-gray-700/40 text-gray-300 border-gray-600',
+    stat: 'Planned',
+    statLabel: 'Provider integration',
   },
   {
     icon: Mail,
     name: 'Email',
-    description: 'Rich-format emails with embedded resources, self-exclusion links, and full audit trail for compliance.',
-    badge: 'Full Audit Trail',
-    badgeColor: 'bg-brand-400/10 text-brand-400 border-brand-400/20',
-    stat: '100%',
-    statLabel: 'Logged',
+    description: 'Planned rich-format emails with embedded resources and self-exclusion links, recorded against the compliance audit trail.',
+    badge: 'In Development',
+    badgeColor: 'bg-amber-900/30 text-amber-400 border-amber-800',
+    stat: 'In Dev',
+    statLabel: 'Not yet live',
   },
   {
     icon: MessageSquare,
     name: 'SMS',
-    description: 'Short, direct messages for time-sensitive interventions when players are mid-session on mobile.',
-    badge: 'Instant Delivery',
-    badgeColor: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
-    stat: '<3s',
-    statLabel: 'Delivery Time',
+    description: 'Planned short, direct messages for time-sensitive interventions, subject to provider integration and governance.',
+    badge: 'Planned',
+    badgeColor: 'bg-gray-700/40 text-gray-300 border-gray-600',
+    stat: 'Planned',
+    statLabel: 'Provider integration',
   },
   {
     icon: Globe,
     name: 'In-Platform',
-    description: 'Pop-up notifications and banners displayed directly within the gaming interface at the moment of risk.',
-    badge: 'Zero Latency',
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-    stat: '0ms',
-    statLabel: 'Delay',
+    description: 'Planned in-session notifications surfaced within the operator interface at the moment of risk.',
+    badge: 'Planned',
+    badgeColor: 'bg-gray-700/40 text-gray-300 border-gray-600',
+    stat: 'Planned',
+    statLabel: 'Design stage',
   },
 ];
 
@@ -51,7 +54,7 @@ const TRIGGER_TYPES = [
   {
     icon: Activity,
     title: 'Risk Score Threshold',
-    description: 'Automatically trigger when a player\'s AI risk score crosses configurable thresholds (e.g., 65+, 80+).',
+    description: 'Flag for review when a player\'s rule-based risk score crosses configurable thresholds (e.g., 65+, 80+).',
     color: 'text-brand-400',
     bg: 'bg-brand-400/10',
   },
@@ -79,7 +82,7 @@ const TRIGGER_TYPES = [
   {
     icon: AlertTriangle,
     title: 'Behavioral Pattern Shift',
-    description: 'AI detects sudden changes in bet sizing, game type, or visit frequency that signal problem behaviour.',
+    description: 'The engine detects sudden changes in bet sizing, game type, or visit frequency that signal problem behaviour.',
     color: 'text-yellow-400',
     bg: 'bg-yellow-400/10',
   },
@@ -93,32 +96,32 @@ const TRIGGER_TYPES = [
 ];
 
 const OUTCOMES = [
-  { label: 'Intervention Success Rate', value: '73%', sub: 'Players who reduce risk after contact' },
-  { label: 'Avg. Response Time', value: '<2min', sub: 'From trigger to message delivery' },
-  { label: 'Audit Compliance', value: '100%', sub: 'Every intervention fully logged' },
-  { label: 'Self-Exclusions Prevented', value: '41%', sub: 'Cases resolved before exclusion needed' },
+  { label: 'Human-Governed', value: 'Staff', sub: 'Interventions are reviewed and decided by staff' },
+  { label: 'Recorded Actions', value: 'Logged', sub: 'Each decision and action is recorded' },
+  { label: 'Audit-Linked', value: 'Evidence', sub: 'Actions link to tamper-evident compliance evidence' },
+  { label: 'Outcome Tracking', value: 'Follow-up', sub: 'Follow-up requirements and closures are tracked' },
 ];
 
 const WORKFLOW_STEPS = [
   {
     step: '01',
-    title: 'AI Detects Risk Signal',
-    description: 'The SafeBet IQ engine continuously monitors all active player sessions, scoring behavioural signals in real time.',
+    title: 'Risk Signal Detected',
+    description: 'The SafeBet IQ engine monitors active player sessions, scoring behavioural signals against a transparent rule set.',
   },
   {
     step: '02',
-    title: 'Threshold Crossed',
-    description: 'When a player\'s composite risk score or specific trigger condition is met, the intervention engine activates.',
+    title: 'Staff Review',
+    description: 'When a composite risk score or trigger condition is met, the player is surfaced to compliance staff for review.',
   },
   {
     step: '03',
-    title: 'Message Personalised & Sent',
-    description: 'A tailored, empathetic message is generated from your template library and delivered across the configured channel.',
+    title: 'Intervention Decision',
+    description: 'A staff member decides on the appropriate intervention — the decision is human-governed, not automated dispatch.',
   },
   {
     step: '04',
-    title: 'Response Tracked & Logged',
-    description: 'Player response, read status, and follow-up actions are captured and stored in the compliance audit trail.',
+    title: 'Action Recorded & Evidenced',
+    description: 'The decision and action are recorded and linked to tamper-evident compliance evidence, with follow-up tracked.',
   },
 ];
 
@@ -137,12 +140,13 @@ export default function ResponsibleGamblingInterventionsPage() {
               Responsible Gambling Interventions
             </Badge>
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
-              Reach At-Risk Players{' '}
-              <span className="text-brand-400">Before Harm Occurs</span>
+              Human-Governed Intervention{' '}
+              <span className="text-brand-400">Workflows</span>
             </h1>
             <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-10">
-              SafeBet IQ fires personalised, multi-channel interventions the moment AI detects a risk signal —
-              WhatsApp, SMS, email, or in-platform. Every message logged. Every outcome tracked.
+              SafeBet IQ connects behavioural risk signals to documented, human-governed responsible gambling
+              actions: staff review each signal, decide on an intervention, and record the action against
+              tamper-evident compliance evidence. Governed multi-channel delivery is in development.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
@@ -178,13 +182,14 @@ export default function ResponsibleGamblingInterventionsPage() {
           <div className="text-center mb-14">
             <Badge className="mb-4 bg-teal-500/10 text-teal-400 border-teal-500/20">
               <Zap className="h-4 w-4 mr-2" />
-              Multi-Channel Delivery
+              Delivery Channels — In Development
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Reach Players Where They Are
+              Planned Communication Channels
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              Configure one or multiple delivery channels per intervention type.
+              Governed multi-channel delivery is in development. The channels below are planned, subject to
+              provider integration, privacy safeguards and operator approval.
               Each message is personalised, compliant, and fully audited.
             </p>
           </div>
@@ -254,10 +259,10 @@ export default function ResponsibleGamblingInterventionsPage() {
               How It Works
             </Badge>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              From Signal to Outcome in Under 2 Minutes
+              From Signal to Recorded Outcome
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              A fully automated pipeline from AI detection to player contact — with compliance built in at every step.
+              A human-governed workflow from rule-based risk detection to a recorded, evidence-linked intervention decision — with compliance built in at every step.
             </p>
           </div>
 
@@ -293,18 +298,18 @@ export default function ResponsibleGamblingInterventionsPage() {
                 Every Intervention Logged for Regulators
               </h2>
               <p className="text-gray-400 mb-8">
-                SafeBet IQ captures the complete lifecycle of every intervention — trigger reason,
-                message content, delivery timestamp, player response, and follow-up outcome.
+                SafeBet IQ records the lifecycle of every intervention decision — trigger reason,
+                reviewing staff member, decision, recorded action, and follow-up outcome.
                 Regulators get a transparent, tamper-evident audit trail on demand.
               </p>
               <ul className="space-y-4">
                 {[
-                  'Trigger reason with AI signal breakdown',
-                  'Message content and channel used',
-                  'Delivery timestamp and read receipt',
-                  'Player response and follow-up action',
+                  'Trigger reason with rule-based signal breakdown',
+                  'Reviewing staff member and decision',
+                  'Decision timestamp and recorded action',
+                  'Follow-up requirement and closure',
                   'Outcome classification (resolved, escalated, exclusion)',
-                  'Staff override notes and manual triggers',
+                  'Staff notes and manual triggers',
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-brand-400 mt-0.5 flex-shrink-0" />
@@ -314,21 +319,22 @@ export default function ResponsibleGamblingInterventionsPage() {
               </ul>
             </div>
             <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-3 h-3 rounded-full bg-brand-400 animate-pulse" />
-                <span className="text-brand-400 text-sm font-semibold">Live Intervention Log</span>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-3 h-3 rounded-full bg-gray-500" />
+                <span className="text-gray-300 text-sm font-semibold">Intervention Record</span>
               </div>
+              <div className="mb-5 text-[11px] uppercase tracking-wide text-gray-500 font-mono">Illustrative demonstration data</div>
               {[
-                { time: '14:32:07', player: 'PL-00491', channel: 'WhatsApp', trigger: 'Risk Score 84', status: 'Delivered', statusColor: 'text-green-400' },
-                { time: '14:29:51', player: 'PL-01882', channel: 'Email', trigger: 'Session 4.2hrs', status: 'Opened', statusColor: 'text-teal-400' },
-                { time: '14:25:18', player: 'PL-00234', channel: 'SMS', trigger: 'Loss Velocity', status: 'Responded', statusColor: 'text-brand-400' },
-                { time: '14:22:04', player: 'PL-03341', channel: 'WhatsApp', trigger: 'Deposit x3', status: 'Delivered', statusColor: 'text-green-400' },
-                { time: '14:18:33', player: 'PL-00718', channel: 'In-Platform', trigger: 'Risk Score 71', status: 'Shown', statusColor: 'text-cyan-400' },
+                { time: '14:32:07', player: 'PL-00491', action: 'Reviewed', trigger: 'Risk Score 84', status: 'Recorded', statusColor: 'text-green-400' },
+                { time: '14:29:51', player: 'PL-01882', action: 'Intervention decided', trigger: 'Session 4.2hrs', status: 'Recorded', statusColor: 'text-teal-400' },
+                { time: '14:25:18', player: 'PL-00234', action: 'Follow-up set', trigger: 'Loss Velocity', status: 'Recorded', statusColor: 'text-brand-400' },
+                { time: '14:22:04', player: 'PL-03341', action: 'Reviewed', trigger: 'Deposit x3', status: 'Recorded', statusColor: 'text-green-400' },
+                { time: '14:18:33', player: 'PL-00718', action: 'Escalated', trigger: 'Risk Score 71', status: 'Recorded', statusColor: 'text-cyan-400' },
               ].map((row, i) => (
                 <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-800 last:border-0">
                   <span className="text-gray-600 text-xs font-mono w-16 flex-shrink-0">{row.time}</span>
                   <span className="text-gray-400 text-xs w-20 flex-shrink-0">{row.player}</span>
-                  <span className="text-white text-xs w-24 flex-shrink-0">{row.channel}</span>
+                  <span className="text-white text-xs w-28 flex-shrink-0">{row.action}</span>
                   <span className="text-gray-400 text-xs flex-1">{row.trigger}</span>
                   <span className={`text-xs font-semibold ${row.statusColor}`}>{row.status}</span>
                 </div>

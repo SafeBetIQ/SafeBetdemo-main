@@ -9,8 +9,39 @@ import AIMonitoringIndicator from '@/components/AIMonitoringIndicator';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'SafeBet IQ - Responsible Gaming Platform',
-  description: 'AI-powered responsible gaming intervention platform',
+  metadataBase: new URL('https://www.safebetiq.com'),
+  title: {
+    default: 'SafeBet IQ — Responsible Gambling Intelligence & Regulatory Technology',
+    template: '%s | SafeBet IQ',
+  },
+  description:
+    'SafeBet IQ is a responsible gambling intelligence platform combining behavioural risk monitoring, regulatory oversight dashboards and verifiable compliance evidence for casino operators and gambling regulators.',
+  keywords: [
+    'responsible gambling software',
+    'responsible gambling monitoring',
+    'gambling compliance software',
+    'gambling risk monitoring',
+    'gambling regulatory technology',
+    'gambling regulator dashboards',
+    'player protection intelligence',
+    'responsible gambling reporting',
+    'RegTech South Africa',
+  ],
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: 'SafeBet IQ',
+    url: 'https://www.safebetiq.com',
+    title: 'SafeBet IQ — Responsible Gambling Intelligence & Regulatory Technology',
+    description:
+      'Behavioural risk monitoring, regulatory oversight dashboards and verifiable compliance evidence in one integrated platform. Demonstration available; controlled pilot preparation underway.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SafeBet IQ — Responsible Gambling Intelligence',
+    description:
+      'Behavioural risk monitoring, regulatory dashboards and verifiable compliance evidence for operators and regulators.',
+  },
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

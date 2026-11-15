@@ -37,7 +37,7 @@ const REPORT_TYPES = [
     icon: BarChart3,
     title: 'Session Behaviour Report',
     description: 'Aggregate and per-player session analytics: duration, frequency, loss velocity, and deviation from baseline.',
-    tags: ['AI-Powered', 'Behavioral Data'],
+    tags: ['Rule-Based', 'Behavioural Data'],
     color: 'text-orange-400',
     bg: 'bg-orange-400/10',
   },
@@ -55,7 +55,7 @@ const COMPLIANCE_STANDARDS = [
   { name: 'NRGP', label: 'National Responsible Gambling Programme', color: 'text-brand-400', bg: 'bg-brand-400/10' },
   { name: 'POPIA', label: 'Protection of Personal Information Act', color: 'text-teal-400', bg: 'bg-teal-400/10' },
   { name: 'NGB', label: 'National Gambling Board Standards', color: 'text-orange-400', bg: 'bg-orange-400/10' },
-  { name: 'ISO 27001', label: 'Information Security Management', color: 'text-blue-400', bg: 'bg-blue-400/10' },
+  { name: 'ISO 27001 (design alignment)', label: 'Information security — design goal, not certified', color: 'text-blue-400', bg: 'bg-blue-400/10' },
   { name: 'NGA', label: 'National Gambling Act (South Africa)', color: 'text-green-400', bg: 'bg-green-400/10' },
 ];
 

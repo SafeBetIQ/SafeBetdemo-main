@@ -68,7 +68,7 @@ export default function SafeBetIQOverviewPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Our machine learning engine analyzes player behavior in real-time, detecting patterns that indicate problem gambling.
+              Our rule-based engine analyses player behaviour, detecting transparent, reproducible patterns that indicate problem gambling.
             </p>
             <ul className="space-y-2">
               <li className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export default function SafeBetIQOverviewPage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-6">
-              Works seamlessly with SOFTSWISS, Altenar, BET Software & Playtech PAM
+              Designed for compatibility with SOFTSWISS, Altenar, BET Software &amp; Playtech PAM via the documented API — these are integration targets, not active partnerships.
             </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {['SOFTSWISS', 'Altenar', 'BET Software', 'Playtech PAM'].map((platform) => (

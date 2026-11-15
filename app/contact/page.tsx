@@ -80,7 +80,7 @@ export default function ContactPage() {
             </h1>
 
             <p className="text-xl text-gray-400 mb-10 max-w-3xl mx-auto leading-relaxed">
-              Schedule a demo or request access to Africa's first AI-driven responsible gambling platform.
+              Schedule a demonstration or request access to the SafeBet IQ responsible gambling intelligence platform.
             </p>
           </div>
 

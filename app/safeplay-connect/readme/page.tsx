@@ -31,7 +31,7 @@ export default function ReadmePage() {
               <ul className="space-y-2 text-gray-300">
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="h-5 w-5 text-brand-400 flex-shrink-0" />
-                  <span>AI-powered risk detection and player behavior analysis</span>
+                  <span>Rule-based risk detection and player behaviour analysis</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <CheckCircle className="h-5 w-5 text-brand-400 flex-shrink-0" />
