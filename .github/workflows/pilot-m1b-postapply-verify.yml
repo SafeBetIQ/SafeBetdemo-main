@@ -1,0 +1,175 @@
+name: SafeBet IQ — Pilot M1B post-apply verifier (READ-ONLY, no mutation)
+
+# Narrowly scoped, READ-ONLY certification of the EXISTING, already-deployed Pilot baseline.
+# It does NOT apply the baseline, harden privileges, mutate any row, touch AWS, or deploy the app.
+# It re-proves, against the live Pilot:
+#   project ref · SSL=true · structural fingerprint · privilege-state hash · 0 public rows ·
+#   0 Demo relations · 0 Demo functions · cron.job safe (absent=>0, present-0-rows=>0, >=1=>FAIL).
+# Manual dispatch only; gated by the `pilot` GitHub Environment (required reviewer) and the
+# PILOT_DB_URL secret (never printed). The cron check uses dynamic SQL so a missing cron.job is safe.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Must be exactly: pilot'
+        required: true
+        default: pilot
+      expected_project_ref:
+        description: 'Pilot Supabase project ref (must equal vars.PILOT_PROJECT_REF)'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-m1b-postapply-verify
+  cancel-in-progress: false
+
+env:
+  AUTHORISED_ENVIRONMENT: pilot
+  AUTHORISED_COMMIT: 379141e45c7f6f9db1888ebaebfa45fbf86a993e
+  AUTHORISED_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+  AUTHORISED_MANIFEST_SHA: ea03c077605e3fdecd88377f251cc2f10810f4ed6f52addf662007e1c65f27e6
+  PILOT_EXECUTION_SOURCE_COMMIT: e16451b707e92d2b105ed4cb36173ad12645a482
+  FORBIDDEN_REFS: 'ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll'
+  BASE: deploy/pilot/baseline
+  AUTH_BASE: authority/deploy/pilot/baseline
+
+jobs:
+  verify:
+    name: Post-apply certification (read-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: pilot
+    env:
+      PILOT_DB_URL: ${{ secrets.PILOT_DB_URL }}
+      PINNED_REF: ${{ vars.PILOT_PROJECT_REF }}
+      IN_REF: ${{ inputs.expected_project_ref }}
+      PGSSLMODE: require
+      PGCONNECT_TIMEOUT: '15'
+    steps:
+      - name: Checkout the reviewed Pilot execution-source commit (NOT production HEAD)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PILOT_EXECUTION_SOURCE_COMMIT }}
+      - name: Checkout authorised schema-source commit (read-only copy)
+        uses: actions/checkout@v4
+        with: { ref: '${{ env.AUTHORISED_COMMIT }}', path: authority }
+      - name: Install PostgreSQL 17 client (PGDG, bounded retry on the key fetch)
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          ok=0
+          for a in 1 2 3 4 5; do
+            if sudo curl -fsSL --retry 2 --connect-timeout 15 --max-time 60 \
+                 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+                 https://www.postgresql.org/media/keys/ACCC4CF8.asc; then ok=1; break; fi
+            echo "PGDG key fetch attempt $a failed; backing off..."; sleep $((a*5))
+          done
+          [ "$ok" = 1 ] || { echo "::error::could not fetch the PGDG signing key after retries (transient network)"; exit 1; }
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+          P=/usr/lib/postgresql/17/bin/psql; "$P" --version | grep -Eq ' 17\.([6-9]|[1-9][0-9])' || { echo "::error::psql >= 17.6 required"; exit 1; }
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: 1 · Environment must be pilot
+        env: { IN_ENV: '${{ inputs.environment }}' }
+        run: '[ "$IN_ENV" = "$AUTHORISED_ENVIRONMENT" ] || { echo "::error::not pilot"; exit 1; }'
+
+      - name: 2 · Project ref — pinned, supplied and connection target must all agree (no forbidden)
+        run: |
+          set -euo pipefail
+          [ -n "${PILOT_DB_URL:-}" ] || { echo "::error::PILOT_DB_URL secret missing in environment 'pilot'"; exit 1; }
+          [ -n "${PINNED_REF:-}" ] || { echo "::error::vars.PILOT_PROJECT_REF not set in environment 'pilot'"; exit 1; }
+          [ "$IN_REF" = "$PINNED_REF" ] || { echo "::error::supplied ref != environment-pinned PILOT_PROJECT_REF"; exit 1; }
+          for f in $FORBIDDEN_REFS; do
+            case "$PILOT_DB_URL" in *"$f"*) echo "::error::PILOT_DB_URL targets a FORBIDDEN project"; exit 1;; esac
+            [ "$PINNED_REF" != "$f" ] || { echo "::error::pinned ref is FORBIDDEN"; exit 1; }
+          done
+          refs=$(printf '%s' "$PILOT_DB_URL" | grep -oE '(db\.|postgres\.)[a-z]{20}([.:@]|$)' | sed -E 's/^(db|postgres)\.//; s/[.:@]$//' | sort -u)
+          [ -n "$refs" ] || { echo "::error::cannot identify a Supabase project ref in PILOT_DB_URL"; exit 1; }
+          [ "$refs" = "$IN_REF" ] || { echo "::error::PILOT_DB_URL does not target the supplied Pilot ref (or targets several)"; exit 1; }
+          case "$PILOT_DB_URL" in *sslmode=disable*|*sslmode=allow*|*sslmode=prefer*) echo "::error::SSL must be required"; exit 1;; esac
+          echo "project ref OK: $IN_REF"
+
+      - name: 3 · SSL must be true (read-only)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 \
+            -c "select 'ssl|'||ssl from pg_stat_ssl where pid = pg_backend_pid()" > ssl.txt
+          grep -qx 'ssl|true' ssl.txt || { echo "::error::connection is not SSL"; exit 1; }
+          echo "ssl|true"
+
+      - name: 4 · Structural fingerprint must equal the authorised value (read-only)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -f "$AUTH_BASE/fingerprint.sql" | tr -d '\r' > pilot.fp.txt
+          fp=$(sha256sum pilot.fp.txt | cut -d' ' -f1); echo "pilot_fingerprint=$fp"
+          [ "$fp" = "$AUTHORISED_FINGERPRINT" ] || { echo "::error::Pilot fingerprint != authorised fingerprint"; exit 1; }
+
+      - name: 5 · Privilege / security state must equal the reviewed manifest (read-only)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 -f "$BASE/pilot_privilege_verify.sql" > pilot.priv.txt
+          diff -u "$BASE/pilot_privilege_manifest.txt" pilot.priv.txt | head -100 || { echo "::error::Pilot privilege state differs from reviewed manifest"; exit 1; }
+          h=$(sha256sum pilot.priv.txt | cut -d' ' -f1); echo "privilege_state_hash=$h"
+          [ "$h" = "$AUTHORISED_MANIFEST_SHA" ] || { echo "::error::privilege-state hash != authorised manifest SHA"; exit 1; }
+
+      - name: 6 · No data in any public table (read-only)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare r record; n bigint; bad text := '';
+          begin
+            for r in select c.oid::regclass t from pg_class c
+                     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p') loop
+              execute format('select count(*) from %s', r.t) into n;
+              if n > 0 then bad := bad || r.t::text || '=' || n || ' '; end if;
+            end loop;
+            if bad <> '' then raise exception 'FORBIDDEN DATA PRESENT: %', bad; end if;
+          end $$;
+          select 'rows_in_public_tables|0';
+          SQL
+
+      - name: 7 · No Demo subsystem + pg_cron safe (absent=>0, present-0-rows=>0, >=1=>FAIL)
+        run: |
+          set -euo pipefail
+          psql "$PILOT_DB_URL" -X -q -At -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ declare n int;
+          begin
+            select count(*) into n from pg_class c where c.relnamespace = 'public'::regnamespace
+              and (c.relname ~ '^sbiq_demo' or c.relname ~ 'showcase' or c.relname in ('simulation_config','sbiq_admin_registered_counts','sbiq_admin_registered_refresh_log'));
+            if n > 0 then raise exception 'Demo simulation relations present: %', n; end if;
+            raise notice 'demo_relations|0';
+            select count(*) into n from pg_proc p where p.pronamespace = 'public'::regnamespace
+              and (p.proname ~ '^sbiq_demo' or p.proname ~ 'showcase' or p.proname = 'simulate_live_feed'
+                   or p.proname ~ '^sbiq_admin_(financial_section|overview_snapshot|refresh_registered|registered_status)');
+            if n > 0 then raise exception 'Demo simulation functions present: %', n; end if;
+            raise notice 'demo_functions|0';
+            -- Reference the cron relation only when it exists; a static reference would fail to
+            -- parse/plan when pg_cron is absent even behind a false to_regclass() guard.
+            if to_regclass('cron.job') is not null then
+              execute 'select count(*) from cron.job' into n;
+              raise notice 'cron_relation|present';
+              raise notice 'cron_jobs|%', n;
+              if n > 0 then raise exception 'pg_cron jobs present in a fresh Pilot: %', n; end if;
+            else
+              raise notice 'cron_relation|absent';
+              raise notice 'cron_jobs|0';
+            end if;
+          end $$;
+          SQL
+          echo "no Demo seed/simulation objects; cron safe"
+
+      - name: 8 · Read-only certification summary (no secrets printed)
+        if: always()
+        run: |
+          echo "## Pilot M1B post-apply verification (read-only)"
+          echo "- project ref: ${IN_REF}"
+          echo "- SSL: $(cat ssl.txt 2>/dev/null || echo 'n/a')"
+          [ -f pilot.fp.txt ] && echo "- structural fingerprint: $(sha256sum pilot.fp.txt | cut -d' ' -f1)"
+          [ -f pilot.priv.txt ] && echo "- privilege-state hash: $(sha256sum pilot.priv.txt | cut -d' ' -f1)"
+          echo "  AUTHORISED_FINGERPRINT: ${AUTHORISED_FINGERPRINT}"
+          echo "  AUTHORISED_MANIFEST_SHA: ${AUTHORISED_MANIFEST_SHA}"
+          echo "- NOTE: read-only; no baseline apply, no privilege mutation, no row writes, no AWS, no deploy."
