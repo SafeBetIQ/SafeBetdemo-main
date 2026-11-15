@@ -131,12 +131,12 @@ const MODULES = [
   {
     icon: Cpu,
     title: 'SafeBet Guardian (In Development)',
-    description: 'Guardian supports underage and vulnerable-player protection — detection, investigation support and lawful escalation workflows. In development.',
+    description: 'Illegal gambling intelligence and lawful enforcement support for regulators — designed to help identify, investigate and evidence suspected illegal gambling activity across digital channels. In development.',
     color: 'text-orange-400',
     bg: 'bg-orange-500/10',
     border: 'border-orange-500/20',
     hoverBorder: 'hover:border-orange-500/40',
-    features: ['Age pattern detection', 'Behavioural anomaly flags', 'Escalation workflows', 'Supervisor alert system'],
+    features: ['Unlicensed operator detection', 'Website & app-store intelligence', 'Evidence capture', 'Lawful escalation workflows'],
   },
 ];
 
