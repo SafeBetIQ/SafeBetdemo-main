@@ -379,9 +379,10 @@ export default function RegulatorIntelligencePage() {
               </ul>
             </div>
             <div className="space-y-4">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500 font-mono">Illustrative demonstration data</div>
               {[
                 { label: 'Operator Compliance Rate', value: 91, color: 'bg-brand-400' },
-                { label: 'Self-Exclusion Enforcement', value: 99, color: 'bg-green-400' },
+                { label: 'Self-Exclusion Network', status: 'Planned', color: 'bg-gray-600' },
                 { label: 'Intervention Response Rate', value: 87, color: 'bg-teal-400' },
                 { label: 'Report Timeliness Score', value: 96, color: 'bg-cyan-400' },
                 { label: 'NRGP Programme Alignment', value: 94, color: 'bg-blue-400' },
@@ -389,13 +390,15 @@ export default function RegulatorIntelligencePage() {
                 <div key={i} className="bg-gray-900/40 border border-gray-800 rounded-xl p-5">
                   <div className="flex justify-between mb-2">
                     <span className="text-white text-sm font-semibold">{metric.label}</span>
-                    <span className="text-white text-sm font-bold">{metric.value}%</span>
+                    <span className="text-white text-sm font-bold">{'status' in metric ? metric.status : `${metric.value}%`}</span>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-2">
-                    <div
-                      className={`${metric.color} h-2 rounded-full transition-all duration-500`}
-                      style={{ width: `${metric.value}%` }}
-                    />
+                    {!('status' in metric) && (
+                      <div
+                        className={`${metric.color} h-2 rounded-full transition-all duration-500`}
+                        style={{ width: `${metric.value}%` }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
