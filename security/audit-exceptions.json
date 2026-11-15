@@ -1,38 +1,10 @@
 {
-  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted. Only HIGH advisories with NO available non-major fix are listed. AUD-P1-001/008. After the AUD-P1 remediation: production criticals = 0 (html2pdf.js->0.14.0, jspdf, next->13.5.11 resolved); lodash/nanoid/ws clean-fixed. The only remaining Highs are next + its transitive postcss, fixable solely by the Next 16 MAJOR upgrade (a separate migration + QA milestone).",
+  "$comment": "Time-limited, evidence-based PRODUCTION dependency exceptions for the SafeBet IQ production monorepo (frontend/). Consumed by scripts/ci/security-gate.mjs (SBIQ_AUDIT_DIR=frontend). A CRITICAL is NEVER excepted; a HIGH may only be covered by a current, documented, time-limited exception with a safe-remediation gap. 2026-11-15 remediation (security/prod-dependency-remediation-20261115): the two prior exceptions (next, postcss, both expired 2026-11-11) were REMOVED because every finding now has a safe compatible remediation — next upgraded 13.5.11 -> 15.5.29 (clears the two Criticals + all Next Highs), postcss forced to >=8.5.33 and source-map-js to >=1.2.2 via overrides, dompurify forced to >=3.4.18 via override (html2pdf.js/jspdf path), and the unused direct zod dependency removed. Post-remediation production posture: critical = 0, high = 0, no exceptions required.",
   "policy": {
     "failOn": ["critical", "high"],
     "productionOnly": true,
     "moderateAndLow": "warn",
     "notes": "Gate fails on any production Critical (no exceptions) and any production High not covered by a non-expired exception below."
   },
-  "exceptions": [
-    {
-      "package": "next",
-      "maxSeverity": "high",
-      "advisories": ["Residual Next.js High advisory fixed only in Next 16 (13.5.x carries the patchable criticals fixed at 13.5.11; this remaining High needs a major upgrade)"],
-      "installed": "13.5.11",
-      "fixAvailable": "major (next 16.x)",
-      "exploitability": "LOW — production frontend is served behind CloudFront/WAF; route handlers validate auth server-side; the cache-poisoning + SSRF-in-Server-Actions criticals are already remediated at 13.5.11 (no 'use server' / experimental.serverActions in use).",
-      "compensatingControl": "CloudFront/WAF fronting; no Server Actions; auth validated per request.",
-      "owner": "Kabelo (CTO) / Sipho (DevSecOps)",
-      "approvedBy": "Meeshan Naidoo (required for the Next major upgrade)",
-      "created": "2026-08-11",
-      "expiry": "2026-11-11",
-      "upgradePlan": "Dedicated Next 16 upgrade milestone (App Router migration + full regression + Playwright). Not bundled with this critical/secret remediation."
-    },
-    {
-      "package": "postcss",
-      "maxSeverity": "high",
-      "advisories": ["postcss advisory carried by the Next 13.5.x bundled toolchain (transitive via next); the direct devDependency postcss is patched to 8.5.15"],
-      "installed": "transitive via next 13.5.11 (direct devDep = 8.5.15, patched)",
-      "fixAvailable": "major (arrives with next 16.x)",
-      "exploitability": "LOW — postcss runs at BUILD time only (Next CSS pipeline); no attacker-controlled CSS is processed; no runtime CSS stringify of untrusted input.",
-      "compensatingControl": "Build-time only; first-party static CSS; direct postcss devDep already patched to 8.5.15.",
-      "owner": "Sipho (DevSecOps)",
-      "created": "2026-08-11",
-      "expiry": "2026-11-11",
-      "upgradePlan": "Resolved by the Next 16 upgrade milestone (which updates the bundled toolchain)."
-    }
-  ]
+  "exceptions": []
 }
