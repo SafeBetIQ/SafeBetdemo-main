@@ -28,8 +28,9 @@ env:
   AUTHORISED_DERIVATIVE_SHA: c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067
   AUTHORISED_PRE_HARDENING_FINGERPRINT: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
   AUTHORISED_MANIFEST_SHA: ea03c077605e3fdecd88377f251cc2f10810f4ed6f52addf662007e1c65f27e6
-  # Observed on the live Pilot (apply run 43748247971); this workflow proves it independently.
-  EXPECTED_POST_HARDENING_FINGERPRINT: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
+  # Authorised POST-hardening fingerprint — independently reproduced here and matched to the live
+  # Pilot (apply run 43748247971). The verifier compares the hardened live Pilot against this value.
+  AUTHORISED_POST_HARDENING_FINGERPRINT: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
   BASE: deploy/pilot/baseline
   DERIVATIVE: deploy/pilot/baseline/generated/pilot_app_schema_supabase.sql
 
@@ -116,16 +117,36 @@ jobs:
           echo "post_hardening_fingerprint_B=$B"
           [ "$A" = "$B" ] || { echo "::error::post-hardening fingerprint NOT reproducible ($A vs $B)"; exit 1; }
           echo "post_hardening_fingerprint=$A"
-          if [ "$A" = "$EXPECTED_POST_HARDENING_FINGERPRINT" ]; then
-            echo "MATCHES live Pilot value ($EXPECTED_POST_HARDENING_FINGERPRINT)"
-          else
-            echo "::warning::derived post-hardening fingerprint ($A) != live Pilot expectation ($EXPECTED_POST_HARDENING_FINGERPRINT)"
-          fi
+          [ "$A" = "$AUTHORISED_POST_HARDENING_FINGERPRINT" ] || { echo "::error::derived post-hardening fingerprint ($A) != authorised ($AUTHORISED_POST_HARDENING_FINGERPRINT)"; exit 1; }
+          # Pre and post must be DIFFERENT (post-apply hardening deliberately changes grants).
+          [ "$A" != "$AUTHORISED_PRE_HARDENING_FINGERPRINT" ] || { echo "::error::post-hardening fingerprint equals pre-hardening — hardening had no effect"; exit 1; }
+          echo "post-hardening fingerprint reproduced and matches the authorised value"
           {
             echo "## Post-hardening fingerprint reproduction"
-            echo "- pre-hardening (authorised): \`$AUTHORISED_PRE_HARDENING_FINGERPRINT\`"
+            echo "- pre-hardening (authorised, provenance): \`$AUTHORISED_PRE_HARDENING_FINGERPRINT\`"
             echo "- post-hardening run A: \`$A\`"
             echo "- post-hardening run B: \`$B\`"
-            echo "- reproducible: $([ "$A" = "$B" ] && echo yes || echo NO)"
-            echo "- equals live Pilot value: $([ "$A" = "$EXPECTED_POST_HARDENING_FINGERPRINT" ] && echo yes || echo NO)"
+            echo "- reproducible: yes · equals authorised post-hardening value: yes · differs from pre-hardening: yes"
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+  verifier-check:
+    name: Verifier uses the POST-hardening fingerprint (static, no DB)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout this branch (contains the verifier)
+        uses: actions/checkout@v4
+      - name: Verifier must compare the hardened Pilot against the POST-hardening fingerprint
+        env:
+          POST: cbdfb005eb25ddc8802961180f59a4fd1fb166b171b9094feff53337cff641c3
+          PRE: 5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49
+        run: |
+          set -euo pipefail
+          V=.github/workflows/pilot-m1b-postapply-verify.yml
+          [ -f "$V" ] || { echo "::error::verifier workflow not found on this branch"; exit 1; }
+          grep -q "AUTHORISED_POST_HARDENING_FINGERPRINT: ${POST}" "$V" || { echo "::error::verifier does not pin the authorised post-hardening fingerprint"; exit 1; }
+          grep -q '\[ "\$fp" = "\$AUTHORISED_POST_HARDENING_FINGERPRINT" \]' "$V" || { echo "::error::verifier does not compare against the post-hardening fingerprint"; exit 1; }
+          grep -q 'equals the PRE-hardening value' "$V" || { echo "::error::verifier does not reject the pre-hardening fingerprint"; exit 1; }
+          # The pre-hardening value must appear only as documented provenance, never as the comparison target.
+          grep -q '\[ "\$fp" = "\$AUTHORISED_FINGERPRINT" \]' "$V" && { echo "::error::verifier still compares against the ambiguous AUTHORISED_FINGERPRINT"; exit 1; } || true
+          echo "verifier correctly uses the post-hardening fingerprint and rejects the pre-hardening one"
