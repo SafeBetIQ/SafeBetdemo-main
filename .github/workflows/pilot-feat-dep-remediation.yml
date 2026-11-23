@@ -1,0 +1,93 @@
+name: Pilot feat dependency remediation (Linux lockfile regen + validate)
+
+# Regenerates SafeBetdemo-main/package-lock.json on LINUX (Windows would prune sharp's
+# @img/sharp-* cross-platform optional-binary matrix), commits it back once, then validates:
+# npm ci, npm audit (critical=0/high=0), sharp load + linux-x64 binary, security gate,
+# secret scan, typecheck, production build. No Pilot DB, no AWS, no deployment, no secrets.
+
+on:
+  push:
+    branches: [fix/pilot-feat-dependency-remediation-20261118]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: feat-dep-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remediate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_ENV: local
+      NEXT_PUBLIC_SAFEBET_ENV: local
+      NEXT_PUBLIC_APP_NAME: "SafeBet IQ"
+      NEXT_PUBLIC_SUPABASE_URL: "https://placeholder-build-only.supabase.co"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-anon-key-for-build-validation-only"
+      NEXT_PUBLIC_API_BASE_URL: "https://localhost"
+      NEXT_PUBLIC_REGION: "eu-west-1"
+      NEXT_PUBLIC_DR_REGION: "eu-west-1"
+      NEXT_PUBLIC_ENABLE_DEBUG: "false"
+      NEXT_PUBLIC_ENABLE_MOCK_DATA: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: Regenerate lockfile on Linux (preserves sharp cross-platform matrix)
+        working-directory: SafeBetdemo-main
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          echo "sharp optional packages recorded in lockfile:"
+          grep -oE '@img/sharp-[a-z0-9-]+' package-lock.json | sort -u
+
+      - name: Commit the Linux-regenerated lockfile back (skip ci)
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- SafeBetdemo-main/package-lock.json; then
+            echo "lockfile unchanged"; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add SafeBetdemo-main/package-lock.json
+          git commit -m "chore(pilot-feat): Linux-regenerated package-lock for dependency remediation [skip ci]"
+          git push origin HEAD:fix/pilot-feat-dependency-remediation-20261118
+
+      - name: npm ci (lockfile reproducibility)
+        working-directory: SafeBetdemo-main
+        run: npm ci --no-audit --no-fund
+
+      - name: npm audit --omit=dev (must be critical=0 high=0)
+        working-directory: SafeBetdemo-main
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --json > audit.json || true
+          node -e "const a=require('./audit.json').metadata.vulnerabilities; console.log(JSON.stringify(a)); if(a.critical>0||a.high>0){console.error('::error::audit not clean'); process.exit(1);}"
+
+      - name: sharp loads on Linux + linux-x64 binary present
+        working-directory: SafeBetdemo-main
+        run: |
+          set -euo pipefail
+          node -e "const s=require('sharp'); console.log('sharp version:', require('sharp/package.json').version); console.log('libvips:', s.versions && s.versions.vips);"
+          test -d node_modules/@img/sharp-linux-x64 || { echo "::error::@img/sharp-linux-x64 missing"; exit 1; }
+          echo "linux-x64 sharp binary present"
+          grep -q '"@img/sharp-linux-x64"' package-lock.json || { echo "::error::linux-x64 sharp not in lockfile"; exit 1; }
+
+      - name: Security gate
+        working-directory: SafeBetdemo-main
+        run: node scripts/ci/security-gate.mjs
+
+      - name: Secret scan
+        working-directory: SafeBetdemo-main
+        run: node scripts/ci/secret-scan.mjs
+
+      - name: Typecheck
+        working-directory: SafeBetdemo-main
+        run: npm run typecheck
+
+      - name: Production build
+        working-directory: SafeBetdemo-main
+        run: npm run build:eb
