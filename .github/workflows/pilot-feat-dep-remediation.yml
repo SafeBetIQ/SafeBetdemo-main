@@ -71,10 +71,10 @@ jobs:
         working-directory: SafeBetdemo-main
         run: |
           set -euo pipefail
-          node -e "const s=require('sharp'); console.log('sharp version:', require('sharp/package.json').version); console.log('libvips:', s.versions && s.versions.vips);"
+          node -e "const s=require('sharp'); const v=s.versions||{}; console.log('sharp loaded OK; versions:', JSON.stringify(v)); if(!v.vips){console.error('::error::libvips not reported'); process.exit(1);}"
           test -d node_modules/@img/sharp-linux-x64 || { echo "::error::@img/sharp-linux-x64 missing"; exit 1; }
           echo "linux-x64 sharp binary present"
-          grep -q '"@img/sharp-linux-x64"' package-lock.json || { echo "::error::linux-x64 sharp not in lockfile"; exit 1; }
+          grep -q '@img/sharp-linux-x64' package-lock.json || { echo "::error::linux-x64 sharp not in lockfile"; exit 1; }
 
       - name: Security gate
         working-directory: SafeBetdemo-main
