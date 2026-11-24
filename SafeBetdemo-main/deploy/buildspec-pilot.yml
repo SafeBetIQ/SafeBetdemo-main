@@ -30,14 +30,24 @@ env:
     NEXT_PUBLIC_SAFEBET_OPERATING_MODE: "production"
     SAFEBET_OPERATING_MODE: "production"
     ENABLE_DEMO_QUICK_LOGIN: "false"
-    # TWO SEPARATE AUTHORITIES (M1B-P1F Correction 6 / M1B-P1):
-    #   SAFEBET_SCHEMA_SOURCE_COMMIT = provenance of the curated schema baseline (530941a5…). This is
-    #     NOT the application deployment authority. The Pilot application MUST NOT be deployed from it,
-    #     because that commit predates the M1B-P1F hardening.
-    #   SAFEBET_APP_COMMIT = the authorised Pilot APPLICATION deployment commit. SAFEBET_GIT_COMMIT
-    #     supplied at start-build must equal it (and must not be the schema-source commit).
+    # TWO SEPARATE AUTHORITIES (M1B-P1F Correction 6 / M1B-P1 / M1B-P2A.1):
+    #   SAFEBET_SCHEMA_SOURCE_COMMIT = provenance of the curated, IMMUTABLE schema baseline (530941a5…).
+    #     Hard-coded here on purpose. It is NOT the application deployment authority; the Pilot
+    #     application MUST NOT be deployed from it (it predates the M1B-P1F hardening).
+    #   SAFEBET_APP_COMMIT = the authorised Pilot APPLICATION deployment commit. It is DELIBERATELY NOT
+    #     hard-coded in this file. This buildspec lives inside the very source it would authorise, so
+    #     embedding the SHA is self-referential: editing the file changes the deployable SHA, which then
+    #     no longer matches the embedded value. Instead SAFEBET_APP_COMMIT is a GOVERNED, CodeBuild
+    #     PROJECT-LEVEL environment variable:
+    #       • set to the owner-approved reviewed application commit AFTER review (in the AWS phase);
+    #       • normal build invocations MUST NOT override it (it is the approval authority);
+    #       • SAFEBET_GIT_COMMIT is the commit actually packaged into the S3 source — equality with
+    #         SAFEBET_APP_COMMIT proves the package matches the authorised reviewed commit;
+    #       • changing the reviewed application commit requires an explicit governed update to the
+    #         CodeBuild project configuration — never a code edit here, never a branch-HEAD fallback;
+    #       • there is NO default/fallback value: the build fails closed if SAFEBET_APP_COMMIT is unset.
+    #     Neither commit variable may ever hold a secret.
     SAFEBET_SCHEMA_SOURCE_COMMIT: "379141e45c7f6f9db1888ebaebfa45fbf86a993e"
-    SAFEBET_APP_COMMIT: "3b18faa4343eee30576aa4f3ac132ac2176c9713"
     SAFEBET_FORBIDDEN_REFS: "ilibvipqbkugqkppzdmh druuskabkgyotslcgnys uexdjngogzunjxkpxwll"
     NODE_OPTIONS: "--max-old-space-size=4096"
 
@@ -63,16 +73,20 @@ phases:
         for r in $SAFEBET_FORBIDDEN_REFS; do
           case "$NEXT_PUBLIC_SUPABASE_URL" in *"$r"*) fail "NEXT_PUBLIC_SUPABASE_URL targets a forbidden project (Production/Guardian/Demo)";; esac
         done
-        # Application deployment authority: the reviewed M1B-P1F commit, supplied at start-build.
-        # It must be a real 40-hex commit and must NOT be the schema-baseline source commit (which
-        # lacks the M1B-P1F hardening), nor a forbidden-project ref.
-        # SAFEBET_GIT_COMMIT is the MANDATORY authoritative application-commit identity (the git archive
-        # packaged into the S3 source). It must be a 40-hex commit, must equal the authorised Pilot app
-        # commit, and must never be the schema-source commit.
-        [ -n "${SAFEBET_GIT_COMMIT:-}" ] || fail "SAFEBET_GIT_COMMIT (authorised Pilot application commit) required"
-        echo "${SAFEBET_GIT_COMMIT}" | grep -Eq '^[0-9a-f]{40}$' || fail "SAFEBET_GIT_COMMIT must be a 40-hex commit"
+        # Application deployment authority (M1B-P2A.1 — externalised, no hard-coded SHA in this file).
+        #   SAFEBET_APP_COMMIT is the GOVERNED approval authority, supplied by the CodeBuild PROJECT
+        #   configuration (never defaulted here, never derived from branch HEAD). It must exist, be a
+        #   40-lowercase-hex commit, and must not be the schema-baseline source commit.
+        [ -n "${SAFEBET_APP_COMMIT:-}" ] || fail "SAFEBET_APP_COMMIT (governed CodeBuild project value) required — there is no default"
+        echo "${SAFEBET_APP_COMMIT}" | grep -Eq '^[0-9a-f]{40}$' || fail "SAFEBET_APP_COMMIT must be 40 lowercase hex"
+        [ "${SAFEBET_APP_COMMIT}" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "SAFEBET_APP_COMMIT must not be the schema-baseline SOURCE commit (379141e)"
+        # SAFEBET_GIT_COMMIT is the commit ACTUALLY packaged into the S3 source. It must exist, be a
+        # 40-lowercase-hex commit, must never be the schema-source commit, and must EQUAL the governed
+        # SAFEBET_APP_COMMIT — proving the package matches the authorised reviewed application commit.
+        [ -n "${SAFEBET_GIT_COMMIT:-}" ] || fail "SAFEBET_GIT_COMMIT (packaged source commit) required"
+        echo "${SAFEBET_GIT_COMMIT}" | grep -Eq '^[0-9a-f]{40}$' || fail "SAFEBET_GIT_COMMIT must be 40 lowercase hex"
         [ "${SAFEBET_GIT_COMMIT}" != "$SAFEBET_SCHEMA_SOURCE_COMMIT" ] || fail "SAFEBET_GIT_COMMIT is the schema-baseline SOURCE commit (379141e) — not the application deployment authority"
-        [ "${SAFEBET_GIT_COMMIT}" = "$SAFEBET_APP_COMMIT" ] || fail "SAFEBET_GIT_COMMIT must equal the authorised Pilot application commit $SAFEBET_APP_COMMIT"
+        [ "${SAFEBET_GIT_COMMIT}" = "$SAFEBET_APP_COMMIT" ] || fail "SAFEBET_GIT_COMMIT must equal the authorised Pilot application commit (SAFEBET_APP_COMMIT)"
         # CODEBUILD_RESOLVED_SOURCE_VERSION is Git identity ONLY when it is a 40-hex Git SHA (GitHub/
         # CodeCommit sources). For the approved S3-backed source it is an S3 object version id and MUST
         # NOT be treated as Git identity — but it is never accepted as proof of the commit either.
