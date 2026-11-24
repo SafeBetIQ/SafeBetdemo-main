@@ -169,8 +169,9 @@ const bsEnv = (o = {}) => ({
 test('buildspec-pilot: sets the Pilot values, separates schema-source from app authority, no synthetic dataClass', () => {
   for (const kv of ['NEXT_PUBLIC_ENV: "pilot"', 'NEXT_PUBLIC_SAFEBET_ENV: "pilot"', 'SAFEBET_OPERATING_MODE: "production"',
     'NEXT_PUBLIC_SAFEBET_OPERATING_MODE: "production"', 'ENABLE_DEMO_QUICK_LOGIN: "false"']) assert.ok(BS.includes(kv), kv);
-  assert.ok(BS.includes('SAFEBET_SCHEMA_SOURCE_COMMIT:'), 'schema-source authority documented');
-  assert.ok(BS.includes(`SAFEBET_APP_COMMIT: "${APP_COMMIT}"`), 'authorised Pilot app commit pinned');
+  assert.match(BS, /SAFEBET_SCHEMA_SOURCE_COMMIT: "379141e45c7f6f9db1888ebaebfa45fbf86a993e"/, 'schema-source authority stays hard-coded');
+  // M1B-P2A.1: the application commit authority is EXTERNALISED — no hard-coded SAFEBET_APP_COMMIT key.
+  assert.ok(!/^\s*SAFEBET_APP_COMMIT:/m.test(BS), 'SAFEBET_APP_COMMIT must NOT be a hard-coded buildspec value (governed CodeBuild project var)');
   assert.ok(!/SAFEBET_AUTHORISED_COMMIT:/.test(BS), 'old single-authority var removed');
   assert.ok(!/"dataClass": "synthetic"/.test(BS), 'Pilot must not declare synthetic data');
   assert.ok(BS.includes('"dataClass": "pilot-no-operator-data"'), 'Pilot data class is explicit and not real-operator-data');
@@ -208,4 +209,28 @@ test('buildspec-pilot B-2: CODEBUILD_RESOLVED_SOURCE_VERSION is Git identity onl
   assert.notEqual(bash(PRE, bsEnv({ SAFEBET_GIT_COMMIT: 'b'.repeat(40) })).status, 0, 'git_commit != authorised');
   // 5) SAFEBET_GIT_COMMIT = schema-source commit => FAIL
   assert.notEqual(bash(PRE, bsEnv({ SAFEBET_GIT_COMMIT: COMMIT })).status, 0, 'git_commit == schema-source');
+});
+
+test('buildspec-pilot M1B-P2A.1: externalised app-commit authority guard (CASE A-I, fail-closed)', () => {
+  const VALID = APP_COMMIT;                       // a valid reviewed 40-lowercase-hex application commit
+  const without = (k) => { const e = bsEnv(); delete e[k]; return e; };
+  // CASE G: APP == GIT, both valid 40-hex, != schema-source => PASS
+  assert.equal(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: VALID, SAFEBET_GIT_COMMIT: VALID })).status, 0, 'G: valid reviewed app commit');
+  // CASE A: SAFEBET_APP_COMMIT absent (no default) => FAIL CLOSED
+  assert.notEqual(bash(PRE, without('SAFEBET_APP_COMMIT')).status, 0, 'A: app commit absent');
+  // CASE B: SAFEBET_GIT_COMMIT absent => FAIL CLOSED
+  assert.notEqual(bash(PRE, without('SAFEBET_GIT_COMMIT')).status, 0, 'B: git commit absent');
+  // CASE C: non-40-hex app commit (and uppercase) => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: 'not-a-commit', SAFEBET_GIT_COMMIT: 'not-a-commit' })).status, 0, 'C: app not 40-hex');
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: 'A'.repeat(40), SAFEBET_GIT_COMMIT: 'A'.repeat(40) })).status, 0, 'C: uppercase hex rejected');
+  // CASE D: non-40-hex git commit (app valid) => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: VALID, SAFEBET_GIT_COMMIT: 'deadbeef' })).status, 0, 'D: git not 40-hex');
+  // CASE E: APP != GIT => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: VALID, SAFEBET_GIT_COMMIT: 'b'.repeat(40) })).status, 0, 'E: app != git');
+  // CASE F: APP/GIT == schema-source commit => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ SAFEBET_APP_COMMIT: COMMIT, SAFEBET_GIT_COMMIT: COMMIT })).status, 0, 'F: equals schema-source');
+  // CASE H: forbidden Supabase project ref => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ NEXT_PUBLIC_SUPABASE_URL: `https://${FORBIDDEN.production}.supabase.co` })).status, 0, 'H: forbidden ref');
+  // CASE I: service-role key present in the build environment => FAIL CLOSED
+  assert.notEqual(bash(PRE, bsEnv({ SUPABASE_SERVICE_ROLE_KEY: 'x' })).status, 0, 'I: service-role key present');
 });
