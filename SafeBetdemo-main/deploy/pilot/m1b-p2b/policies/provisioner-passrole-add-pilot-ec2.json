@@ -1,0 +1,10 @@
+{
+  "_note": "ADD-ONLY delta: append arn:aws:iam::046276255259:role/safebet-iq-pilot-eb-ec2-role to the existing SafeBetIQPilotProvisionerPolicy 'PassOnlyApprovedRoles' Resource list. Prepare a new policy version; keep the prior version for rollback (do not delete it). This is an IAM-admin action (see README 3A) — the provisioner cannot (and must not) update its own policy.",
+  "PassOnlyApprovedRolesResourceAfter": [
+    "arn:aws:iam::046276255259:role/aws-elasticbeanstalk-ec2-role",
+    "arn:aws:iam::046276255259:role/aws-elasticbeanstalk-service-role",
+    "arn:aws:iam::046276255259:role/SafeBetDemoCodeBuildRole",
+    "arn:aws:iam::046276255259:role/safebet-iq-pilot-codebuild-role",
+    "arn:aws:iam::046276255259:role/safebet-iq-pilot-eb-ec2-role"
+  ]
+}

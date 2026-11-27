@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PilotEbArtifactsReadOnly",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": [
+        "arn:aws:s3:::safebet-iq-pilot-build",
+        "arn:aws:s3:::safebet-iq-pilot-build/*",
+        "arn:aws:s3:::elasticbeanstalk-eu-west-1-046276255259",
+        "arn:aws:s3:::elasticbeanstalk-eu-west-1-046276255259/resources/environments/*"
+      ]
+    },
+    {
+      "Sid": "PilotEbLogsWriteOwnGroup",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogStreams"],
+      "Resource": "arn:aws:logs:eu-west-1:046276255259:log-group:/aws/elasticbeanstalk/safebet-iq-pilot/*"
+    }
+  ]
+}

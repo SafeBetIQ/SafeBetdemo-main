@@ -13,6 +13,7 @@
 // the slug is allowlisted. Super Admin is intentionally NOT reachable here.
 
 import { NextResponse } from 'next/server';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { createClient } from '@supabase/supabase-js';
 import { resolveDemoSlug, type DemoSlugCfg as SlugCfg } from '@/lib/demoAuthSlugs';
 
@@ -41,7 +42,7 @@ function enabled(): boolean {
 
 async function writeAudit(slug: string, cfg: SlugCfg | undefined, resolvedId: string | null, ok: boolean, correlationId: string) {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const url = getSupabaseUrl();
     const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !service) return;
     const admin = createClient(url, service, { auth: { persistSession: false } });
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
   if (limited(acctHits, slug, 5, 60_000)) return generic(429);
 
   // 5) Server-only credentials.
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const email = process.env[cfg.emailEnv];
   const password = process.env[cfg.pwEnv];

@@ -16,6 +16,7 @@
 // boundary; the table's forced RLS is defence-in-depth against ordinary roles.
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { verifyPrincipal, principalMayAccessCasino, type AuthenticatedPrincipal, type PrincipalClient } from '../security/principal.ts';
 import { resolveRpScope } from './metrics.ts';
 import { isAlertOperatorRole, alertScopeProfile } from './alerts.ts';
@@ -35,7 +36,7 @@ export type AlertAccess = AlertAccessOk | AlertAccessDeny;
  *        for pinned operators it is refused if it differs from their own casino).
  */
 export async function resolveAlertAccess(req: Request, requestedCasinoId?: string): Promise<AlertAccess> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !service) return { ok: false, status: 503 };
 
