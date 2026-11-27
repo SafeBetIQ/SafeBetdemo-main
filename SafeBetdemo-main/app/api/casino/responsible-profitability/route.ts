@@ -17,6 +17,7 @@
 // anon surface is introduced (§7). Anon → 401, unknown/ineligible role → 403.
 
 import { NextResponse } from 'next/server';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { createClient } from '@supabase/supabase-js';
 import { computeResponsibleProfitability, gatewayAuthorizationOutcome, resolveRpScope, computeInterventionOutcomes, type RpKpi, type RpInterventionCoverage, type InterventionOutcomeAggregate } from '@/lib/responsibleProfitability';
 import { profileForRole } from '@/lib/consumerPlatform/authorization';
@@ -32,7 +33,7 @@ interface LiveFloorLite { kpi: LiveKpiView | null; financial: FinancialPostureVi
 
 export async function GET(req: Request) {
   const correlationId = crypto.randomUUID();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anon || !service) return deny(503);

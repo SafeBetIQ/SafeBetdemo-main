@@ -8,6 +8,7 @@
 // fails). No DB migration; no mutation beyond the single governed audit event.
 
 import { createHash, randomUUID } from 'node:crypto';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -28,7 +29,7 @@ export interface GovAccessDeny { ok: false; status: number }
 export type GovAccess = GovAccessOk | GovAccessDeny;
 
 export async function resolveGovEvidenceAccess(req: Request, requestedCasinoId?: string): Promise<GovAccess> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !service) return { ok: false, status: 503 };
   const admin = createClient(url, service, { auth: { persistSession: false } });

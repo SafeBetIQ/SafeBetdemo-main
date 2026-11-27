@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { readTokenFromStore } from './demoSimHealthClient';
+import { getSupabaseUrl } from './supabaseTarget';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// Fail closed in Pilot unless this is EXACTLY the authorised Pilot project URL (M1B-P2B.2).
+const supabaseUrl = getSupabaseUrl();
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

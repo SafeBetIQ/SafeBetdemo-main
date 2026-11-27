@@ -9,6 +9,7 @@
 // private in-memory cache of non-secret metrics only; no CDN cache; no secrets.
 
 import { NextResponse } from 'next/server';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { createClient } from '@supabase/supabase-js';
 import { cacheHit } from '@/lib/demoSimHealthClient';
 
@@ -27,7 +28,7 @@ let finCache: Entry | null = null;
 export async function GET(req: Request) {
   const correlationId = crypto.randomUUID();
   if (process.env.NEXT_PUBLIC_ENV !== 'demo') return deny(404);
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !service) return deny(503);
 

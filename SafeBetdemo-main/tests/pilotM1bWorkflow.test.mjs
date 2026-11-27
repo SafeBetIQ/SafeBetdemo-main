@@ -18,7 +18,8 @@ const SHA = '530941a513216c056eab18e182be09f3d0fe803955c7c7315ccd36123b9fa182';
 const DERIV_SHA = 'c2125accccc133172357a36d96b343f0d42dcc3d07695e56089950dd01512067';
 const FP = '5f324b14ea87dec4601b0586bc4a4726be83ebceae3112253ba2db838ca55f49';
 const FORBIDDEN = { production: 'ilibvipqbkugqkppzdmh', guardian: 'druuskabkgyotslcgnys', demo: 'uexdjngogzunjxkpxwll' };
-const PILOT_REF = 'abcdefghijklmnopqrst'; // synthetic
+const PILOT_REF = 'abcdefghijklmnopqrst'; // synthetic (baseline-apply DB-ref tests)
+const PILOT_URL = 'https://umejmtnzxbmezraercdj.supabase.co'; // the EXACT authorised Pilot project URL (M1B-P2B.2)
 
 function runBlock(text, stepName) {
   const i = text.indexOf(`- name: ${stepName}`);
@@ -162,7 +163,7 @@ const bsEnv = (o = {}) => ({
   NEXT_PUBLIC_SAFEBET_OPERATING_MODE: 'production', ENABLE_DEMO_QUICK_LOGIN: 'false',
   SAFEBET_SCHEMA_SOURCE_COMMIT: COMMIT, SAFEBET_APP_COMMIT: APP_COMMIT,
   SAFEBET_FORBIDDEN_REFS: Object.values(FORBIDDEN).join(' '),
-  NEXT_PUBLIC_SUPABASE_URL: `https://${PILOT_REF}.supabase.co`, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-public',
+  NEXT_PUBLIC_SUPABASE_URL: PILOT_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-public',
   SAFEBET_GIT_COMMIT: APP_COMMIT, ...o,
 });
 
@@ -233,4 +234,23 @@ test('buildspec-pilot M1B-P2A.1: externalised app-commit authority guard (CASE A
   assert.notEqual(bash(PRE, bsEnv({ NEXT_PUBLIC_SUPABASE_URL: `https://${FORBIDDEN.production}.supabase.co` })).status, 0, 'H: forbidden ref');
   // CASE I: service-role key present in the build environment => FAIL CLOSED
   assert.notEqual(bash(PRE, bsEnv({ SUPABASE_SERVICE_ROLE_KEY: 'x' })).status, 0, 'I: service-role key present');
+});
+
+test('buildspec-pilot M1B-P2B.2: EXACT Pilot Supabase URL allowlist (build-time, fail-closed)', () => {
+  // valid exact Pilot URL => PASS
+  assert.equal(bash(PRE, bsEnv({ NEXT_PUBLIC_SUPABASE_URL: PILOT_URL })).status, 0, 'exact Pilot URL');
+  const bad = [
+    '',                                                              // missing
+    `https://${FORBIDDEN.production}.supabase.co`,                   // Production
+    `https://${FORBIDDEN.demo}.supabase.co`,                        // Demo
+    `https://${FORBIDDEN.guardian}.supabase.co`,                     // Guardian
+    'https://zzzzzzzzzzzzzzzzzzzz.supabase.co',                      // unknown 4th project
+    'https://umejmtnzxbmezraercdj.supabase.co.evil.com',            // lookalike hostname
+    'https://umejmtnzxbmezraercdj.supabase.co/rest/v1',            // appended path
+    'https://umejmtnzxbmezraercdj.supabase.co?x=1',                // appended query
+    'https://umejmtnzxbmezraercdj.supabase.co/',                   // trailing slash
+    'http://umejmtnzxbmezraercdj.supabase.co',                      // wrong scheme
+    'umejmtnzxbmezraercdj.supabase.co',                             // malformed (no scheme)
+  ];
+  for (const u of bad) assert.notEqual(bash(PRE, bsEnv({ NEXT_PUBLIC_SUPABASE_URL: u })).status, 0, `must reject: ${u || '(empty)'}`);
 });

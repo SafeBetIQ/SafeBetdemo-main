@@ -5,6 +5,7 @@
 // authority. Returns the refresh status + new certified timestamp. No player data.
 
 import { NextResponse } from 'next/server';
+import { getSupabaseUrl } from '@/lib/supabaseTarget';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ const deny = (status: number) =>
 export async function POST(req: Request) {
   const correlationId = crypto.randomUUID();
   if (process.env.NEXT_PUBLIC_ENV !== 'demo') return deny(404);
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !service) return deny(503);
 

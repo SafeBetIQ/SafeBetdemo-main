@@ -73,6 +73,10 @@ phases:
         for r in $SAFEBET_FORBIDDEN_REFS; do
           case "$NEXT_PUBLIC_SUPABASE_URL" in *"$r"*) fail "NEXT_PUBLIC_SUPABASE_URL targets a forbidden project (Production/Guardian/Demo)";; esac
         done
+        # M1B-P2B.2 — EXACT positive allowlist: the Pilot build may ONLY target the authorised Pilot
+        # project URL. This rejects unknown 4th projects, lookalike hostnames, appended paths/queries,
+        # trailing slashes and malformed values (the denylist above is defence-in-depth only).
+        [ "${NEXT_PUBLIC_SUPABASE_URL}" = "https://umejmtnzxbmezraercdj.supabase.co" ] || fail "NEXT_PUBLIC_SUPABASE_URL must be EXACTLY https://umejmtnzxbmezraercdj.supabase.co (authorised Pilot project)"
         # Application deployment authority (M1B-P2A.1 — externalised, no hard-coded SHA in this file).
         #   SAFEBET_APP_COMMIT is the GOVERNED approval authority, supplied by the CodeBuild PROJECT
         #   configuration (never defaulted here, never derived from branch HEAD). It must exist, be a
